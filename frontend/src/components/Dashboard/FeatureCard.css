@@ -1,0 +1,85 @@
+.feature-card {
+  background: white;
+  border-radius: 15px;
+  padding: 2rem;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  text-align: center;
+  transition: all 0.3s ease;
+  border: 2px solid transparent;
+  cursor: pointer;
+  border-top: 4px solid;
+}
+
+.feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  border-color: #74b9ff;
+}
+
+.feature-card i {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+  display: block;
+}
+
+.feature-card h3 {
+  font-size: 1.3rem;
+  margin-bottom: 1rem;
+  color: #2c3e50;
+}
+
+.feature-card p {
+  color: #6c757d;
+  line-height: 1.6;
+  margin-bottom: 1.5rem;
+}
+
+.feature-btn {
+  background: linear-gradient(135deg, #74b9ff, #0984e3);
+  color: white;
+  padding: 0.8rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  text-decoration: none;
+  display: inline-block;
+  font-weight: 500;
+  transition: all 0.3s ease;
+}
+
+.feature-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(116, 185, 255, 0.4);
+}
+
+/* Color variants */
+.technical-card {
+  border-top-color: #3498db;
+}
+
+.technical-card i {
+  color: #3498db;
+}
+
+.hr-card {
+  border-top-color: #e74c3c;
+}
+
+.hr-card i {
+  color: #e74c3c;
+}
+
+.resume-card {
+  border-top-color: #27ae60;
+}
+
+.resume-card i {
+  color: #27ae60;
+}
+
+.profile-card {
+  border-top-color: #f39c12;
+}
+
+.profile-card i {
+  color: #f39c12;
+}

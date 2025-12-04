@@ -1,0 +1,21 @@
+.env
+myenv
+node_modules
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Virtual environments
+venv/
+env/
+.env/
+
+# Jupyter
+.ipynb_checkpoints
+
+# VSCode / PyCharm
+.vscode/
+.idea/
