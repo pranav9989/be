@@ -4,6 +4,39 @@ import faiss
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 
+import json
+import os
+import faiss
+from sentence_transformers import SentenceTransformer
+import google.generativeai as genai
+
+# optional: load .env automatically during development
+# pip install python-dotenv
+try:
+    from dotenv import load_dotenv
+    # If your env file is named something else (e.g., "a.env") change the argument:
+    # load_dotenv("a.env")
+    load_dotenv()  # loads .env in current working directory if present
+except Exception:
+    # dotenv is optional — we'll still check os.environ below
+    pass
+
+# Helper to fetch the API key (tolerant to small typos)
+def get_gemini_api_key():
+    # Main name we expect
+    key = os.environ.get("GEMINI_API_KEY")
+    if key:
+        return key
+    # Tolerate a common typo you mentioned
+    key = os.environ.get("GEMIN_API_KEY")
+    if key:
+        return key
+    # Some setups use GOOGLE_API_KEY for older clients — check that too
+    key = os.environ.get("GOOGLE_API_KEY")
+    if key:
+        return key
+    return None
+
 # Load configuration and data
 def load_json(file_path):
     with open(file_path, 'r', encoding='utf-8') as f:
@@ -36,7 +69,7 @@ def get_relevant_chunks(query, index, metas, model, k=5):
     chunks = [metas[i] for i in I[0]]
     return chunks
 
-def generate_rag_response(query, context, model_name="gemini-1.5-flash-latest"):
+def generate_rag_response(query, context, model_name="gemini-2.0-flash"):
     """
     Generates a response using the Gemini model with retrieved context.
     """
