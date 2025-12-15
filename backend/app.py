@@ -176,7 +176,7 @@ rag_embedder = None
 topic_rules = None
 
 # Gemini model name (allow override via env)
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
 
 def get_gemini_api_key():
     for name in ("GEMINI_API_KEY", "GEMIN_API_KEY", "GOOGLE_API_KEY"):
@@ -699,7 +699,7 @@ def generate_hr_questions():
         skills = json.loads(current_user.skills) if current_user.skills else []
         experience = current_user.experience_years
 
-        gemini_model = genai.GenerativeModel("models/gemini-1.5-flash")
+        gemini_model = genai.GenerativeModel("models/gemini-flash-latest")
 
         prompt = f"""
         Generate 5 HR interview questions for a candidate with the following profile:

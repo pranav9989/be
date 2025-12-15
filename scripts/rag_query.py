@@ -32,9 +32,9 @@ def get_gemini_api_key():
     if key:
         return key
     # Some setups use GOOGLE_API_KEY for older clients — check that too
-    key = os.environ.get("GOOGLE_API_KEY")
-    if key:
-        return key
+    #key = os.environ.get("GOOGLE_API_KEY")
+    #if key:
+    #    return key
     return None
 
 # Load configuration and data
@@ -69,7 +69,7 @@ def get_relevant_chunks(query, index, metas, model, k=5):
     chunks = [metas[i] for i in I[0]]
     return chunks
 
-def generate_rag_response(query, context, model_name="gemini-2.0-flash"):
+def generate_rag_response(query, context, model_name="models/gemini-flash-latest"):
     """
     Generates a response using the Gemini model with retrieved context.
     """

@@ -74,10 +74,6 @@ Required packages:
 Set your Gemini API key:
 ```bash
 export GEMINI_API_KEY="your-api-key-here"
-
-# Alternative: Create a .env file in the project root with:
-# GEMINI_API_KEY=your-api-key-here
-# SECRET_KEY=your-secret-key-here
 ```
 
 ## 📋 Usage Instructions
