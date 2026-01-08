@@ -1,152 +1,169 @@
-import json
 import os
+import json
 import faiss
 from sentence_transformers import SentenceTransformer
 import google.generativeai as genai
 
-import json
-import os
-import faiss
-from sentence_transformers import SentenceTransformer
-import google.generativeai as genai
-
-# optional: load .env automatically during development
-# pip install python-dotenv
+# ================== ENV SETUP ==================
 try:
     from dotenv import load_dotenv
-    # If your env file is named something else (e.g., "a.env") change the argument:
-    # load_dotenv("a.env")
-    load_dotenv()  # loads .env in current working directory if present
+    load_dotenv()
 except Exception:
-    # dotenv is optional — we'll still check os.environ below
     pass
 
-# Helper to fetch the API key (tolerant to small typos)
-def get_gemini_api_key():
-    # Main name we expect
-    key = os.environ.get("GEMINI_API_KEY")
-    if key:
-        return key
-    # Tolerate a common typo you mentioned
-    key = os.environ.get("GEMIN_API_KEY")
-    if key:
-        return key
-    # Some setups use GOOGLE_API_KEY for older clients — check that too
-    #key = os.environ.get("GOOGLE_API_KEY")
-    #if key:
-    #    return key
-    return None
 
-# Load configuration and data
-def load_json(file_path):
-    with open(file_path, 'r', encoding='utf-8') as f:
+def get_gemini_api_key():
+    return (
+        os.environ.get("GEMINI_API_KEY")
+        or os.environ.get("GEMIN_API_KEY")
+    )
+
+
+# ================== PATHS ==================
+FAISS_DIR = "data/processed/faiss_gemini"
+INDEX_PATH = os.path.join(FAISS_DIR, "index.faiss")
+METAS_PATH = os.path.join(FAISS_DIR, "metas.json")
+
+KB_CLEAN_PATH = "data/processed/kb_clean.json"
+TOPIC_RULES_PATH = "config/topic_rules.json"
+
+
+# ================== LOADERS ==================
+def load_json(path):
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
-def load_index_and_metas(index_path, metas_path):
-    index = faiss.read_index(index_path)
-    with open(metas_path, 'r', encoding='utf-8') as f:
-        metas = json.load(f)
+
+def load_index_and_metas():
+    index = faiss.read_index(INDEX_PATH)
+    metas = load_json(METAS_PATH)
     return index, metas
 
+
+def build_kb_lookup():
+    kb = load_json(KB_CLEAN_PATH)
+    return {item["id"]: item for item in kb}
+
+
+# ================== TOPIC DETECTION ==================
 def get_topic_and_subtopic_from_query(query, topic_rules):
-    """
-    Finds the matching topic and subtopic for a given query based on keywords.
-    """
-    query_lower = query.lower()
+    q = query.lower()
     for rule in topic_rules:
-        for keyword in rule['keywords']:
-            if keyword in query_lower:
-                return rule['topic'], rule['subtopic']
+        for kw in rule["keywords"]:
+            if kw in q:
+                return rule["topic"], rule["subtopic"]
     return None, None
 
-def get_relevant_chunks(query, index, metas, model, k=5):
-    """
-    Finds the most relevant text chunks from the knowledge base using FAISS.
-    """
-    query_embedding = model.encode([query])
-    _, I = index.search(query_embedding, k)
 
-    chunks = [metas[i] for i in I[0]]
-    return chunks
-
-def generate_rag_response(query, context, model_name="models/gemini-flash-latest"):
+# ================== FAISS RETRIEVAL ==================
+def get_relevant_chunks_filtered(query, index, metas, model, topic=None, k=5):
     """
-    Generates a response using the Gemini model with retrieved context.
+    Vector search + HARD topic filtering
     """
-    genai.configure(api_key=os.environ.get("GEMINI_API_KEY"))
-    model = genai.GenerativeModel(model_name=model_name)
-
-    # Construct the final prompt with the query and context
-    system_prompt = (
-        "You are an expert in computer science, specifically in the domains of DBMS, OOPs, and Operating Systems (OS). "
-        "Answer the user's question based on the provided context. "
-        "If the context does not contain the answer, state that you cannot answer from the given information. "
-        "The context is from a knowledge base of questions and answers. Be concise and helpful."
+    query_embedding = model.encode(
+        [query],
+        normalize_embeddings=True
     )
 
-    full_prompt = (
-        f"Context:\n{context}\n\n"
-        f"Question:\n{query}\n\n"
-        "Answer:"
-    )
+    # Search more than needed, then filter
+    _, I = index.search(query_embedding, k * 4)
+
+    results = []
+    for idx in I[0]:
+        meta = metas[idx]
+        if topic is None or meta["topic"] == topic:
+            results.append(meta)
+        if len(results) == k:
+            break
+
+    return results
+
+
+# ================== GEMINI ==================
+def generate_rag_response(query, context):
+    api_key = get_gemini_api_key()
+    if not api_key:
+        return "❌ GEMINI_API_KEY not found in environment."
+
+    genai.configure(api_key=api_key)
+    model = genai.GenerativeModel("models/gemini-flash-latest")
+
+    prompt = f"""
+You are an expert Computer Science interviewer.
+Use the context as a grounding reference.
+You may expand and explain using standard CS knowledge.
+Do not contradict the context.
+Explain clearly as for interview preparation.
+
+Context:
+{context}
+
+Question:
+{query}
+
+Answer:
+"""
 
     try:
-        # Only pass the prompt, do NOT use system_instruction
-        response = model.generate_content(full_prompt)
+        response = model.generate_content(prompt)
         return response.text
     except Exception as e:
-        return f"An error occurred: {e}"
+        return f"❌ Gemini error: {e}"
 
+
+# ================== MAIN ==================
 def main(user_query):
-    """Main function to perform the RAG query."""
-    # Define paths
-    faiss_dir = 'data/processed/faiss_gemini'
-    topic_rules_path = 'config/topic_rules.json'
+    # Load resources
+    topic_rules = load_json(TOPIC_RULES_PATH)
+    index, metas = load_index_and_metas()
+    kb_lookup = build_kb_lookup()
 
-    # Load topic rules
-    topic_rules = load_json(topic_rules_path)
+    embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
-    # Determine topic and subtopic from the query
+    # Topic detection
     topic, subtopic = get_topic_and_subtopic_from_query(user_query, topic_rules)
 
     if topic:
-        print(f"Detected Topic: {topic}, Subtopic: {subtopic}")
+        print(f"🧠 Detected Topic: {topic} | Subtopic: {subtopic}")
+        augmented_query = f"{topic} {subtopic}: {user_query}"
     else:
-        print("No specific topic detected, performing a general search.")
-
-    # Load the FAISS index and metadata
-    try:
-        index_path = os.path.join(faiss_dir, 'faiss_index_gemini.idx')
-        metas_path = os.path.join(faiss_dir, 'metas.json')
-        index, metas = load_index_and_metas(index_path, metas_path)
-    except FileNotFoundError:
-        return "Error: FAISS index files not found. Please run `build_faiss_gemini.py` first."
-
-    # Initialize the Sentence Transformer model
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-
-    # Add topic/subtopic information to the query for better search results
-    if topic and subtopic:
-        augmented_query = f"Question about {subtopic} in {topic}: {user_query}"
-    else:
+        print("🧠 Topic not detected → semantic search only")
         augmented_query = user_query
 
-    # Get relevant chunks
-    relevant_chunks = get_relevant_chunks(augmented_query, index, metas, model)
-    context_text = "\n\n".join([chunk['text'] for chunk in relevant_chunks])
+    # Retrieve (topic-filtered)
+    retrieved = get_relevant_chunks_filtered(
+        augmented_query,
+        index,
+        metas,
+        embedder,
+        topic=topic,
+        k=5
+    )
 
-    # Generate the response
-    response_text = generate_rag_response(user_query, context_text)
+    # Build context STRICTLY from kb_clean.json
+    context_blocks = []
+    for meta in retrieved:
+        item = kb_lookup.get(meta["id"])
+        if not item:
+            continue
+        context_blocks.append(
+            f"Q: {item['question']}\nA: {item['answer']}"
+        )
 
-    # Print the result
-    print("\n--- RAG Response ---")
-    print(response_text)
+    context_text = "\n\n".join(context_blocks)
 
-    print("\n--- Source Chunks (for debugging) ---")
-    for chunk in relevant_chunks:
-        print(f"Source ID: {chunk['id']}")
-        print(f"Text: {chunk['text']}\n")
+    # Generate answer
+    answer = generate_rag_response(user_query, context_text)
 
-if __name__ == '__main__':
-    user_question = input("Enter your question: ")
-    main(user_question)
+    print("\n================ RAG ANSWER ================\n")
+    print(answer)
+
+    print("\n================ SOURCES ===================\n")
+    for meta in retrieved:
+        print(f"- {meta['id']} | {meta['topic']} > {meta['subtopic']}")
+
+
+# ================== ENTRY ==================
+if __name__ == "__main__":
+    query = input("Enter your question: ")
+    main(query)

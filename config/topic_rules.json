@@ -1,170 +1,224 @@
-[
+[  
     {
-        "keywords": ["normalization", "1nf", "2nf", "3nf", "bcnf", "functional dependency"],
-        "topic": "DBMS",
-        "subtopic": "Normal Forms"
+      "keywords": ["er model", "er diagram", "entity relationship", "entity", "relationship", "attribute", "cardinality", "weak entity", "strong entity"],
+      "topic": "DBMS",
+      "subtopic": "ER Modeling"
     },
     {
-        "keywords": ["er model", "entity", "relationship", "attribute", "cardinality"],
-        "topic": "DBMS", 
-        "subtopic": "ER Modeling"
+      "keywords": ["dbms architecture", "three schema", "three schema architecture", "physical level", "logical level", "view level", "client server", "tier architecture"],
+      "topic": "DBMS",
+      "subtopic": "DBMS Architecture"
     },
     {
-        "keywords": ["primary key", "foreign key", "candidate key", "superkey"],
-        "topic": "DBMS",
-        "subtopic": "Entities & Keys"
+      "keywords": ["referential integrity","primary key", "foreign key", "candidate key", "superkey", "composite key", "alternate key", "unique key"],
+      "topic": "DBMS",
+      "subtopic": "Entities & Keys"
     },
     {
-        "keywords": ["join", "inner join", "left join", "right join", "full join"],
-        "topic": "DBMS",
-        "subtopic": "Joins"
+      "keywords": ["normalization", "normal form", "1nf", "2nf", "3nf", "bcnf", "functional dependency", "partial dependency", "transitive dependency", "denormalization"],
+      "topic": "DBMS",
+      "subtopic": "Normalization"
     },
     {
-        "keywords": ["ddl", "create table", "alter table", "drop table"],
-        "topic": "DBMS",
-        "subtopic": "DDL"
+      "keywords": ["join", "inner join", "left join", "right join", "full join", "natural join", "theta join", "cross join", "self join", "subquery"],
+      "topic": "DBMS",
+      "subtopic": "Joins"
     },
     {
-        "keywords": ["select", "insert", "update", "delete"],
-        "topic": "DBMS",
-        "subtopic": "DML"
+      "keywords": ["ddl", "create table", "alter table", "drop table", "truncate", "rename", "schema"],
+      "topic": "DBMS",
+      "subtopic": "DDL"
     },
     {
-        "keywords": ["group by", "having", "aggregate", "count", "sum", "avg", "min", "max"],
-        "topic": "DBMS",
-        "subtopic": "Aggregations"
+      "keywords": ["dml", "select", "insert", "update", "delete", "merge", "query"],
+      "topic": "DBMS",
+      "subtopic": "DML"
     },
     {
-        "keywords": ["index", "b+ tree", "hash index"],
-        "topic": "DBMS", 
-        "subtopic": "Indexing"
+      "keywords": ["group by", "having", "aggregate", "aggregation", "count", "sum", "avg", "min", "max", "rollup", "cube"],
+      "topic": "DBMS",
+      "subtopic": "Aggregations"
     },
     {
-        "keywords": ["transaction", "acid", "atomicity", "consistency", "isolation", "durability"],
-        "topic": "DBMS",
-        "subtopic": "ACID"
+      "keywords": ["index", "indexing", "b+ tree", "b tree", "hash index", "clustered index", "non clustered index", "bitmap index"],
+      "topic": "DBMS",
+      "subtopic": "Indexing"
     },
     {
-        "keywords": ["isolation level", "read committed", "repeatable read", "serializable", "phenomena"],
-        "topic": "DBMS",
-        "subtopic": "Isolation Levels"
+      "keywords": ["acid", "atomicity", "consistency", "isolation", "durability", "transaction"],
+      "topic": "DBMS",
+      "subtopic": "ACID"
     },
     {
-        "keywords": ["lock", "two phase locking", "2pl", "deadlock", "wait-for graph"],
-        "topic": "DBMS", 
-        "subtopic": "Locks"
+      "keywords": ["isolation level", "read committed", "read uncommitted", "repeatable read", "serializable", "dirty read", "phantom read"],
+      "topic": "DBMS",
+      "subtopic": "Isolation Levels"
     },
     {
-        "keywords": ["recovery", "write-ahead logging", "wal", "checkpoint", "undo", "redo"],
-        "topic": "DBMS",
-        "subtopic": "Logging & Recovery"
+      "keywords": ["lock", "locking", "2pl", "two phase locking", "shared lock", "exclusive lock", "intention lock", "mvcc"],
+      "topic": "DBMS",
+      "subtopic": "Locks"
     },
     {
-        "keywords": ["optimizer", "query plan", "cost-based", "execution plan"],
-        "topic": "DBMS",
-        "subtopic": "Query Optimization"
+      "keywords": ["deadlock", "deadlock prevention", "deadlock detection", "deadlock avoidance", "wait for graph"],
+      "topic": "DBMS",
+      "subtopic": "Deadlocks"
     },
     {
-        "keywords": ["distributed", "replication", "sharding", "cap theorem", "consistency", "availability", "partition tolerance"],
-        "topic": "DBMS",
-        "subtopic": "Distributed Databases"
+      "keywords": ["logging", "recovery", "wal", "write ahead logging", "checkpoint", "undo", "redo"],
+      "topic": "DBMS",
+      "subtopic": "Logging & Recovery"
     },
     {
-        "keywords": ["nosql", "document store", "key value", "column family", "graph"],
-        "topic": "DBMS",
-        "subtopic": "NoSQL"
-    },
-    
-    {
-        "keywords": ["oops", "object oriented programming", "class", "object", "instance", "constructor", "destructor"],
-        "topic": "OOPs",
-        "subtopic": "Fundamentals"
+      "keywords": ["query optimization", "query plan", "execution plan", "cost based optimization", "optimizer"],
+      "topic": "DBMS",
+      "subtopic": "Query Optimization"
     },
     {
-        "keywords": ["encapsulation", "data hiding", "access specifiers", "getters", "setters"],
-        "topic": "OOPs",
-        "subtopic": "Encapsulation"
+      "keywords": ["distributed database", "replication", "sharding", "partitioning", "2pc", "two phase commit", "cap theorem"],
+      "topic": "DBMS",
+      "subtopic": "Distributed Databases"
     },
     {
-        "keywords": ["inheritance", "super class", "sub class", "extends", "is-a relationship", "multiple inheritance"],
-        "topic": "OOPs",
-        "subtopic": "Inheritance"
+      "keywords": ["nosql", "mongodb", "cassandra", "redis", "document store", "key value store", "column family", "graph database"],
+      "topic": "DBMS",
+      "subtopic": "NoSQL"
+    },
+  
+    {
+      "keywords": ["class", "class definition", "blueprint"],
+      "topic": "OOPs",
+      "subtopic": "Classes"
     },
     {
-        "keywords": ["polymorphism", "overloading", "overriding", "dynamic binding", "static binding"],
-        "topic": "OOPs",
-        "subtopic": "Polymorphism"
+      "keywords": ["object", "instance", "instantiation"],
+      "topic": "OOPs",
+      "subtopic": "Objects"
     },
     {
-        "keywords": ["abstraction", "abstract class", "interface", "abstract method", "pure virtual function"],
-        "topic": "OOPs",
-        "subtopic": "Abstraction"
+      "keywords": ["constructor", "destructor", "default constructor", "parameterized constructor", "copy constructor"],
+      "topic": "OOPs",
+      "subtopic": "Constructors"
     },
     {
-        "keywords": ["design patterns", "singleton", "factory", "observer", "strategy", "creational", "structural", "behavioral"],
-        "topic": "OOPs", 
-        "subtopic": "Design Patterns"
+      "keywords": ["encapsulation", "data hiding", "access modifier", "private", "public", "protected"],
+      "topic": "OOPs",
+      "subtopic": "Encapsulation"
     },
     {
-        "keywords": ["virtual functions", "dynamic polymorphism", "vtable", "pure virtual"],
-        "topic": "OOPs",
-        "subtopic": "Virtual Functions"
+      "keywords": ["inheritance", "extends", "is a", "superclass", "subclass", "multiple inheritance"],
+      "topic": "OOPs",
+      "subtopic": "Inheritance"
     },
     {
-        "keywords": ["association", "aggregation", "composition", "dependency", "has-a relationship"],
-        "topic": "OOPs",
-        "subtopic": "Object Relationships"
-    },
-    
-    {
-        "keywords": ["operating system", "os purpose", "computer system", "kernel", "system software", "real-time systems", "nos", "network operating system"],
-        "topic": "OS",
-        "subtopic": "General OS Concepts"
+      "keywords": ["polymorphism", "overloading", "overriding", "compile time polymorphism", "runtime polymorphism"],
+      "topic": "OOPs",
+      "subtopic": "Polymorphism"
     },
     {
-        "keywords": ["process", "thread", "scheduling", "scheduler", "multitasking", "multiprogramming", "pcb", "process control block", "context switch", "process states", "round robin", "fcfs", "preemptive", "non-preemptive", "time sharing"],
-        "topic": "OS", 
-        "subtopic": "Process Management"
+      "keywords": ["abstraction", "abstract class", "abstract method"],
+      "topic": "OOPs",
+      "subtopic": "Abstraction"
     },
     {
-        "keywords": ["memory", "virtual memory", "paging", "segmentation", "page", "frame", "tlb", "swap", "swapping", "thrashing", "allocation", "fragmentation", "page table", "demand paging", "overlays", "cache memory"],
-        "topic": "OS",
-        "subtopic": "Memory Management"
+      "keywords": ["interface", "implements", "contract"],
+      "topic": "OOPs",
+      "subtopic": "Interfaces"
     },
     {
-        "keywords": ["deadlock", "semaphore", "mutex", "race condition", "critical section", "mutual exclusion", "monitor", "synchronization", "banker's algorithm"],
-        "topic": "OS",
-        "subtopic": "Synchronization"
+      "keywords": ["virtual function", "vtable", "dynamic binding", "late binding"],
+      "topic": "OOPs",
+      "subtopic": "Virtual Functions"
     },
     {
-        "keywords": ["file system", "file", "directory", "disk", "storage", "file descriptor", "hard link", "soft link", "inode", "direct access", "vfs", "root partition"],
-        "topic": "OS",
-        "subtopic": "File Systems"
+      "keywords": ["association", "aggregation", "composition", "has a"],
+      "topic": "OOPs",
+      "subtopic": "Object Relationships"
     },
     {
-        "keywords": ["interrupt", "device driver", "i/o", "input/output", "blocking", "non-blocking", "buffer", "dma", "spooling", "i/o status"],
-        "topic": "OS",
-        "subtopic": "I/O Management"
+      "keywords": ["design pattern", "singleton", "factory", "observer", "strategy", "adapter"],
+      "topic": "OOPs",
+      "subtopic": "Design Patterns"
     },
     {
-        "keywords": ["system call", "api", "kernel mode", "user mode", "signal", "fork", "exec", "microkernel", "monolithic", "assembler"],
-        "topic": "OS",
-        "subtopic": "System Calls"
+      "keywords": ["garbage collection", "memory management", "raii", "smart pointer", "memory leak"],
+      "topic": "OOPs",
+      "subtopic": "Memory Management in OOP"
+    },  
+    {
+      "keywords": ["process", "process state", "pcb", "process control block", "context switching"],
+      "topic": "OS",
+      "subtopic": "Processes"
     },
     {
-        "keywords": ["socket", "network", "tcp", "udp", "protocol", "communication"],
-        "topic": "OS",
-        "subtopic": "Networking"
+      "keywords": ["thread", "multithreading", "user thread", "kernel thread"],
+      "topic": "OS",
+      "subtopic": "Threads"
     },
     {
-        "keywords": ["raid", "disk scheduling", "cache", "ssd", "hdd", "storage management", "boot", "bootloader", "partitioning", "formatting"],
-        "topic": "OS", 
-        "subtopic": "Storage Systems"
+      "keywords": ["cpu scheduling", "round robin", "fcfs", "sjf", "priority scheduling"],
+      "topic": "OS",
+      "subtopic": "CPU Scheduling"
     },
     {
-        "keywords": ["protection", "security", "access control", "authentication", "authorization", "gui", "command line", "piping"],
-        "topic": "OS",
-        "subtopic": "Security"
+      "keywords": ["mutex", "semaphore", "critical section", "monitor", "race condition"],
+      "topic": "OS",
+      "subtopic": "Process Synchronization"
+    },
+    {
+      "keywords": ["deadlock", "bankers algorithm", "deadlock prevention", "deadlock detection"],
+      "topic": "OS",
+      "subtopic": "Deadlocks"
+    },
+    {
+      "keywords": ["memory management", "contiguous allocation", "fragmentation", "paging", "segmentation"],
+      "topic": "OS",
+      "subtopic": "Memory Management"
+    },
+    {
+      "keywords": ["virtual memory", "page fault", "thrashing", "working set"],
+      "topic": "OS",
+      "subtopic": "Virtual Memory"
+    },
+    {
+      "keywords": ["paging", "page", "frame", "tlb"],
+      "topic": "OS",
+      "subtopic": "Paging"
+    },
+    {
+      "keywords": ["file system", "inode", "directory", "file allocation"],
+      "topic": "OS",
+      "subtopic": "File Systems"
+    },
+    {
+      "keywords": ["disk scheduling", "sstf", "scan", "c scan", "look"],
+      "topic": "OS",
+      "subtopic": "Disk Scheduling"
+    },
+    {
+      "keywords": ["i o", "interrupt", "dma", "device driver"],
+      "topic": "OS",
+      "subtopic": "I/O Management"
+    },
+    {
+      "keywords": ["system call", "syscall", "fork", "exec", "kernel mode", "user mode"],
+      "topic": "OS",
+      "subtopic": "System Calls"
+    },
+    {
+      "keywords": ["ipc", "interprocess communication", "pipe", "shared memory", "message queue", "socket"],
+      "topic": "OS",
+      "subtopic": "Interprocess Communication"
+    },
+    {
+      "keywords": ["networking", "tcp", "udp", "socket programming"],
+      "topic": "OS",
+      "subtopic": "Networking"
+    },
+    {
+      "keywords": ["security", "authentication", "authorization", "access control"],
+      "topic": "OS",
+      "subtopic": "Security"
     }
-]
-
+  ]
+  

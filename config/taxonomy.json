@@ -1,53 +1,63 @@
 {
-    "topics": [
-        {
-            "name": "DBMS",
-            "subtopics": [
-                "Normal Forms",
-                "ER Modeling", 
-                "Entities & Keys",
-                "Joins",
-                "DDL",
-                "DML",
-                "Aggregations",
-                "Indexing",
-                "ACID",
-                "Isolation Levels",
-                "Locks",
-                "Logging & Recovery",
-                "Query Optimization",
-                "Distributed Databases",
-                "NoSQL"
-            ]
-        },
-        {
-            "name": "OOPs",
-            "subtopics": [
-                "Fundamentals",
-                "Encapsulation",
-                "Inheritance", 
-                "Polymorphism",
-                "Abstraction",
-                "Design Patterns",
-                "Virtual Functions",
-                "Object Relationships"
-            ]
-        },
-        {
-            "name": "OS", 
-            "subtopics": [
-                "General OS Concepts",
-                "Process Management",
-                "Memory Management", 
-                "Synchronization",
-                "File Systems",
-                "I/O Management",
-                "System Calls",
-                "Networking",
-                "Storage Systems",
-                "Security"
-            ]
-        }
-    ]
+  "topics": [
+      {
+          "name": "DBMS",
+          "subtopics": [
+              "ER Modeling",
+              "DBMS Architecture",
+              "Entities & Keys",
+              "Normalization",
+              "Joins",
+              "DDL",
+              "DML",
+              "Aggregations",
+              "Indexing",
+              "ACID",
+              "Isolation Levels",
+              "Locks",
+              "Deadlocks",
+              "Logging & Recovery",
+              "Query Optimization",
+              "Distributed Databases",
+              "NoSQL"
+          ]
+      },
+      {
+          "name": "OOPs",
+          "subtopics": [
+              "Classes",
+              "Objects",
+              "Constructors",
+              "Encapsulation",
+              "Inheritance",
+              "Polymorphism",
+              "Abstraction",
+              "Interfaces",
+              "Virtual Functions",
+              "Object Relationships",
+              "Design Patterns",
+              "Memory Management in OOP"
+          ]
+      },
+      {
+          "name": "OS", 
+          "subtopics": [
+              "Processes",
+              "Threads",
+              "CPU Scheduling",
+              "Process Synchronization",
+              "Deadlocks",
+              "Memory Management",
+              "Virtual Memory",
+              "Paging",
+              "File Systems",
+              "Disk Scheduling",
+              "I/O Management",
+              "System Calls",
+              "Interprocess Communication",
+              "Networking",
+              "Security"
+          ]
+      }
+  ]
 }
-

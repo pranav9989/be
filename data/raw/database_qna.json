@@ -1273,5 +1273,4 @@
         "question": "What is normalization and what are the normal forms?",
         "answer": "Normalization is the process of organizing data to reduce redundancy and improve data integrity. The normal forms are: 1) 1NF - eliminate repeating groups, ensure atomic values, 2) 2NF - remove partial dependencies (all non-key attributes fully dependent on PK), 3) 3NF - remove transitive dependencies (no non-key attribute dependent on another non-key attribute), 4) BCNF - every determinant is a candidate key, 5) 4NF - remove multi-valued dependencies, and 6) 5NF - remove join dependencies. Each normal form addresses specific types of redundancy and update anomalies."
     }
-
 ]

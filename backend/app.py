@@ -28,9 +28,8 @@ from flask_login import (
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
-from sentence_transformers import SentenceTransformer
-import google.generativeai as genai
 from dotenv import load_dotenv
+import google.generativeai as genai
 
 import PyPDF2
 import docx
@@ -185,264 +184,11 @@ def get_gemini_api_key():
             return v
     return None
 
-# -------------------- RAG helpers --------------------
-def find_rag_paths():
-    # return tuple(index_path, metas_path) if found else (None, None)
-    for base in RAG_DIRS:
-        for idx_name in INDEX_CANDIDATES:
-            idx_path = base / idx_name
-            if idx_path.exists():
-                # find a metas file
-                for mname in METAS_CANDIDATES:
-                    mpath = base / mname
-                    if mpath.exists():
-                        return str(idx_path), str(mpath)
-                # fallback: any json in dir
-                for mpath in base.glob("*.json"):
-                    return str(idx_path), str(mpath)
-    return None, None
 
-def load_metas_to_map(metas_raw):
-    """
-    Normalize metas into dict int_id -> meta.
-    Support list-of-dicts, dict keyed by int strings, or mapping.
-    """
-    meta_map = {}
-    if metas_raw is None:
-        return meta_map
-    if isinstance(metas_raw, list):
-        # if items include 'int_id', prefer that; else use list index
-        has_int_id = any(isinstance(m, dict) and "int_id" in m for m in metas_raw)
-        if has_int_id:
-            for m in metas_raw:
-                try:
-                    ik = int(m.get("int_id"))
-                    meta_map[ik] = m
-                except Exception:
-                    pass
-        else:
-            for i, m in enumerate(metas_raw):
-                meta_map[int(i)] = m
-    elif isinstance(metas_raw, dict):
-        # keys may be numeric strings
-        for k, v in metas_raw.items():
-            try:
-                ik = int(k)
-                meta_map[ik] = v
-            except Exception:
-                # if value contains int_id, use that
-                if isinstance(v, dict) and "int_id" in v:
-                    try:
-                        meta_map[int(v["int_id"])] = v
-                    except Exception:
-                        meta_map[len(meta_map)] = v
-                else:
-                    meta_map[len(meta_map)] = v
-    return meta_map
-
-def initialize_rag_system():
-    """
-    Attempt to configure Gemini (if API key present) and load FAISS index + metas + embedder.
-    Robust: doesn't crash app when files/missing.
-    """
-    global rag_index, rag_metas, rag_embedder, topic_rules
-    print("🚀 Initializing RAG system...")
-    # Load topic rules (optional)
-    try:
-        if TOPIC_RULES_FILE.exists():
-            topic_rules = json.loads(TOPIC_RULES_FILE.read_text(encoding="utf-8"))
-            print(f"✅ Loaded topic rules: {len(topic_rules)} rules")
-        else:
-            topic_rules = None
-            print("ℹ️ topic_rules.json not found; continuing without topic routing")
-    except Exception as e:
-        print("⚠️ Error loading topic rules:", e)
-        traceback.print_exc()
-        topic_rules = None
-
-    # Configure Gemini client if API key present (do not call generate/test here)
-    api_key = get_gemini_api_key()
-    if api_key:
-        try:
-            genai.configure(api_key=api_key)
-            print("✅ Gemini configured (API key present). Model set:", GEMINI_MODEL)
-        except Exception as e:
-            print("⚠️ Error configuring Gemini:", e)
-            traceback.print_exc()
-    else:
-        print("⚠️ No GEMINI_API_KEY found in environment; Gemini features disabled.")
-
-    # Load FAISS index + metas if present
-    idx_path, metas_path = find_rag_paths()
-    if not idx_path or not metas_path:
-        print("ℹ️ No FAISS index or metas found; RAG features disabled.")
-        rag_index = None
-        rag_metas = None
-        rag_embedder = None
-        return
-
-    try:
-        print(f"🔍 Loading FAISS index from: {idx_path}")
-        rag_index = faiss.read_index(idx_path)
-        print(f"✅ Loaded FAISS index with {rag_index.ntotal} vectors")
-    except Exception as e:
-        print("⚠️ Failed to load FAISS index:", e)
-        traceback.print_exc()
-        rag_index = None
-
-    try:
-        print(f"📄 Loading metas from: {metas_path}")
-        with open(metas_path, "r", encoding="utf-8") as f:
-            metas_raw = json.load(f)
-        rag_metas = load_metas_to_map(metas_raw)
-        print(f"✅ Loaded {len(rag_metas)} meta entries")
-    except Exception as e:
-        print("⚠️ Failed to load metas:", e)
-        traceback.print_exc()
-        rag_metas = None
-
-    if rag_index is not None and rag_metas is not None:
-        try:
-            print("🤖 Loading embedder model (this may take a moment)...")
-            rag_embedder = SentenceTransformer("all-MiniLM-L6-v2")
-            print("✅ Embedder ready")
-        except Exception as e:
-            print("⚠️ Failed to load embedder:", e)
-            traceback.print_exc()
-            rag_embedder = None
 
 # Global current_user for JWT compatibility
 current_user = None
 
-# -------------------- Search / generate helpers --------------------
-def embed_text(embedder, texts):
-    # texts: list[str]; returns numpy array (n, dim) float32 normalized
-    emb = embedder.encode(texts, convert_to_numpy=True)
-    emb = np.array(emb).astype("float32")
-    if emb.ndim == 1:
-        emb = emb.reshape(1, -1)
-    faiss.normalize_L2(emb)
-    return emb
-
-def search_faiss_topk(index, q_emb, k=5):
-    # q_emb shape: (1, dim)
-    if q_emb.ndim == 1:
-        q_emb = q_emb.reshape(1, -1)
-    faiss.normalize_L2(q_emb)
-    D, I = index.search(q_emb, k)
-    return D[0].tolist(), I[0].tolist()
-
-def build_context_from_hits(ids, scores, rag_metas, top_k=5):
-    parts = []
-    hits = []
-    for iid, score in zip(ids[:top_k], scores[:top_k]):
-        if iid == -1:
-            continue
-        meta = rag_metas.get(int(iid))
-        if not meta:
-            continue
-        txt = meta.get("text") or meta.get("chunk") or (f"Item id={meta.get('id')}")
-        header = f"[id:{meta.get('id')} int:{meta.get('int_id', iid)} score:{float(score):.4f}]"
-        parts.append(header + "\n" + txt)
-        mcopy = dict(meta)
-        mcopy["_score"] = float(score)
-        hits.append(mcopy)
-    context = "\n\n".join(parts)
-    return context, hits
-
-def generate_rag_response_gemini(api_key, prompt, model_name=GEMINI_MODEL):
-    """
-    Use Gemini to generate an answer. Try GenerativeModel.generate_content then fallback to responses.create.
-    Returns string.
-    """
-    if not api_key:
-        return "Gemini API key not configured."
-
-    genai.configure(api_key=api_key)
-
-    # Try GenerativeModel (some SDK versions support this)
-    try:
-        gm = genai.GenerativeModel(model_name=model_name)
-        resp = gm.generate_content(prompt)
-        text = getattr(resp, "text", None) or getattr(resp, "output_text", None)
-        if text:
-            return text
-    except Exception as e:
-        # fallback
-        gen_err = e
-
-    # Fallback to Responses API
-    try:
-        resp2 = genai.responses.create(model=model_name, input=prompt)
-        text = getattr(resp2, "output_text", None)
-        if text:
-            return text
-        # try nested shapes
-        try:
-            return resp2["output"][0]["content"][0]["text"]
-        except Exception:
-            return str(resp2)
-    except Exception as e2:
-        return f"Error generating response: {e2} (first attempt error: {locals().get('gen_err')})"
-
-def get_topic_and_subtopic_from_query(query, topic_rules):
-    """Extract topic and subtopic from user query using keyword matching."""
-    if not topic_rules:
-        return None, None
-    query_lower = query.lower()
-    for rule in topic_rules:
-        for keyword in rule['keywords']:
-            if keyword.lower() in query_lower:
-                return rule['topic'], rule['subtopic']
-    return None, None
-
-def get_relevant_chunks(query, index, metas, embedder, k=5):
-    """Get relevant chunks using FAISS search."""
-    if not all([index, metas, embedder]):
-        return []
-    query_emb = embed_text(embedder, [query])
-    scores, ids = search_faiss_topk(index, query_emb, k)
-    context, hits = build_context_from_hits(ids, scores, metas, k)
-    return hits
-
-def generate_rag_response(query, context):
-    """Generate RAG response using Gemini - returns only clean response text."""
-    api_key = get_gemini_api_key()
-    if not api_key:
-        return "Error: No API key available"
-
-    # Use the same clean prompt format as the script
-    system_prompt = (
-        "You are an expert in computer science, specifically in the domains of DBMS, OOPs, and Operating Systems (OS). "
-        "Answer the user's question based on the provided context. "
-        "If the context does not contain the answer, state that you cannot answer from the given information. "
-        "The context is from a knowledge base of questions and answers. Be concise and helpful."
-    )
-
-    full_prompt = (
-        f"Context:\n{context}\n\n"
-        f"Question:\n{query}\n\n"
-        "Answer:"
-    )
-
-    try:
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel(model_name=GEMINI_MODEL)
-        response = model.generate_content(full_prompt)
-        return response.text
-    except Exception as e:
-        return f"An error occurred: {e}"
-
-def build_strict_prompt(context, user_query):
-    system = (
-        "You are an expert in computer science (DBMS, OOPs, Operating Systems). "
-        "Answer using ONLY the provided CONTEXT. "
-        "If the context does not contain the answer, respond exactly: "
-        "\"I don't know based on the provided KB.\" "
-        "Provide a concise answer and list the source chunk IDs used in square brackets at the end."
-    )
-    prompt = f"{system}\n\nCONTEXT:\n{context}\n\nQUESTION:\n{user_query}\n\nANSWER:"
-    return prompt
 
 # -------------------- File text extraction & resume parsing --------------------
 def extract_text_from_pdf(file_stream):
@@ -644,45 +390,21 @@ def rag_query():
         if not user_query:
             return jsonify({'error': 'Query cannot be empty'}), 400
 
-        # Check if RAG system is available
-        if not all([rag_index, rag_metas, rag_embedder, topic_rules]):
-            return jsonify({'error': 'RAG system not initialized. Please contact administrator.'}), 500
+        # Use the exact same RAG system as rag_query.py
+        from rag import main as rag_main
+        answer, retrieved = rag_main(user_query)
 
-        print(f"🔍 Processing query: {user_query}")
-
-        topic, subtopic = get_topic_and_subtopic_from_query(user_query, topic_rules)
-        print(f"📋 Detected topic: {topic}, subtopic: {subtopic}")
-
-        if topic and subtopic:
-            augmented_query = f"Question about {subtopic} in {topic}: {user_query}"
-        else:
-            augmented_query = user_query
-
-        print(f"🔎 Augmented query: {augmented_query}")
-        relevant_chunks = get_relevant_chunks(augmented_query, rag_index, rag_metas, rag_embedder)
-        print(f"📚 Found {len(relevant_chunks)} relevant chunks")
-
-        context_text = "\n\n".join([chunk['text'] for chunk in relevant_chunks])
-        print(f"📝 Context length: {len(context_text)} characters")
-
-        # Generate clean response for frontend
-        response_text = generate_rag_response(user_query, context_text)
-
-        # Log debugging info to console only
-        print(f"✅ Generated response, length: {len(response_text)} characters")
-        print("\n--- Source Chunks (for debugging) ---")
-        for chunk in relevant_chunks[:3]:  # Show only first 3 for debugging
-            print(f"Source ID: {chunk.get('id', 'N/A')}")
-            text_preview = chunk.get('text', '')[:100] + '...' if len(chunk.get('text', '')) > 100 else chunk.get('text', '')
-            print(f"Text: {text_preview}\n")
+        # Extract topic info from first retrieved item
+        topic = retrieved[0]["topic"] if retrieved else None
+        subtopic = retrieved[0]["subtopic"] if retrieved else None
 
         response_data = {
             'success': True,
             'query': user_query,
-            'answer': response_text,
+            'answer': answer,
             'detected_topic': topic,
             'detected_subtopic': subtopic,
-            'source_count': len(relevant_chunks)
+            'source_count': len(retrieved)
         }
         return jsonify(response_data)
     except Exception as e:
@@ -764,10 +486,25 @@ def get_topics():
 
 @app.route('/api/health', methods=['GET'])
 def health_check():
-    return jsonify({
-        'status': 'healthy',
-        'rag_initialized': all([rag_embedder is not None, rag_index is not None, rag_metas is not None, topic_rules is not None])
-    })
+    try:
+        # Check if required files exist
+        import os
+        files_exist = all([
+            os.path.exists("data/processed/faiss_gemini/index.faiss"),
+            os.path.exists("data/processed/faiss_gemini/metas.json"),
+            os.path.exists("data/processed/kb_clean.json"),
+            os.path.exists("config/topic_rules.json")
+        ])
+        return jsonify({
+            'status': 'healthy',
+            'rag_initialized': files_exist
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'rag_initialized': False,
+            'error': str(e)
+        })
 
 
 @app.route('/api/save_interview_session', methods=['POST'])
@@ -855,7 +592,5 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
 
-    # Initialize system - app will start even if some components fail
-    initialize_rag_system()
     print("🚀 Starting Flask API server...")
     app.run(debug=True, host='0.0.0.0', port=5000)

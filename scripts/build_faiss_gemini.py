@@ -1,76 +1,84 @@
 import json
-from pathlib import Path
+import os
 import numpy as np
 import faiss
 from sentence_transformers import SentenceTransformer
-import os
+from pathlib import Path
 
-def load_json(file_path):
-    """Loads a JSON file from a given file path."""
-    with open(file_path, 'r', encoding='utf-8') as f:
+# ================== CONFIG ==================
+PROCESSED_DIR = Path("data/processed")
+KB_CLEAN_PATH = PROCESSED_DIR / "kb_clean.json"
+
+FAISS_DIR = PROCESSED_DIR / "faiss_gemini"
+FAISS_DIR.mkdir(parents=True, exist_ok=True)
+
+INDEX_PATH = FAISS_DIR / "faiss_index_gemini.idx"
+METAS_PATH = FAISS_DIR / "metas.json"
+
+# ================== LOADERS ==================
+def load_json(path):
+    with open(path, "r", encoding="utf-8") as f:
         return json.load(f)
 
+# ================== CHUNKING ==================
 def create_chunks_and_metas(data):
-    """
-    Creates text chunks and metadata from the loaded data.
-    Each item in the data is treated as a single chunk.
-    """
     chunks = []
     metas = []
+
     for item in data:
-        # Combine the question and answer into a single text chunk
-        text_chunk = f"Question: {item['question']}\nAnswer: {item['answer']}"
+        text_chunk = f"Q: {item['question']}\nA: {item['answer']}"
         chunks.append(text_chunk)
-        
-        # Store metadata associated with the chunk, including its original ID
+
         metas.append({
-            'id': item['id'],
-            'text': text_chunk
+            "id": item["id"],
+            "topic": item["topic"],
+            "subtopic": item["subtopic"],
+            "difficulty": item["difficulty"],
+            "source": item.get("source"),
         })
+
     return chunks, metas
 
-def build_faiss_index(chunks, metas, output_dir):
-    """
-    Builds a FAISS index from text chunks and saves it along with metadata.
-    """
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-    print("Generating embeddings...")
-    embeddings = model.encode(chunks, show_progress_bar=True)
-    
-    # Ensure the output directory exists
-    os.makedirs(output_dir, exist_ok=True)
-    
-    # Build the FAISS index
+# ================== FAISS ==================
+def build_faiss_index(chunks, metas):
+    model = SentenceTransformer("all-MiniLM-L6-v2")
+
+    print("🔄 Generating embeddings...")
+    embeddings = model.encode(
+        chunks,
+        show_progress_bar=True,
+        normalize_embeddings=True  # IMPORTANT
+    )
+
     dimension = embeddings.shape[1]
     index = faiss.IndexFlatL2(dimension)
-    index.add(np.array(embeddings).astype('float32'))
-    
-    # Save the index and metadata
-    index_path = os.path.join(output_dir, 'faiss_index_gemini.idx')
-    metas_path = os.path.join(output_dir, 'metas.json')
-    
-    faiss.write_index(index, index_path)
-    with open(metas_path, 'w', encoding='utf-8') as f:
-        json.dump(metas, f, indent=2)
-    
-    print(f"FAISS index built and saved to {index_path}")
-    print(f"Metadata saved to {metas_path}")
+    index.add(np.asarray(embeddings, dtype="float32"))
 
+    index_path = FAISS_DIR / "index.faiss"
+    metas_path = FAISS_DIR / "metas.json"
+
+    faiss.write_index(index, str(index_path))
+    with open(metas_path, "w", encoding="utf-8") as f:
+        json.dump(metas, f, indent=2, ensure_ascii=False)
+
+    print(f"✅ FAISS index saved → {index_path}")
+    print(f"✅ Metadata saved → {metas_path}")
+    print(f"📦 Total vectors: {index.ntotal}")
+
+# ================== MAIN ==================
 def main():
-    """Main function to build the FAISS index."""
-    processed_dir = 'data/processed'
-    kb_clean_path = os.path.join(processed_dir, 'kb_clean.json')
-    
-    try:
-        data = load_json(kb_clean_path)
-    except FileNotFoundError:
-        print(f"Error: {kb_clean_path} not found. Please run `prepare_kb.py` first.")
+    if not KB_CLEAN_PATH.exists():
+        print("❌ kb_clean.json not found. Run prepare_kb.py first.")
+        return
+
+    data = load_json(KB_CLEAN_PATH)
+
+    if not data:
+        print("❌ kb_clean.json is empty.")
         return
 
     chunks, metas = create_chunks_and_metas(data)
-    
-    faiss_output_dir = os.path.join(processed_dir, 'faiss_gemini')
-    build_faiss_index(chunks, metas, faiss_output_dir)
+    build_faiss_index(chunks, metas)
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

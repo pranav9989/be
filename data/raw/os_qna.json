@@ -459,6 +459,506 @@
     "id": 100,
     "question": "How would a file named EXAMPLEFILE.TXT appear when viewed under the DOS command console operating in Windows 98?",
     "answer": "It would appear as EXAMPL~1.TXT, due to the 8-character filename restriction in DOS environments."
+  },
+  {
+    "id": 101,
+    "question": "What is a system call?",
+    "answer": "A system call is a programmatic way for a program to request a service from the operating system's kernel, such as file operations, process control, or communication."
+  },
+  {
+    "id": 102,
+    "question": "Explain the difference between user mode and kernel mode.",
+    "answer": "User mode is a restricted mode where applications run with limited access to hardware, while kernel mode allows full, unrestricted access to system resources and hardware."
+  },
+  {
+    "id": 103,
+    "question": "What is a context switch?",
+    "answer": "A context switch is the process of saving the state of a currently running process and restoring the state of another process so it can resume execution."
+  },
+  {
+    "id": 104,
+    "question": "What is a memory leak?",
+    "answer": "A memory leak occurs when a program fails to release memory it has allocated, gradually reducing the amount of available memory."
+  },
+  {
+    "id": 105,
+    "question": "What is the purpose of a buffer?",
+    "answer": "A buffer is a temporary storage area that holds data while it is being transferred between two devices or processes, smoothing out differences in data flow rates."
+  },
+  {
+    "id": 106,
+    "question": "Explain the concept of starvation in process scheduling.",
+    "answer": "Starvation occurs when a process is perpetually denied necessary resources or CPU time because other processes are consistently prioritized."
+  },
+  {
+    "id": 107,
+    "question": "What is a daemon process?",
+    "answer": "A daemon is a background process that runs continuously, typically starting at boot, to handle service requests for tasks like network or printing services."
+  },
+  {
+    "id": 108,
+    "question": "What is the difference between static and dynamic linking?",
+    "answer": "Static linking combines libraries into the executable at compile time, while dynamic linking loads libraries at runtime, allowing multiple programs to share a single library copy."
+  },
+  {
+    "id": 109,
+    "question": "What is the role of the init process (PID 1) in Unix/Linux?",
+    "answer": "The init process is the first process started during boot, responsible for initializing the system, starting other processes, and adopting orphaned processes."
+  },
+  {
+    "id": 110,
+    "question": "What is a zombie process?",
+    "answer": "A zombie process is a terminated process whose exit status has not yet been collected by its parent process, remaining in the process table."
+  },
+  {
+    "id": 111,
+    "question": "Explain the concept of a pipe in Unix/Linux.",
+    "answer": "A pipe is a mechanism for inter-process communication that connects the standard output of one process to the standard input of another using the | operator."
+  },
+  {
+    "id": 112,
+    "question": "What is the difference between a soft link (symbolic link) and a hard link?",
+    "answer": "A soft link is a separate file that points to another file by name and can cross filesystems, while a hard link is an additional directory entry pointing directly to the same inode and data blocks."
+  },
+  {
+    "id": 113,
+    "question": "What is the purpose of the TLB (Translation Lookaside Buffer)?",
+    "answer": "The TLB is a hardware cache that stores recent virtual-to-physical address translations to speed up memory access by avoiding full page table lookups."
+  },
+  {
+    "id": 114,
+    "question": "What is a system program?",
+    "answer": "A system program provides a convenient environment for program development and execution, including file management, status information, and file modification tools."
+  },
+  {
+    "id": 115,
+    "question": "Explain the concept of a trap in operating systems.",
+    "answer": "A trap is a software-generated interrupt caused by an error (like division by zero) or a user request for an operating system service (system call)."
+  },
+  {
+    "id": 116,
+    "question": "What is the difference between buffering and spooling?",
+    "answer": "Buffering temporarily holds data during I/O transfers between devices, while spooling overlaps the I/O of one job with the computation of other jobs, commonly used for printing."
+  },
+  {
+    "id": 117,
+    "question": "What is a reentrant kernel?",
+    "answer": "A reentrant kernel allows multiple processes to be in kernel mode simultaneously by ensuring kernel code and data structures are protected from simultaneous modification."
+  },
+  {
+    "id": 118,
+    "question": "What is the purpose of the 'fork()' system call?",
+    "answer": "The fork() system call creates a new process (child) that is an exact duplicate of the calling process (parent), including memory, file descriptors, and register states."
+  },
+  {
+    "id": 119,
+    "question": "What is the difference between concurrency and parallelism?",
+    "answer": "Concurrency is the ability of multiple tasks to make progress in overlapping time periods (interleaved execution), while parallelism is the simultaneous execution of multiple tasks on multiple processors."
+  },
+  {
+    "id": 120,
+    "question": "What is a distributed operating system?",
+    "answer": "A distributed operating system manages a group of independent computers and makes them appear to the user as a single coherent system, enabling resource sharing and fault tolerance."
+  },
+  {
+    "id": 121,
+    "question": "What is the purpose of the 'exec()' system call?",
+    "answer": "The exec() system call replaces the current process's memory space with a new program, loading it into memory and beginning its execution while keeping the same process ID."
+  },
+  {
+    "id": 122,
+    "question": "What is a real-time operating system (RTOS)?",
+    "answer": "An RTOS is designed to process data and events within strict time constraints, guaranteeing response times for critical tasks, used in embedded systems, robotics, and industrial control."
+  },
+  {
+    "id": 123,
+    "question": "What is priority inversion?",
+    "answer": "Priority inversion occurs when a higher-priority task is blocked waiting for a resource held by a lower-priority task, which may be preempted by medium-priority tasks, causing unbounded blocking."
+  },
+  {
+    "id": 124,
+    "question": "What is the purpose of the 'wait()' system call?",
+    "answer": "The wait() system call allows a parent process to suspend its execution until one of its child processes terminates, allowing the parent to collect the child's exit status."
+  },
+  {
+    "id": 125,
+    "question": "What is the difference between a monolithic kernel and a microkernel?",
+    "answer": "A monolithic kernel includes all OS services (file system, device drivers, etc.) in kernel space, while a microkernel keeps only essential services (IPC, basic scheduling) in kernel space, with other services as user-space servers."
+  },
+  {
+    "id": 126,
+    "question": "What is the purpose of the 'chmod' command in Unix/Linux?",
+    "answer": "The chmod command changes the permissions (read, write, execute) for the owner, group, and others on files and directories."
+  },
+  {
+    "id": 127,
+    "question": "What is the difference between a process and a program?",
+    "answer": "A program is a passive set of instructions stored on disk, while a process is an active instance of a program in execution, with its own memory space and system resources."
+  },
+  {
+    "id": 128,
+    "question": "What is the purpose of the 'ls' command in Unix/Linux?",
+    "answer": "The ls command lists the contents of a directory, showing files and subdirectories along with their attributes (permissions, size, modification time) when used with options."
+  },
+  {
+    "id": 129,
+    "question": "What is the difference between a logical address and a physical address?",
+    "answer": "A logical address (virtual address) is generated by the CPU during program execution, while a physical address is the actual location in physical memory, translated by the MMU."
+  },
+  {
+    "id": 130,
+    "question": "What is the purpose of the 'grep' command in Unix/Linux?",
+    "answer": "The grep command searches for patterns within files, outputting lines that match the specified regular expression, useful for text processing and log analysis."
+  },
+  {
+    "id": 131,
+    "question": "What is the difference between a shell and a kernel?",
+    "answer": "The kernel is the core of the OS that manages hardware and provides essential services, while the shell is a command-line interpreter that provides an interface for users to interact with the kernel."
+  },
+  {
+    "id": 132,
+    "question": "What is the purpose of the 'ps' command in Unix/Linux?",
+    "answer": "The ps command displays information about currently running processes, such as process ID, terminal, status, CPU and memory usage, and the command that started them."
+  },
+  {
+    "id": 133,
+    "question": "What is the difference between a file and a directory?",
+    "answer": "A file is a collection of data stored on disk with a name and attributes, while a directory is a special file that contains a list of other files and directories, organizing the filesystem hierarchy."
+  },
+  {
+    "id": 134,
+    "question": "What is the purpose of the 'kill' command in Unix/Linux?",
+    "answer": "The kill command sends a signal to a process, typically to terminate it (SIGTERM or SIGKILL), but can also send other signals for process control (pause, resume, etc.)."
+  },
+  {
+    "id": 135,
+    "question": "What is the difference between a stack and a heap?",
+    "answer": "The stack is used for static memory allocation (local variables, function calls) and follows LIFO order, while the heap is used for dynamic memory allocation (malloc, new) and requires manual management."
+  },
+  {
+    "id": 136,
+    "question": "What is the purpose of the 'mkdir' command in Unix/Linux?",
+    "answer": "The mkdir command creates a new directory (folder) in the filesystem, with optional permissions and parent directory creation using the -p flag."
+  },
+  {
+    "id": 137,
+    "question": "What is the difference between a system call and a library function?",
+    "answer": "A system call is a request to the kernel for service, involving a context switch to kernel mode, while a library function is code within a user-space library that may or may not invoke system calls."
+  },
+  {
+    "id": 138,
+    "question": "What is the purpose of the 'rm' command in Unix/Linux?",
+    "answer": "The rm command removes (deletes) files or directories from the filesystem, with options for recursive deletion (-r) and forced removal (-f) without confirmation."
+  },
+  {
+    "id": 139,
+    "question": "What is the difference between a CPU-bound process and an I/O-bound process?",
+    "answer": "A CPU-bound process spends most of its time performing computations, requiring significant CPU time, while an I/O-bound process spends most time waiting for input/output operations (disk, network)."
+  },
+  {
+    "id": 140,
+    "question": "What is the purpose of the 'cp' command in Unix/Linux?",
+    "answer": "The cp command copies files or directories from a source location to a destination, with options for recursive copying of directories (-r) and preserving attributes (-p)."
+  },
+  {
+    "id": 141,
+    "question": "What is the difference between a process and a thread?",
+    "answer": "A process is an independent execution unit with its own memory space and resources, while a thread is a lightweight unit of execution within a process that shares the process's memory and resources with other threads."
+  },
+  {
+    "id": 142,
+    "question": "What is the purpose of the 'mv' command in Unix/Linux?",
+    "answer": "The mv command moves (renames) files or directories from one location to another, effectively changing their path or name within the filesystem."
+  },
+  {
+    "id": 143,
+    "question": "What is the difference between a binary semaphore and a counting semaphore?",
+    "answer": "A binary semaphore (mutex) has only two states (0 and 1) and is used for mutual exclusion, while a counting semaphore can have multiple values and is used for resource counting and synchronization."
+  },
+  {
+    "id": 144,
+    "question": "What is the purpose of the 'find' command in Unix/Linux?",
+    "answer": "The find command searches for files and directories in a directory hierarchy based on criteria like name, size, modification time, and permissions, and can execute commands on matching items."
+  },
+  {
+    "id": 145,
+    "question": "What is the difference between a shell script and a compiled program?",
+    "answer": "A shell script is a text file containing shell commands interpreted line-by-line at runtime, while a compiled program is translated to machine code before execution, offering better performance but less portability."
+  },
+  {
+    "id": 146,
+    "question": "What is the purpose of the 'tar' command in Unix/Linux?",
+    "answer": "The tar command combines multiple files into a single archive file (tarball), often used with compression (gzip, bzip2) for backup and distribution, with options for creating (-c), extracting (-x), and listing (-t) archives."
+  },
+  {
+    "id": 147,
+    "question": "What is the difference between a hard real-time system and a soft real-time system?",
+    "answer": "A hard real-time system must meet deadlines absolutely; missing one can cause system failure. A soft real-time system can tolerate some deadline misses with degraded performance but not system failure."
+  },
+  {
+    "id": 148,
+    "question": "What is the purpose of the 'ssh' command in Unix/Linux?",
+    "answer": "The ssh command provides secure encrypted communication between two networked devices, allowing remote login and command execution, often used for system administration and file transfer (scp, sftp)."
+  },
+  {
+    "id": 149,
+    "question": "What is the difference between a process scheduler and a thread scheduler?",
+    "answer": "A process scheduler decides which process gets CPU time, while a thread scheduler (within a process or OS) decides which thread within that process executes, with user-level and kernel-level implementations."
+  },
+  {
+    "id": 150,
+    "question": "What is the purpose of the 'top' command in Unix/Linux?",
+    "answer": "The top command provides a dynamic real-time view of system processes, showing CPU and memory usage, process statistics, and system load, useful for performance monitoring and troubleshooting."
+  },
+  {
+    "id": 151,
+    "question": "What is the difference between synchronous and asynchronous I/O?",
+    "answer": "Synchronous I/O blocks the process until the I/O operation completes, while asynchronous I/O allows the process to continue execution and gets notified when the operation finishes."
+  },
+  {
+    "id": 152,
+    "question": "What is a memory-mapped file?",
+    "answer": "A memory-mapped file allows a file or part of a file to be mapped directly into a process's virtual memory, enabling file access through memory operations rather than read/write system calls."
+  },
+  {
+    "id": 153,
+    "question": "What is the purpose of the 'df' command in Unix/Linux?",
+    "answer": "The 'df' command displays disk space usage for filesystems, showing total, used, and available space for mounted partitions, with options for human-readable output (-h) and filesystem types (-T)."
+  },
+  {
+    "id": 154,
+    "question": "What is the difference between polling and interrupts?",
+    "answer": "Polling involves the CPU continuously checking device status, wasting CPU cycles, while interrupts allow devices to signal the CPU when they need attention, enabling efficient asynchronous handling."
+  },
+  {
+    "id": 155,
+    "question": "What is the purpose of the 'du' command in Unix/Linux?",
+    "answer": "The 'du' command estimates file and directory space usage, showing disk consumption recursively, with options for human-readable output (-h), summary totals (-s), and excluding certain patterns."
+  },
+  {
+    "id": 156,
+    "question": "What is a privileged instruction?",
+    "answer": "A privileged instruction can only be executed by the operating system kernel, such as I/O operations, memory management instructions, and instructions that modify processor state flags."
+  },
+  {
+    "id": 157,
+    "question": "What is the difference between a pipe and a named pipe (FIFO)?",
+    "answer": "A pipe is anonymous and exists only during the lifetime of the processes using it, while a named pipe (FIFO) has a filesystem entry and allows unrelated processes to communicate."
+  },
+  {
+    "id": 158,
+    "question": "What is the purpose of the 'netstat' command?",
+    "answer": "The 'netstat' command displays network connections, routing tables, interface statistics, masquerade connections, and multicast memberships, useful for network troubleshooting and monitoring."
+  },
+  {
+    "id": 159,
+    "question": "What is the difference between preemptive and cooperative scheduling?",
+    "answer": "In preemptive scheduling, the OS can interrupt a running process to give CPU to another, while in cooperative scheduling, processes voluntarily yield control when finished or waiting."
+  },
+  {
+    "id": 160,
+    "question": "What is the purpose of the 'lsof' command?",
+    "answer": "The 'lsof' command lists open files and the processes that opened them, including regular files, directories, network sockets, and special files, useful for debugging and system analysis."
+  },
+  {
+    "id": 161,
+    "question": "What is a system image?",
+    "answer": "A system image is a complete snapshot of a computer's drives, including the operating system, applications, settings, and data, used for backup, recovery, or deployment."
+  },
+  {
+    "id": 162,
+    "question": "What is the difference between absolute path and relative path?",
+    "answer": "An absolute path specifies the complete location from the root directory (e.g., /home/user/file.txt), while a relative path specifies location relative to the current directory (e.g., ../docs/file.txt)."
+  },
+  {
+    "id": 163,
+    "question": "What is the purpose of the 'cron' daemon?",
+    "answer": "The 'cron' daemon executes scheduled commands at specified times/periods according to configuration files called crontabs, used for automating system maintenance, backups, and other periodic tasks."
+  },
+  {
+    "id": 164,
+    "question": "What is the difference between 'kill' and 'kill -9'?",
+    "answer": "'kill' sends SIGTERM (termination signal) allowing graceful cleanup, while 'kill -9' sends SIGKILL which immediately terminates the process without cleanup, bypassing signal handlers."
+  },
+  {
+    "id": 165,
+    "question": "What is the purpose of the 'syslog' facility?",
+    "answer": "Syslog provides a standard for message logging, collecting logs from various system components and applications into centralized locations, with configurable severity levels and destinations."
+  },
+  {
+    "id": 166,
+    "question": "What is the difference between logical file system and physical file system?",
+    "answer": "The logical file system provides the user interface (directory structure, file names, permissions), while the physical file system handles actual storage on disk blocks and sectors."
+  },
+  {
+    "id": 167,
+    "question": "What is the purpose of the 'mount' command?",
+    "answer": "The 'mount' command attaches a filesystem to the directory tree at a specified mount point, making it accessible to the system, with options for filesystem type, read/write permissions, and other parameters."
+  },
+  {
+    "id": 168,
+    "question": "What is the difference between '&' and 'fg/bg' in shell job control?",
+    "answer": "'&' runs a command in the background immediately, while 'fg' brings a background job to foreground and 'bg' resumes a suspended job in the background."
+  },
+  {
+    "id": 169,
+    "question": "What is the purpose of the 'umask' setting?",
+    "answer": "Umask (user mask) determines the default permissions for newly created files and directories by masking out specific bits, typically preventing group and other write permissions by default."
+  },
+  {
+    "id": 170,
+    "question": "What is the difference between RAID 0 and RAID 1?",
+    "answer": "RAID 0 stripes data across multiple disks for performance but provides no redundancy, while RAID 1 mirrors data across disks for redundancy but uses twice the storage capacity."
+  },
+  {
+    "id": 171,
+    "question": "What is the purpose of the 'nice' and 'renice' commands?",
+    "answer": "'nice' starts a process with a specified priority, while 'renice' changes the priority of an already running process, affecting how much CPU time the scheduler allocates to it."
+  },
+  {
+    "id": 172,
+    "question": "What is the difference between a socket and a port?",
+    "answer": "A socket is an endpoint for network communication (IP address + port + protocol), while a port is a logical construct that identifies a specific process or service on a host."
+  },
+  {
+    "id": 173,
+    "question": "What is the purpose of the 'strace' command?",
+    "answer": "'strace' traces system calls and signals made by a process, showing interactions with the kernel, useful for debugging, performance analysis, and understanding program behavior."
+  },
+  {
+    "id": 174,
+    "question": "What is the difference between inode and file descriptor?",
+    "answer": "An inode is a data structure storing file metadata (permissions, timestamps, data block locations), while a file descriptor is an integer handle returned by open() for accessing the file in a process."
+  },
+  {
+    "id": 175,
+    "question": "What is the purpose of the 'which' command?",
+    "answer": "The 'which' command locates the executable file associated with a given command by searching the directories listed in the PATH environment variable."
+  },
+  {
+    "id": 176,
+    "question": "What is the difference between '>' and '>>' redirection operators?",
+    "answer": "'>' redirects output to a file, overwriting existing content, while '>>' appends output to the end of a file without overwriting existing content."
+  },
+  {
+    "id": 177,
+    "question": "What is the purpose of the 'passwd' file?",
+    "answer": "The '/etc/passwd' file stores user account information including username, user ID, group ID, home directory, and default shell, though modern systems often store passwords elsewhere (like /etc/shadow)."
+  },
+  {
+    "id": 178,
+    "question": "What is the difference between static and dynamic memory allocation?",
+    "answer": "Static allocation occurs at compile time with fixed size, while dynamic allocation occurs at runtime with variable size, requiring explicit management (malloc/free, new/delete)."
+  },
+  {
+    "id": 179,
+    "question": "What is the purpose of the 'sudo' command?",
+    "answer": "'sudo' allows permitted users to execute commands as another user (typically root) while logging all commands, providing controlled administrative access without sharing the root password."
+  },
+  {
+    "id": 180,
+    "question": "What is the difference between 'jobs' and 'ps' commands?",
+    "answer": "'jobs' shows background jobs in the current shell session, while 'ps' shows all processes in the system, including those not associated with the current shell."
+  },
+  {
+    "id": 181,
+    "question": "What is the purpose of the 'alias' command?",
+    "answer": "'alias' creates shortcuts for frequently used commands or command sequences, simplifying complex commands and customizing the shell environment for individual users."
+  },
+  {
+    "id": 182,
+    "question": "What is the difference between a symbolic link and a shortcut?",
+    "answer": "A symbolic link is a filesystem-level pointer that appears as a regular file to applications, while a shortcut is an application-level construct typically used in GUI environments."
+  },
+  {
+    "id": 183,
+    "question": "What is the purpose of the 'env' command?",
+    "answer": "The 'env' command displays or modifies the environment for command execution, showing current environment variables or running a command with modified environment settings."
+  },
+  {
+    "id": 184,
+    "question": "What is the difference between 'echo' and 'printf'?",
+    "answer": "'echo' outputs text with automatic newline, while 'printf' provides formatted output with precise control over formatting, similar to C's printf function."
+  },
+  {
+    "id": 185,
+    "question": "What is the purpose of the 'history' command?",
+    "answer": "'history' displays previously executed commands from the current shell session, with options to recall, repeat, or search through command history using line numbers or patterns."
+  },
+  {
+    "id": 186,
+    "question": "What is the difference between a shell variable and an environment variable?",
+    "answer": "Shell variables are local to the current shell, while environment variables are inherited by child processes and affect their behavior, exported using 'export' command."
+  },
+  {
+    "id": 187,
+    "question": "What is the purpose of the 'wc' command?",
+    "answer": "'wc' (word count) counts lines, words, and characters in files or input, with options to show specific counts (-l for lines, -w for words, -c for characters)."
+  },
+  {
+    "id": 188,
+    "question": "What is the difference between 'grep', 'egrep', and 'fgrep'?",
+    "answer": "'grep' uses basic regular expressions, 'egrep' uses extended regular expressions with more metacharacters, and 'fgrep' uses fixed strings for faster literal matching."
+  },
+  {
+    "id": 189,
+    "question": "What is the purpose of the 'sed' command?",
+    "answer": "'sed' (stream editor) performs text transformations on input streams or files, including search/replace, deletion, insertion, and more complex text processing using scripts."
+  },
+  {
+    "id": 190,
+    "question": "What is the difference between 'cut' and 'awk'?",
+    "answer": "'cut' extracts columns from files using delimiters or character positions, while 'awk' is a complete programming language for pattern scanning and processing with more complex capabilities."
+  },
+  {
+    "id": 191,
+    "question": "What is the purpose of the 'sort' command?",
+    "answer": "'sort' arranges lines of text files in order, with options for numeric sorting (-n), reverse order (-r), removing duplicates (-u), and specifying sort keys (-k)."
+  },
+  {
+    "id": 192,
+    "question": "What is the difference between 'head' and 'tail'?",
+    "answer": "'head' displays the first lines of files, while 'tail' displays the last lines, both with options to specify number of lines and follow growing files (-f for tail)."
+  },
+  {
+    "id": 193,
+    "question": "What is the purpose of the 'uniq' command?",
+    "answer": "'uniq' filters adjacent duplicate lines from sorted input, with options to show only duplicates (-d), count occurrences (-c), or show only unique lines (-u)."
+  },
+  {
+    "id": 194,
+    "question": "What is the difference between 'tr' and 'sed' for character replacement?",
+    "answer": "'tr' translates or deletes single characters or character classes, while 'sed' can handle more complex patterns, strings, and perform multiple operations in sequence."
+  },
+  {
+    "id": 195,
+    "question": "What is the purpose of the 'xargs' command?",
+    "answer": "'xargs' builds and executes command lines from standard input, converting input items into arguments for another command, useful for processing many files or arguments efficiently."
+  },
+  {
+    "id": 196,
+    "question": "What is the difference between 'find -exec' and 'xargs'?",
+    "answer": "'find -exec' executes a command for each found item, while 'xargs' groups multiple items into fewer command executions, improving performance for large numbers of files."
+  },
+  {
+    "id": 197,
+    "question": "What is the purpose of the 'tee' command?",
+    "answer": "'tee' reads from standard input and writes to both standard output and files, allowing simultaneous viewing and saving of command output, useful in pipelines."
+  },
+  {
+    "id": 198,
+    "question": "What is the difference between 'sleep' and 'wait'?",
+    "answer": "'sleep' pauses execution for a specified time interval, while 'wait' pauses until background processes or specific process IDs complete their execution."
+  },
+  {
+    "id": 199,
+    "question": "What is the purpose of the 'time' command?",
+    "answer": "'time' measures the execution time of a command, reporting real (wall clock), user (CPU time in user mode), and sys (CPU time in kernel mode) durations."
+  },
+  {
+    "id": 200,
+    "question": "What is the difference between 'test' and '[ ]' in shell scripting?",
+    "answer": "'test' and '[ ]' are equivalent for evaluating expressions, with '[ ]' being a synonym for 'test', though modern shells also support '[[ ]]' with additional features and fewer quoting issues."
   }
 ]
 
