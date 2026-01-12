@@ -1,15 +1,36 @@
+/* Professional Interview Prep - Header Styles */
+
 .header {
-  background: linear-gradient(135deg, #2c3e50 0%, #3498db 100%);
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  width: 100%;
+  /* Solid Navy Blue for authority and trust */
+  background: #1E3A8A; 
   color: white;
-  padding: 1.5rem 2rem;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
-  border-radius: 12px 12px 0 0;
+  padding: 1rem 2rem; /* Slightly tighter padding for a modern look */
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  z-index: 1000;
+  border-bottom: 2px solid #F59E0B; /* Subtle Gold accent line for 'Achievement' signaling */
+}
+
+/* Push content below fixed header */
+.dashboard-main,
+.resume-main,
+.interview-main,
+.chat-main-content,
+.hr-main {
+  padding-top: 100px; /* Adjusted to balance with the new header height */
 }
 
 .header-content {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-start;
   align-items: center;
+  gap: 2rem;
+  max-width: 1400px; /* Match container width */
+  margin: 0 auto;
 }
 
 .logo {
@@ -19,21 +40,18 @@
 }
 
 .logo i {
-  font-size: 2rem;
-  color: #74b9ff;
-  animation: glow 2s infinite alternate;
-}
-
-@keyframes glow {
-  from { filter: drop-shadow(0 0 5px rgba(116,185,255,0.5)); }
-  to { filter: drop-shadow(0 0 20px rgba(116,185,255,0.8)); }
+  font-size: 1.8rem;
+  /* Using Gold for the logo icon to signal premium quality */
+  color: #F59E0B; 
+  filter: drop-shadow(0 0 2px rgba(245, 158, 11, 0.3));
 }
 
 .logo h1 {
-  font-size: 1.8rem;
+  font-size: 1.6rem;
   font-weight: 700;
   margin: 0;
-  background: linear-gradient(45deg, #74b9ff, white);
+  /* Clean white text for maximum readability on Navy */
+  background: white;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -42,50 +60,67 @@
   display: flex;
   align-items: center;
   gap: 1rem;
+  margin-left: auto; /* More robust than absolute positioning */
 }
 
 .user-info {
   text-align: right;
+  margin-right: 1rem;
 }
 
 .user-info span {
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 500;
+  color: #E2E8F0; /* Soft white/gray for secondary info */
 }
 
 .back-btn, .logout-btn {
-  background: rgba(255, 255, 255, 0.1);
+  /* Semi-transparent Navy-Blue depth */
+  background: rgba(255, 255, 255, 0.05);
   border: 1px solid rgba(255, 255, 255, 0.2);
   color: white;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
+  padding: 0.6rem 1.2rem;
+  border-radius: 6px; /* Sharper, more professional corners */
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   font-family: inherit;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  font-weight: 600;
   display: flex;
   align-items: center;
   gap: 0.5rem;
 }
 
-.back-btn:hover, .logout-btn:hover {
-  background: rgba(255, 255, 255, 0.2);
+.back-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateX(-3px); /* Subtle directional feedback */
+}
+
+.logout-btn:hover {
+  background: #EF4444; /* Error Red only on logout hover */
+  border-color: #EF4444;
 }
 
 @media (max-width: 768px) {
   .header {
     padding: 1rem;
-    flex-direction: column;
-    gap: 1rem;
-    text-align: center;
   }
 
   .header-content {
-    flex-direction: column;
-    gap: 1rem;
+    justify-content: space-between;
+    gap: 0.5rem;
   }
 
   .logo h1 {
-    font-size: 1.4rem;
+    font-size: 1.2rem;
+  }
+
+  .header-actions {
+    position: static;
+    transform: none;
+  }
+  
+  .user-info {
+    display: none; /* Hide non-essential text on mobile */
   }
 }

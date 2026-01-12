@@ -41,8 +41,8 @@ const Dashboard = ({ user, onLogout }) => {
       color: "hr"
     },
     {
-      title: "Resume Analysis",
-      description: "Upload your resume for intelligent parsing and get personalized interview questions.",
+      title: "Resume Analysis & Mock Interview",
+      description: "Upload your resume for intelligent parsing and start personalized mock interviews based on your profile.",
       icon: "fas fa-file-upload",
       link: "/upload-resume",
       color: "resume"

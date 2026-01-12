@@ -1,40 +1,54 @@
+/* Professional Interview Prep - Dashboard Styles */
+
 .dashboard-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* Swapped purple gradient for the Clean/Light background */
+  background: #F8FAFC; 
 }
 
 .dashboard-main {
   padding: 2rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 .welcome-section {
   text-align: center;
+  padding-top: 100px; /* Aligned with Header height */
   margin-bottom: 3rem;
 }
 
 .welcome-section h2 {
   font-size: 2.5rem;
-  color: #2c3e50;
-  margin-bottom: 1rem;
+  /* Navy Blue for strong, professional branding */
+  color: #1E3A8A; 
+  font-weight: 800;
+  margin-bottom: 0.5rem;
 }
 
 .welcome-section p {
   font-size: 1.2rem;
-  color: #6c757d;
+  /* Dark gray for readability without text-shadow */
+  color: #4B5563; 
+  font-weight: 500;
 }
 
 .features-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 2rem;
-  margin-bottom: 3rem;
+  margin-bottom: 4rem;
 }
 
+/* Stats Section */
 .stats-section {
   background: white;
-  border-radius: 15px;
-  padding: 2rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border-radius: 12px;
+  padding: 2.5rem;
+  box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.1);
+  /* Success Green top border to signal growth/tracking */
+  border-top: 5px solid #10B981; 
+  border: 1px solid #E2E8F0;
 }
 
 .stats-header {
@@ -44,23 +58,30 @@
 
 .stats-header h3 {
   font-size: 1.5rem;
-  color: #2c3e50;
+  color: #1E3A8A; /* Navy Blue */
+  font-weight: 700;
   margin-bottom: 0.5rem;
 }
 
 .stats-header p {
-  color: #6c757d;
+  color: #64748B;
+  font-weight: 500;
 }
 
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
+  gap: 1.5rem;
 }
 
+/* Responsive Design */
 @media (max-width: 768px) {
   .dashboard-main {
-    padding: 1rem;
+    padding: 1.5rem 1rem;
+  }
+
+  .welcome-section {
+    padding-top: 80px;
   }
 
   .welcome-section h2 {

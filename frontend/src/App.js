@@ -74,9 +74,9 @@ function App() {
             path="/hr-interview" 
             element={user ? <HRInterview user={user} onLogout={handleLogout} /> : <Navigate to="/login" />} 
           />
-          <Route 
-            path="/upload-resume" 
-            element={user ? <ResumeUpload user={user} onLogout={handleLogout} /> : <Navigate to="/login" />} 
+          <Route
+            path="/upload-resume"
+            element={user ? <ResumeUpload user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
           />
           <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
         </Routes>

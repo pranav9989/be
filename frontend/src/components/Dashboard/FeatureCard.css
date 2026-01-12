@@ -1,85 +1,116 @@
+/* Professional Interview Prep - Feature Card Styles */
+
 .feature-card {
   background: white;
-  border-radius: 15px;
-  padding: 2rem;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+  border-radius: 12px; /* Standardized to modern professional radius */
+  padding: 1.5rem;
+  box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.1);
   text-align: center;
-  transition: all 0.3s ease;
-  border: 2px solid transparent;
-  cursor: pointer;
-  border-top: 4px solid;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid #E2E8F0; /* Subtle full border */
+  border-top: 4px solid; /* Keep the categorization top-border */
+  display: flex;
+  flex-direction: column;
+  min-height: 280px;
+  position: relative;
+  overflow: hidden;
 }
 
 .feature-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  border-color: #74b9ff;
+  box-shadow: 0 12px 20px -5px rgba(30, 58, 138, 0.15);
+  border-color: #CBD5E1;
 }
 
 .feature-card i {
-  font-size: 3rem;
+  font-size: 2.5rem;
   margin-bottom: 1rem;
   display: block;
+  transition: transform 0.3s ease;
+}
+
+.feature-card:hover i {
+  transform: scale(1.1);
 }
 
 .feature-card h3 {
-  font-size: 1.3rem;
-  margin-bottom: 1rem;
-  color: #2c3e50;
+  font-size: 1.25rem;
+  margin-bottom: 0.8rem;
+  color: #1E3A8A; /* Professional Navy Blue */
+  font-weight: 700;
 }
 
 .feature-card p {
-  color: #6c757d;
-  line-height: 1.6;
+  color: #4B5563; /* High contrast gray */
+  line-height: 1.5;
   margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+  flex-grow: 1; /* Ensures buttons align even with varying text lengths */
 }
 
 .feature-btn {
-  background: linear-gradient(135deg, #74b9ff, #0984e3);
+  background: #1E3A8A; /* Standardized to Navy */
   color: white;
-  padding: 0.8rem 1.5rem;
+  padding: 0.7rem 1.5rem;
   border: none;
-  border-radius: 8px;
+  border-radius: 6px;
   text-decoration: none;
   display: inline-block;
-  font-weight: 500;
-  transition: all 0.3s ease;
+  font-weight: 600;
+  font-size: 0.9rem;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  align-self: center;
+  margin-top: auto; /* Pushes button to bottom */
 }
 
 .feature-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(116, 185, 255, 0.4);
+  background: #172554;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
 }
 
-/* Color variants */
-.technical-card {
-  border-top-color: #3498db;
+/* Color variants - Strategic Use:
+   Navy = Preparation/Knowledge
+   Green = Success/Results
+   Gold = Critical/Special
+*/
+
+/* Knowledge & Technical based cards */
+.technical-card, .profile-card {
+  border-top-color: #1E3A8A; /* Navy */
+}
+.technical-card i, .profile-card i {
+  color: #1E3A8A;
 }
 
-.technical-card i {
-  color: #3498db;
+/* Results & Resume based cards */
+.resume-card, .mock-card {
+  border-top-color: #10B981; /* Success Green */
+}
+.resume-card i, .mock-card i {
+  color: #10B981;
 }
 
+/* HR / Interaction based cards */
 .hr-card {
-  border-top-color: #e74c3c;
+  border-top-color: #F59E0B; /* Gold Accent */
 }
-
 .hr-card i {
-  color: #e74c3c;
+  color: #F59E0B;
 }
 
-.resume-card {
-  border-top-color: #27ae60;
+/* Hover Effect for Buttons based on card type */
+.resume-card .feature-btn, .mock-card .feature-btn {
+    background: #10B981;
+}
+.resume-card .feature-btn:hover, .mock-card .feature-btn:hover {
+    background: #059669;
 }
 
-.resume-card i {
-  color: #27ae60;
+.hr-card .feature-btn {
+    background: #F59E0B;
 }
-
-.profile-card {
-  border-top-color: #f39c12;
-}
-
-.profile-card i {
-  color: #f39c12;
+.hr-card .feature-btn:hover {
+    background: #D97706;
 }

@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import './Header.css';
 
-const Header = ({ user, onLogout, title, showBack = false }) => {
+const Header = ({ user, onLogout, title, showBack = false, onBack }) => {
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -11,7 +11,11 @@ const Header = ({ user, onLogout, title, showBack = false }) => {
   };
 
   const handleBack = () => {
-    navigate('/dashboard');
+    if (onBack) {
+      onBack();
+    } else {
+      navigate('/dashboard');
+    }
   };
 
   return (

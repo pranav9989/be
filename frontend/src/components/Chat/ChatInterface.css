@@ -1,11 +1,15 @@
+/* Professional Interview Prep - Chat Interface */
+
 .chat-interface-container {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  /* Swapped purple gradient for Clean Background */
+  background: #F8FAFC; 
 }
 
 .chat-main-content {
   display: flex;
   height: calc(100vh - 80px);
+  border-top: 1px solid #E2E8F0;
 }
 
 .chat-section {
@@ -25,27 +29,30 @@
   flex: 1;
   overflow-y: auto;
   padding: 2rem;
-  background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
+  /* Clean, non-distracting background */
+  background: #F8FAFC; 
 }
 
+/* Scrollbar - Navy & Gray Theme */
 .chat-messages::-webkit-scrollbar {
   width: 6px;
 }
 
 .chat-messages::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: #F1F5F9;
   border-radius: 3px;
 }
 
 .chat-messages::-webkit-scrollbar-thumb {
-  background: linear-gradient(#3498db, #74b9ff);
+  /* Navy thumb for a professional feel */
+  background: #1E3A8A; 
   border-radius: 3px;
 }
 
 .chat-input-container {
-  background: linear-gradient(180deg, #ffffff 0%, #f8f9fa 100%);
-  border-top: 2px solid #e9ecef;
-  padding: 2rem;
+  background: white;
+  border-top: 1px solid #E2E8F0;
+  padding: 1.5rem 2rem;
 }
 
 .chat-input-wrapper {
@@ -53,19 +60,20 @@
   gap: 1rem;
   align-items: center;
   background: white;
-  border-radius: 30px;
-  padding: 1rem 1.5rem;
-  border: 2px solid #e9ecef;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  max-width: 800px;
+  border-radius: 12px; /* Slightly more professional than full pill-shape */
+  padding: 0.75rem 1.25rem;
+  border: 2px solid #E2E8F0;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  max-width: 900px;
   margin: 0 auto;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
 }
 
 .chat-input-wrapper:focus-within {
-  border-color: #74b9ff;
-  box-shadow: 0 0 0 4px rgba(116,185,255,0.15), 0 10px 25px rgba(0,0,0,0.15);
-  transform: translateY(-2px);
+  /* Navy Blue focus signal */
+  border-color: #1E3A8A; 
+  box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.1);
+  transform: translateY(-1px);
 }
 
 .chat-input {
@@ -73,66 +81,68 @@
   border: none;
   outline: none;
   background: transparent;
-  font-size: 1.1rem;
-  color: #2c3e50;
+  font-size: 1rem;
+  color: #1F2937; /* Dark Gray text */
   font-family: inherit;
 }
 
 .chat-input::placeholder {
-  color: #6c757d;
-  font-style: italic;
+  color: #94A3B8;
+  font-style: normal;
 }
 
 .send-btn {
-  background: linear-gradient(135deg, #74b9ff, #0984e3);
+  /* Using Gold for the primary action button */
+  background: #F59E0B; 
   color: white;
   border: none;
-  width: 50px;
-  height: 50px;
-  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  font-size: 1.2rem;
+  box-shadow: 0 4px 6px rgba(245, 158, 11, 0.2);
+  font-size: 1.1rem;
 }
 
 .send-btn:hover:not(:disabled) {
-  transform: scale(1.15) rotate(15deg);
-  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  background: #D97706; /* Darker Gold */
+  transform: translateY(-2px);
+  box-shadow: 0 6px 12px rgba(245, 158, 11, 0.3);
 }
 
 .send-btn:disabled {
-  opacity: 0.6;
+  background: #E2E8F0;
+  color: #94A3B8;
   cursor: not-allowed;
   transform: none;
+  box-shadow: none;
 }
 
 .typing-indicator {
-  color: #74b9ff;
-  font-size: 0.95rem;
+  /* Success Green for the "Assistant is thinking" signal */
+  color: #10B981; 
+  font-size: 0.9rem;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 0.3rem;
-  font-weight: 500;
-  margin: 1rem 0;
+  font-weight: 600;
+  margin: 0.5rem 0;
 }
 
 .typing-indicator i {
   animation: typing 1.4s infinite ease-in-out;
-  font-size: 0.6rem;
+  font-size: 0.5rem;
 }
 
-.typing-indicator i:nth-child(1) { animation-delay: 0s; }
-.typing-indicator i:nth-child(2) { animation-delay: 0.2s; }
-.typing-indicator i:nth-child(3) { animation-delay: 0.4s; }
-
+/* Maintain your existing typing animation */
 @keyframes typing {
   0%, 60%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-8px); }
+  30% { transform: translateY(-5px); }
 }
 
 @media (max-width: 768px) {
@@ -142,14 +152,10 @@
   }
   
   .chat-messages {
-    padding: 1.5rem;
+    padding: 1rem;
   }
   
   .chat-input-container {
-    padding: 1.5rem;
-  }
-  
-  .chat-input-wrapper {
-    padding: 0.8rem 1.2rem;
+    padding: 1rem;
   }
 }

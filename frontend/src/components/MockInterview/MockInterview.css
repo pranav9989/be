@@ -1,0 +1,156 @@
+/* Professional Interview Prep - Mock Interview Styles */
+
+.mock-interview-container {
+  min-height: 100vh;
+  /* Replaced purple gradient with Clean Background */
+  background: #F8FAFC; 
+}
+
+.interview-main {
+  padding: 2rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+/* Setup Section */
+.setup-section {
+  background: white;
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  box-shadow: 0 4px 6px rgba(30, 58, 138, 0.1);
+  text-align: center;
+  border: 1px solid #E2E8F0;
+}
+
+.setup-section h2 {
+  color: #1E3A8A; /* Navy Blue */
+  font-size: 2rem;
+  margin-bottom: 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.setup-section h2 i {
+  color: #1E3A8A;
+}
+
+.setup-section p {
+  color: #4B5563;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+}
+
+.form-group label {
+  color: #1E3A8A; /* Navy Blue */
+  font-weight: 600;
+}
+
+.form-group label i {
+  color: #10B981; /* Success Green icons */
+}
+
+.form-group textarea:focus, 
+.form-group select:focus {
+  outline: none;
+  border-color: #1E3A8A;
+  box-shadow: 0 0 0 3px rgba(30, 58, 138, 0.1);
+}
+
+/* Primary Action: Gold for "Generate/Start" */
+.generate-btn {
+  background: #F59E0B; 
+  color: white;
+  border: none;
+  padding: 1rem 2.5rem;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(245, 158, 11, 0.3);
+}
+
+.generate-btn:hover:not(:disabled) {
+  background: #D97706;
+  transform: translateY(-2px);
+}
+
+/* Interview Section */
+.interview-section {
+  background: white;
+  border-radius: 12px;
+  padding: 3rem 2rem;
+  border: 1px solid #E2E8F0;
+  box-shadow: 0 10px 25px rgba(30, 58, 138, 0.05);
+}
+
+.progress-bar {
+  background: #E2E8F0;
+}
+
+.progress-fill {
+  /* Success Green for Progress */
+  background: #10B981; 
+}
+
+.question-card {
+  background: #F8FAFC;
+  border-left: 4px solid #1E3A8A; /* Navy accent for current question */
+}
+
+.question-type {
+  background: #1E3A8A; /* Navy instead of light blue */
+  color: white;
+}
+
+.question-text {
+  color: #1F2937;
+}
+
+.answer-section textarea:focus {
+  border-color: #10B981; /* Green border when answering */
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+}
+
+/* Navigation Buttons */
+.nav-btn.next {
+  background: #1E3A8A; /* Navy for Next */
+  border-radius: 8px;
+}
+
+.nav-btn.next:hover:not(:disabled) {
+  background: #172554;
+  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
+}
+
+/* Results Section */
+.results-header h2 i {
+  color: #F59E0B; /* Gold for trophy/achievement */
+}
+
+.feedback-card h3 i {
+  color: #10B981; /* Success Green */
+}
+
+.answer-item {
+  background: #F0F9FF; /* Very light navy tint */
+  border-left: 4px solid #10B981; /* Green for completed review */
+}
+
+.new-interview-btn {
+  background: #10B981; /* Success Green to encourage another go */
+}
+
+.new-interview-btn:hover {
+  background: #059669;
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
+  .generate-btn, .retry-btn, .new-interview-btn {
+    border-radius: 8px; /* Standardize corners */
+  }
+}

@@ -12,3 +12,5 @@ werkzeug==2.3.7
 PyPDF2==3.0.1
 python-docx==0.8.11
 huggingface-hub>=0.20.3,<0.26.0
+langchain==1.2.0
+langchain-community==0.4.1

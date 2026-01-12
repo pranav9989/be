@@ -58,6 +58,7 @@ export const resumeAPI = {
   upload: (formData) => api.post('/upload_resume', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+  generateResumeBasedQuestions: (data) => api.post('/resume_based_questions', data),
 };
 
 export const statsAPI = {

@@ -7,6 +7,7 @@ but improves RAG initialization, FAISS usage, and Gemini calls.
 
 import os
 import json
+import re
 import traceback
 import faiss
 import numpy as np
@@ -30,6 +31,7 @@ from werkzeug.utils import secure_filename
 
 from dotenv import load_dotenv
 import google.generativeai as genai
+from resume_processor import process_resume_for_faiss, search_resume_faiss, get_resume_chunks
 
 import PyPDF2
 import docx
@@ -215,25 +217,180 @@ def extract_text_from_docx(file_stream):
         return None
 
 def parse_resume_text(text):
+    """
+    Extract skills, experience, and projects from resume text.
+    Only extracts information actually present in the resume.
+    """
+    import re
+
     lines = text.strip().splitlines()
+    text_lower = text.lower()
+
+    skills = []
+    projects = []
+    experience_years = 0
+
+    # Common technical skills patterns - only add if actually found in resume
+    common_skills = {
+        'Programming Languages': ['python', 'java', 'javascript', 'typescript', 'c++', 'c#', 'php', 'ruby', 'go', 'rust', 'swift', 'kotlin', 'scala'],
+        'Web Technologies': ['html', 'css', 'react', 'angular', 'vue', 'node.js', 'express', 'django', 'flask', 'spring'],
+        'Databases': ['mysql', 'postgresql', 'mongodb', 'redis', 'oracle', 'sql server', 'sqlite'],
+        'Cloud & DevOps': ['aws', 'azure', 'gcp', 'docker', 'kubernetes', 'jenkins', 'github actions', 'terraform'],
+        'Tools & Technologies': ['git', 'linux', 'windows', 'api', 'rest', 'graphql', 'json', 'xml'],
+        'Frameworks & Libraries': ['pandas', 'numpy', 'tensorflow', 'pytorch', 'scikit-learn', 'opencv'],
+        'Methodologies': ['agile', 'scrum', 'kanban', 'ci/cd', 'tdd', 'bdd']
+    }
+
+    # Extract skills by checking if they appear in the resume
+    for category, skill_list in common_skills.items():
+        for skill in skill_list:
+            # Use word boundaries to avoid partial matches
+            if re.search(r'\b' + re.escape(skill) + r'\b', text_lower):
+                # Capitalize properly
+                if skill == 'node.js':
+                    skills.append('Node.js')
+                elif skill == 'c++':
+                    skills.append('C++')
+                elif skill == 'c#':
+                    skills.append('C#')
+                elif skill == 'ci/cd':
+                    skills.append('CI/CD')
+                elif skill == 'tdd':
+                    skills.append('TDD')
+                elif skill == 'bdd':
+                    skills.append('BDD')
+                else:
+                    skills.append(skill.title())
+
+    # Remove duplicates while preserving order
+    skills = list(dict.fromkeys(skills))
+
+    # Extract experience years - multiple patterns
+    experience_patterns = [
+        r'(\d+)\+?\s*years?\s*(?:of\s*)?experience',
+        r'experience\s*(?:of\s*)?(\d+)\+?\s*years?',
+        r'(\d+)\+?\s*years?\s*(?:of\s*)?(?:professional\s*)?experience',
+        r'total\s*(?:of\s*)?(\d+)\+?\s*years?',
+        r'over\s*(\d+)\s*years?',
+        r'more\s*than\s*(\d+)\s*years?'
+    ]
+
+    for pattern in experience_patterns:
+        matches = re.findall(pattern, text_lower)
+        for match in matches:
+            years = int(match)
+            if years > experience_years:  # Take the highest mentioned experience
+                experience_years = years
+
+    # If no years found, look for months and convert to years
+    if experience_years == 0:
+        month_patterns = [
+            r'(\d+)\+?\s*months?\s*(?:of\s*)?experience',
+            r'experience\s*(?:of\s*)?(\d+)\+?\s*months?'
+        ]
+        for pattern in month_patterns:
+            matches = re.findall(pattern, text_lower)
+            for match in matches:
+                months = int(match)
+                years = months / 12
+                if years > experience_years:
+                    experience_years = int(years)
+
+    # Extract projects - look for project-related sections
+    project_keywords = ['project', 'projects', 'developed', 'built', 'created', 'implemented', 'worked on', 'led', 'managed']
+    in_projects_section = False
+    current_projects = []
+
+    for line in lines:
+        line_lower = line.lower().strip()
+
+        # Check if we're entering a projects section
+        if any(keyword in line_lower for keyword in ['projects', 'project experience', 'key projects', 'personal projects']):
+            in_projects_section = True
+            continue
+
+        # If we're in projects section, collect project descriptions
+        if in_projects_section and len(line.strip()) > 20:  # Meaningful project description
+            # Stop if we hit another section
+            if any(section in line_lower for section in ['education', 'skills', 'experience', 'certifications', 'achievements']):
+                in_projects_section = False
+                continue
+
+            # Clean and add project
+            project_text = line.strip()
+            if project_text and not any(word in project_text.lower() for word in ['•', '-', '*']):  # Avoid bullet points alone
+                current_projects.append(project_text)
+
+        # Also look for project mentions in regular text
+        elif any(keyword in line_lower for keyword in project_keywords) and len(line.strip()) > 30:
+            current_projects.append(line.strip())
+
+        # Limit to 5 projects max
+        if len(current_projects) >= 5:
+            break
+
+    # Clean up projects - remove duplicates and empty entries
+    projects = []
+    for proj in current_projects:
+        proj_clean = proj.strip()
+        if len(proj_clean) > 10 and proj_clean not in projects:
+            projects.append(proj_clean)
+
+    return {
+        'skills': skills[:10],  # Limit to top 10 most relevant skills
+        'experience_years': experience_years,
+        'projects': projects[:3],  # Limit to top 3 projects
+        'raw_text': text[:1000]
+    }
+
+def analyze_resume_job_fit(resume_data, job_description):
+    """Analyze how well the resume fits the job description"""
+    if not job_description:
+        return None
+
+    resume_skills = set(resume_data.get('skills', []))
+    jd_text = job_description.lower()
+
+    # Extract skills from job description
+    jd_skills = []
     tech_keywords = [
         'python', 'java', 'javascript', 'react', 'node', 'sql', 'html', 'css',
-        'machine learning', 'data science', 'flask', 'django', 'mongodb', 'mysql'
+        'machine learning', 'data science', 'flask', 'django', 'mongodb', 'mysql',
+        'aws', 'docker', 'kubernetes', 'git', 'linux', 'windows', 'api', 'rest',
+        'graphql', 'agile', 'scrum', 'ci/cd', 'jenkins', 'testing', 'unit test',
+        'c++', 'c#', 'php', 'ruby', 'go', 'rust', 'typescript', 'vue', 'angular'
     ]
-    skills = []
-    for line in lines:
-        for kw in tech_keywords:
-            if kw in line.lower() and kw.title() not in skills:
-                skills.append(kw.title())
-    experience_years = 0
-    for line in lines:
-        if 'year' in line.lower() and 'experience' in line.lower():
-            tokens = line.split()
-            for t in tokens:
-                if t.isdigit():
-                    experience_years = int(t)
-                    break
-    return {'skills': skills, 'experience_years': experience_years, 'raw_text': text[:1000]}
+
+    for skill in tech_keywords:
+        if skill in jd_text and skill.title() not in jd_skills:
+            jd_skills.append(skill.title())
+
+    jd_skills_set = set(jd_skills)
+
+    # Calculate match scores
+    matching_skills = resume_skills.intersection(jd_skills_set)
+    missing_skills = jd_skills_set - resume_skills
+
+    match_percentage = (len(matching_skills) / len(jd_skills_set) * 100) if jd_skills_set else 0
+
+    # Experience analysis
+    experience_required = 0
+    if 'year' in jd_text and 'experience' in jd_text:
+        import re
+        exp_match = re.search(r'(\d+)\+?\s*year', jd_text)
+        if exp_match:
+            experience_required = int(exp_match.group(1))
+
+    experience_fit = "Good fit" if resume_data.get('experience_years', 0) >= experience_required else "May need more experience"
+
+    return {
+        'matching_skills': list(matching_skills),
+        'missing_skills': list(missing_skills),
+        'match_percentage': round(match_percentage, 1),
+        'experience_required': experience_required,
+        'experience_fit': experience_fit,
+        'jd_skills_found': jd_skills
+    }
 
 # ========== API ROUTES (Updated for React) ==========
 
@@ -371,11 +528,31 @@ def upload_resume():
             current_user.resume_filename = filename
             current_user.skills = json.dumps(resume_data['skills'])
             current_user.experience_years = resume_data['experience_years']
+
+            # Get job description from form data
+            job_description = request.form.get('job_description', '').strip()
+
+            # Analyze resume-job fit if JD provided
+            job_fit_analysis = None
+            if job_description:
+                job_fit_analysis = analyze_resume_job_fit(resume_data, job_description)
+                resume_data['job_fit_analysis'] = job_fit_analysis
+
+            # Process resume with FAISS for interview questions
+            try:
+                chunk_count = process_resume_for_faiss(text, current_user.id)
+                resume_data['chunks_processed'] = chunk_count
+                resume_data['rag_ready'] = True
+            except Exception as e:
+                print(f"FAISS processing failed: {e}")
+                resume_data['rag_ready'] = False
+
             db.session.commit()
             return jsonify({
                 'success': True,
-                'message': 'Resume uploaded and parsed successfully',
-                'data': resume_data
+                'message': 'Resume uploaded and analyzed successfully',
+                'data': resume_data,
+                'job_description_provided': bool(job_description)
             })
         else:
             return jsonify({'success': False, 'message': 'Could not extract text from resume'})
@@ -421,6 +598,11 @@ def generate_hr_questions():
         skills = json.loads(current_user.skills) if current_user.skills else []
         experience = current_user.experience_years
 
+        api_key = get_gemini_api_key()
+        if not api_key:
+            return jsonify({'success': False, 'error': 'Gemini API key not configured'})
+
+        genai.configure(api_key=api_key)
         gemini_model = genai.GenerativeModel("models/gemini-flash-latest")
 
         prompt = f"""
@@ -449,6 +631,94 @@ def generate_hr_questions():
             ]
         return jsonify({'success': True, 'questions': questions})
     except Exception as e:
+        return jsonify({'success': False, 'error': str(e)})
+
+
+@app.route('/api/resume_based_questions', methods=['POST'])
+@jwt_required
+def generate_resume_based_questions():
+    """Generate interview questions based on user's resume content using FAISS"""
+    try:
+        data = request.get_json()
+        job_description = data.get('job_description', '')
+        question_count = data.get('question_count', 5)
+        variation_seed = data.get('variation_seed', '')  # For generating different questions each time
+
+        # Check if user has a processed resume
+        if not current_user.resume_filename:
+            return jsonify({'success': False, 'error': 'No resume uploaded'})
+
+        # Search resume content for relevant information
+        if job_description:
+            search_query = f"Generate interview questions for this job: {job_description}"
+        else:
+            search_query = "Generate technical interview questions based on my experience and skills"
+
+        search_results = search_resume_faiss(search_query, current_user.id, top_k=5)
+
+        # Build context from resume chunks
+        resume_context = "\n".join([result['text'] for result in search_results])
+
+        # Generate questions using Gemini with resume context
+        api_key = get_gemini_api_key()
+        if not api_key:
+            return jsonify({'success': False, 'error': 'Gemini API key not configured'})
+
+        genai.configure(api_key=api_key)
+        gemini_model = genai.GenerativeModel("models/gemini-flash-latest")
+
+        skills = json.loads(current_user.skills) if current_user.skills else []
+        experience = current_user.experience_years
+
+        # Add variation seed to make questions different each time
+        variation_text = f" (Variation: {variation_seed})" if variation_seed else ""
+
+        prompt = f"""
+        Based on the following resume content and job requirements, generate {question_count} targeted interview questions{variation_text}.
+
+        Resume Content:
+        {resume_context}
+
+        Candidate Profile:
+        - Skills: {', '.join(skills)}
+        - Experience: {experience} years
+        - Job Description: {job_description}
+
+        Generate {question_count} specific, relevant interview questions that:
+        1. Test technical skills mentioned in the resume
+        2. Probe deeper into projects and experiences described
+        3. Assess problem-solving abilities demonstrated in the resume
+        4. Evaluate fit for the job description provided
+
+        IMPORTANT: Create COMPLETELY DIFFERENT questions each time. Focus on different aspects of the resume, different skills, and different scenarios. Avoid repeating similar question patterns or themes.
+
+        Return as JSON array with each question object containing 'question' and 'type' fields.
+        Types should be: 'technical', 'behavioral', 'project-based', or 'situational'.
+        """
+
+        response = gemini_model.generate_content(prompt)
+        try:
+            questions = json.loads(response.text)
+        except:
+            # Fallback questions if parsing fails
+            questions = [
+                {"question": "Can you walk me through your most challenging project?", "type": "project-based"},
+                {"question": "How do your technical skills align with this role?", "type": "technical"},
+                {"question": "Describe a time when you solved a difficult problem", "type": "behavioral"},
+                {"question": "What are your career goals and how does this position fit?", "type": "situational"},
+                {"question": "How do you stay updated with industry trends?", "type": "situational"}
+            ]
+
+        return jsonify({
+            'success': True,
+            'questions': questions,
+            'resume_chunks_found': len(search_results)
+        })
+
+    except Exception as e:
+        print(f"Resume-based questions error: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
 
 

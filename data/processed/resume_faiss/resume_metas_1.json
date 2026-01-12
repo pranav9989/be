@@ -1,0 +1,58 @@
+[
+  {
+    "id": "resume_chunk_1_0",
+    "chunk_id": 0,
+    "user_id": 1,
+    "text": "Pranav Raghuvanshi\nB.E. in Artificial Intelligence & Data Science\n+91-9321531659\npranavraghuvanshi2924@gmail.com\nGitHub: pranav9989\nLinkedIn: pr2924\nEducation\nDegree/Certificate Institute/Board CGPA/Percentage Year\nB.E. Vivekanand Education Society’s Institute of\nTechnology, Chembur, Mumbai8.87(SEM - VI) 2022-Present\nHSC CBSE Board 86.8% 2022\nSSC CBSE Board 84.6% 2020\nExperience\n•VESIT - Summer Internship | Research Intern May 2024 – July 2024\nDeep Learning (Fetus Abnormality Classification)",
+    "source": "resume",
+    "chunk_size": 496
+  },
+  {
+    "id": "resume_chunk_1_1",
+    "chunk_id": 1,
+    "user_id": 1,
+    "text": "Deep Learning (Fetus Abnormality Classification)\n◦Engineered a multi-class CNN to classify fetal brain abnormalities by fine-tuning a EfficientNet model.\n◦Achieved a test accuracy of 90% and a weighted F1-score of 0.90, demonstrating high performance on a\n16-class medical imaging problem.\n◦Key Technologies: Python, TensorFlow/Keras, Transfer Learning, CNN, OpenCV, Scikit-learn, Pandas.\nProjects\n•URL Shortener February 2025\nTools & Technologies: Node.js, Express, MongoDB, EJS [/github]",
+    "source": "resume",
+    "chunk_size": 489
+  },
+  {
+    "id": "resume_chunk_1_2",
+    "chunk_id": 2,
+    "user_id": 1,
+    "text": "◦Developed a web application for URL shortening and management using Node.js, Express and MongoDB.\n◦Implemented URL shortening, retrieval of original links, and user-friendly URL management, including\ndeletion.\n•Online Shoppers Purchasing Intention Prediction April 2025\nTools & Technologies: Python, scikit-learn, Pandas, NumPy, Streamlit, Matplotlib, Seaborn. [/github]\n◦Developed a machine learning model to predict online shoppers’ purchase intent from behavioral features.",
+    "source": "resume",
+    "chunk_size": 477
+  },
+  {
+    "id": "resume_chunk_1_3",
+    "chunk_id": 3,
+    "user_id": 1,
+    "text": "◦Performed feature engineering and trained multiple classifiers to optimize prediction accuracy.\n◦Deployed the best-performing XGBoost model via Streamlit with 92% accuracy and precision.\n•RAG-Powered Research Paper Assistant July 2025\nTools & Technologies: Python, Streamlit, ChromaDB, LangChain, Gemini API [/github]\n◦Built a RAG system to answer queries from PDFs or arXiv papers using semantic search and LLM-based\nresponse generation.",
+    "source": "resume",
+    "chunk_size": 439
+  },
+  {
+    "id": "resume_chunk_1_4",
+    "chunk_id": 4,
+    "user_id": 1,
+    "text": "response generation.\n◦Used SentenceTransformer for embeddings and stored them in ChromaDB for fast retrieval.\n◦Integrated a simple Streamlit UI for uploading, querying, and displaying grounded answers.\nKey Courses Taken\n•Relevant Course Work : Data Structures, Computer Organization and Architecture, Theory Of\nComputation, Analysis of Algorithm, DBMS, Computer Network, Operating Systems, Data Warehousing\nand Management, Artificial Intelligence, Machine Learning.",
+    "source": "resume",
+    "chunk_size": 465
+  },
+  {
+    "id": "resume_chunk_1_5",
+    "chunk_id": 5,
+    "user_id": 1,
+    "text": "•Certifications Fundamentals of Deep Learning, Applications of AI for Anomaly Detection, SQL\n(Intermediate) Certificate\nSkills\n•Programming Languages : Python, JavaScript, Java.\n•Tools & Technologies : Git, Github, NumPy, Pandas, Matplotlib, Sk-learn, Tensorflow, HTML, CSS,\nExpressJs, NodeJs, StreamLit.\n•Databases : MySQL, Microsoft Server SQL Management Studio, MongoDB.\nExtra Curricular\n•Solved 500+ DSA problems on Leetcode and GFG, enhancing problem-solving and coding skills.",
+    "source": "resume",
+    "chunk_size": 482
+  },
+  {
+    "id": "resume_chunk_1_6",
+    "chunk_id": 6,
+    "user_id": 1,
+    "text": "•Competed in the V Code competition conducted by the Training and Placement Cell, showcasing coding\nproficiency under time constraints.\n•Chosen among top 40 teams from 13,240+ registrations in VoyageHacks 2.0; advanced past the first round.",
+    "source": "resume",
+    "chunk_size": 240
+  }
+]
