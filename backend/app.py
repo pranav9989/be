@@ -405,6 +405,12 @@ def login():
     username = data.get('username')
     password = data.get('password')
 
+    # Input validation
+    if not username or not re.match(r'^[a-zA-Z0-9_]{3,20}$', username):
+        return jsonify({'success': False, 'message': 'Invalid username format.'})
+    if not password:
+        return jsonify({'success': False, 'message': 'Password is required.'})
+
     user = User.query.filter_by(username=username).first()
     if user and check_password_hash(user.password_hash, password):
         login_user(user)
@@ -431,6 +437,14 @@ def signup():
     email = data.get('email')
     password = data.get('password')
     full_name = data.get('full_name')
+
+    # Input validation
+    if not username or not re.match(r'^[a-zA-Z0-9_]{3,20}$', username):
+        return jsonify({'success': False, 'message': 'Invalid username format. Username must be 3-20 characters long and contain only letters, numbers, and underscores.'})
+    if not email or not re.match(r'^[^\s@]+@[^\s@]+\.[^\s@]+$', email):
+        return jsonify({'success': False, 'message': 'Invalid email format.'})
+    if not password or len(password) < 6:
+        return jsonify({'success': False, 'message': 'Password must be at least 6 characters long.'})
 
     if User.query.filter_by(username=username).first():
         return jsonify({'success': False, 'message': 'Username already exists'})
