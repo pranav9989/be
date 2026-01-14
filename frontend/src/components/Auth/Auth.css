@@ -44,10 +44,17 @@
 
 .auth-form {
     margin-bottom: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .form-group {
     margin-bottom: 1.5rem;
+    width: 100%;
+    max-width: 350px;
+    display: flex;
+    flex-direction: column;
 }
 
 .form-group label {
@@ -66,6 +73,8 @@
     background: #fff;
     transition: all 0.3s ease;
     font-family: inherit;
+    text-align: center;
+    box-sizing: border-box;
 }
 
 .form-input:focus {
@@ -80,6 +89,7 @@
 
 .btn {
     width: 100%;
+    max-width: 350px;
     padding: 1rem 1.5rem;
     background: linear-gradient(135deg, #667eea, #764ba2);
     color: white;
@@ -91,6 +101,7 @@
     transition: all 0.3s ease;
     font-family: inherit;
     margin-bottom: 1.5rem;
+    align-self: center;
 }
 
 .btn:hover:not(:disabled) {
@@ -106,6 +117,9 @@
 
 .auth-links {
     text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 .auth-links p {
