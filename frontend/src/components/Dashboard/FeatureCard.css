@@ -2,18 +2,21 @@
 
 .feature-card {
   background: white;
-  border-radius: 12px; /* Standardized to modern professional radius */
+  border-radius: 12px;
   padding: 1.5rem;
   box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.1);
   text-align: center;
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #E2E8F0; /* Subtle full border */
-  border-top: 4px solid; /* Keep the categorization top-border */
+  border: 1px solid #E2E8F0;
+  border-top: 4px solid;
   display: flex;
   flex-direction: column;
-  min-height: 280px;
+  height: 100%; /* Fill grid cell */
+  min-height: 260px; /* Slightly shorter for better balance */
+  max-height: 280px; /* Limit maximum height */
   position: relative;
   overflow: hidden;
+  cursor: default;
 }
 
 .feature-card:hover {
@@ -23,8 +26,8 @@
 }
 
 .feature-card i {
-  font-size: 2.5rem;
-  margin-bottom: 1rem;
+  font-size: 2.2rem; /* Slightly smaller */
+  margin-bottom: 0.8rem; /* Reduced spacing */
   display: block;
   transition: transform 0.3s ease;
 }
@@ -36,32 +39,41 @@
 .feature-card h3 {
   font-size: 1.25rem;
   margin-bottom: 0.8rem;
-  color: #1E3A8A; /* Professional Navy Blue */
+  color: #1E3A8A;
   font-weight: 700;
+  min-height: 2.5rem; /* Prevent layout shift */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .feature-card p {
-  color: #4B5563; /* High contrast gray */
-  line-height: 1.5;
-  margin-bottom: 1.5rem;
-  font-size: 0.95rem;
-  flex-grow: 1; /* Ensures buttons align even with varying text lengths */
+  color: #4B5563;
+  line-height: 1.4; /* Tighter line height */
+  margin-bottom: 1rem;
+  font-size: 0.9rem; /* Smaller font */
+  flex-grow: 1; /* Fill available space */
+  overflow: hidden; /* Prevent overflow */
+  display: -webkit-box;
+  -webkit-line-clamp: 3; /* Show max 3 lines */
+  -webkit-box-orient: vertical;
 }
 
 .feature-btn {
-  background: #1E3A8A; /* Standardized to Navy */
+  background: #1E3A8A;
   color: white;
-  padding: 0.7rem 1.5rem;
+  padding: 0.6rem 1.2rem;
   border: none;
   border-radius: 6px;
   text-decoration: none;
   display: inline-block;
   font-weight: 600;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   transition: all 0.2s ease;
   cursor: pointer;
   align-self: center;
-  margin-top: auto; /* Pushes button to bottom */
+  margin-top: auto; /* Push to bottom */
+  min-width: 120px; /* Consistent button width */
 }
 
 .feature-btn:hover {
@@ -70,47 +82,72 @@
   box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
 }
 
-/* Color variants - Strategic Use:
-   Navy = Preparation/Knowledge
-   Green = Success/Results
-   Gold = Critical/Special
-*/
+/* Color variants */
 
-/* Knowledge & Technical based cards */
-.technical-card, .profile-card {
-  border-top-color: #1E3A8A; /* Navy */
+/* Technical & Profile cards */
+.technical-card,
+.profile-card {
+  border-top-color: #1E3A8A;
 }
-.technical-card i, .profile-card i {
+
+.technical-card i,
+.profile-card i {
   color: #1E3A8A;
 }
 
-/* Results & Resume based cards */
-.resume-card, .mock-card {
-  border-top-color: #10B981; /* Success Green */
+/* Resume card */
+.resume-card {
+  border-top-color: #10B981;
 }
-.resume-card i, .mock-card i {
+
+.resume-card i {
   color: #10B981;
 }
 
-/* HR / Interaction based cards */
+/* HR card */
 .hr-card {
-  border-top-color: #F59E0B; /* Gold Accent */
+  border-top-color: #F59E0B;
 }
+
 .hr-card i {
   color: #F59E0B;
 }
 
-/* Hover Effect for Buttons based on card type */
-.resume-card .feature-btn, .mock-card .feature-btn {
-    background: #10B981;
+/* Button colors based on card type */
+.resume-card .feature-btn {
+  background: #10B981;
 }
-.resume-card .feature-btn:hover, .mock-card .feature-btn:hover {
-    background: #059669;
+
+.resume-card .feature-btn:hover {
+  background: #059669;
 }
 
 .hr-card .feature-btn {
-    background: #F59E0B;
+  background: #F59E0B;
 }
+
 .hr-card .feature-btn:hover {
-    background: #D97706;
+  background: #D97706;
+}
+
+/* Responsive adjustments */
+@media (max-width: 1199px) and (min-width: 768px) {
+  .feature-card {
+    min-height: 240px;
+  }
+  
+  .feature-card p {
+    -webkit-line-clamp: 3;
+  }
+}
+
+@media (max-width: 767px) {
+  .feature-card {
+    min-height: 220px;
+    max-height: none;
+  }
+  
+  .feature-card p {
+    -webkit-line-clamp: 2;
+  }
 }

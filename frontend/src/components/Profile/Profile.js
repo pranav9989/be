@@ -27,7 +27,7 @@ const Profile = ({ user, onLogout }) => {
   const handleSave = async (formData) => {
     setLoading(true);
     try {
-      const response = await profileAPI.update(formData);
+      await profileAPI.update(formData); // Removed unused 'response' variable
       setProfile(prev => ({ ...prev, ...formData }));
       setEditing(false);
       showMessage('success', 'Profile updated successfully!');
@@ -68,8 +68,8 @@ const Profile = ({ user, onLogout }) => {
         </section>
 
         <div className="profile-content">
-          {/* Personal Information Card */}
-          <div className="profile-card">
+          {/* Personal Information Card - CHANGED TO profile-info-card */}
+          <div className="profile-info-card">
             <div className="card-header">
               <h3><i className="fas fa-user"></i> Personal Information</h3>
               <button 

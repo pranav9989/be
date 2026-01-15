@@ -2,7 +2,6 @@
 
 .dashboard-container {
   min-height: 100vh;
-  /* Swapped purple gradient for the Clean/Light background */
   background: #F8FAFC; 
 }
 
@@ -14,13 +13,12 @@
 
 .welcome-section {
   text-align: center;
-  padding-top: 100px; /* Aligned with Header height */
+  padding-top: 100px;
   margin-bottom: 3rem;
 }
 
 .welcome-section h2 {
   font-size: 2.5rem;
-  /* Navy Blue for strong, professional branding */
   color: #1E3A8A; 
   font-weight: 800;
   margin-bottom: 0.5rem;
@@ -28,16 +26,24 @@
 
 .welcome-section p {
   font-size: 1.2rem;
-  /* Dark gray for readability without text-shadow */
   color: #4B5563; 
   font-weight: 500;
 }
 
+/* Features Grid - Fixed for consistent layout */
 .features-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
   gap: 2rem;
   margin-bottom: 4rem;
+  align-items: stretch; /* Ensure all cards stretch to same height */
+}
+
+/* Force exactly 4 cards per row on large screens */
+@media (min-width: 1200px) {
+  .features-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 /* Stats Section */
@@ -46,7 +52,6 @@
   border-radius: 12px;
   padding: 2.5rem;
   box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.1);
-  /* Success Green top border to signal growth/tracking */
   border-top: 5px solid #10B981; 
   border: 1px solid #E2E8F0;
 }
@@ -58,7 +63,7 @@
 
 .stats-header h3 {
   font-size: 1.5rem;
-  color: #1E3A8A; /* Navy Blue */
+  color: #1E3A8A;
   font-weight: 700;
   margin-bottom: 0.5rem;
 }
@@ -74,8 +79,19 @@
   gap: 1.5rem;
 }
 
+/* Ensure feature cards fill grid cells */
+.feature-card {
+  height: 100%;
+}
+
 /* Responsive Design */
-@media (max-width: 768px) {
+@media (max-width: 1199px) and (min-width: 768px) {
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
   .dashboard-main {
     padding: 1.5rem 1rem;
   }
@@ -89,6 +105,17 @@
   }
 
   .features-grid {
+    grid-template-columns: 1fr;
+    gap: 1.5rem;
+  }
+  
+  .stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
     grid-template-columns: 1fr;
   }
 }
