@@ -8,6 +8,7 @@ import ChatInterface from './components/Chat/ChatInterface';
 import Profile from './components/Profile/Profile';
 import HRInterview from './components/HRInterview/HRInterview';
 import ResumeUpload from './components/Resume/ResumeUpload';
+import ConversationalInterview from './components/ConversationalInterview/ConversationalInterview';
 import LoadingSpinner from './components/Layout/LoadingSpinner';
 import './App.css';
 
@@ -77,6 +78,10 @@ function App() {
           <Route 
             path="/upload-resume" 
             element={user ? <ResumeUpload user={user} onLogout={handleLogout} /> : <Navigate to="/login" />} 
+          />
+          <Route 
+            path="/conversational-interview" 
+            element={user ? <ConversationalInterview user={user} onLogout={handleLogout} /> : <Navigate to="/login" />} 
           />
           <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
         </Routes>

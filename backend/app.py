@@ -14,8 +14,6 @@ import numpy as np
 from pathlib import Path
 from datetime import datetime, timedelta
 from io import BytesIO
-import jwt
-from functools import wraps
 
 from flask import (
     Flask, request, jsonify, render_template, session, redirect, url_for, flash,
@@ -24,7 +22,7 @@ from flask import (
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import (
-    LoginManager, UserMixin, login_user, login_required, logout_user, current_user
+    LoginManager, UserMixin, login_user, logout_user
 )
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -36,6 +34,7 @@ from resume_processor import process_resume_for_faiss, search_resume_faiss, get_
 import PyPDF2
 import docx
 import random
+from interview_analyzer import speech_to_text, analyze_interview_response
 
 # Load environment variables
 load_dotenv()
@@ -112,6 +111,10 @@ class InterviewSession(db.Model):
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+# JWT imports
+import jwt
+from functools import wraps
 
 # JWT helper functions
 def create_access_token(user_id):
@@ -609,8 +612,9 @@ def rag_query():
 @jwt_required
 def generate_hr_questions():
     try:
-        skills = json.loads(current_user.skills) if current_user.skills else []
-        experience = current_user.experience_years
+        user = g.current_user
+        skills = json.loads(user.skills) if user.skills else []
+        experience = user.experience_years
 
         api_key = get_gemini_api_key()
         if not api_key:
@@ -681,8 +685,8 @@ def generate_resume_based_questions():
         genai.configure(api_key=api_key)
         gemini_model = genai.GenerativeModel("models/gemini-flash-latest")
 
-        skills = json.loads(current_user.skills) if current_user.skills else []
-        experience = current_user.experience_years
+        skills = json.loads(user.skills) if user.skills else []
+        experience = user.experience_years
 
         # Add variation seed to make questions different each time
         variation_text = f" (Variation: {variation_seed})" if variation_seed else ""
@@ -825,6 +829,280 @@ def save_interview_session():
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/process_audio', methods=['POST'])
+@jwt_required
+def process_audio():
+    try:
+        if 'audio_file' not in request.files:
+            return jsonify({'success': False, 'message': 'No audio file provided'}), 400
+
+        audio_file = request.files['audio_file']
+        if audio_file.filename == '':
+            return jsonify({'success': False, 'message': 'No selected file'}), 400
+
+        # Check file size (max 10MB)
+        audio_file.seek(0, os.SEEK_END)
+        file_size = audio_file.tell()
+        audio_file.seek(0)
+
+        if file_size == 0:
+            return jsonify({'success': False, 'message': 'Audio file is empty'}), 400
+
+        if file_size > 10 * 1024 * 1024:  # 10MB
+            return jsonify({'success': False, 'message': 'Audio file too large (max 10MB)'}), 400
+
+        # Save the audio file temporarily with proper extension
+        filename = secure_filename(audio_file.filename)
+        if not filename.endswith(('.webm', '.wav', '.mp3', '.ogg', '.m4a')):
+            filename = filename.rsplit('.', 1)[0] + '.webm'
+
+        temp_audio_path = os.path.join(app.config['UPLOAD_FOLDER'], f"audio_{current_user.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}")
+        audio_file.save(temp_audio_path)
+
+        print(f"Saved audio file: {temp_audio_path}, size: {os.path.getsize(temp_audio_path)} bytes")
+
+        # Convert WebM to WAV if needed (Whisper needs WAV or formats supported by ffmpeg)
+        # Since ffmpeg might not be installed, use librosa + soundfile as fallback
+        converted_audio_path = temp_audio_path
+        if filename.lower().endswith('.webm'):
+            converted_audio_path = temp_audio_path.rsplit('.', 1)[0] + '.wav'
+            try:
+                # Try pydub first (requires ffmpeg)
+                from pydub import AudioSegment
+                audio = AudioSegment.from_file(temp_audio_path, format="webm")
+                audio.export(converted_audio_path, format="wav")
+                print(f"Converted WebM to WAV using pydub: {converted_audio_path}")
+                # Remove original WebM file
+                if os.path.exists(temp_audio_path):
+                    os.remove(temp_audio_path)
+            except (ImportError, Exception) as e:
+                print(f"pydub conversion failed ({e}), trying librosa + soundfile...")
+                try:
+                    # Fallback: Use librosa + soundfile (doesn't require ffmpeg)
+                    import librosa
+                    import soundfile as sf
+
+                    # Load audio with librosa (handles many formats)
+                    y, sr = librosa.load(temp_audio_path, sr=16000)  # 16kHz is good for speech
+                    # Save as WAV using soundfile
+                    sf.write(converted_audio_path, y, sr)
+                    print(f"Converted WebM to WAV using librosa: {converted_audio_path}")
+                    # Remove original WebM file
+                    if os.path.exists(temp_audio_path):
+                        os.remove(temp_audio_path)
+                except ImportError:
+                    print("soundfile not available. Installing soundfile is recommended: pip install soundfile")
+                    # Last resort: try with original file (might fail if ffmpeg not available)
+                    converted_audio_path = temp_audio_path
+                    print("Will attempt transcription with original WebM file (requires ffmpeg)")
+                except Exception as e2:
+                    print(f"librosa conversion also failed: {e2}")
+                    # Last resort: try with original file
+                    converted_audio_path = temp_audio_path
+                    print("Will attempt transcription with original WebM file (requires ffmpeg)")
+
+        # Transcribe audio
+        print("Starting transcription...")
+        print(f"Using audio file: {converted_audio_path}")
+
+        # Verify file exists and has content
+        if not os.path.exists(converted_audio_path):
+            return jsonify({
+                'success': False,
+                'message': f'Audio file not found: {converted_audio_path}'
+            }), 400
+
+        file_size = os.path.getsize(converted_audio_path)
+        print(f"Audio file exists, size: {file_size} bytes")
+
+        if file_size == 0:
+            return jsonify({
+                'success': False,
+                'message': 'Audio file is empty after conversion'
+            }), 400
+
+        transcribed_text = None
+        try:
+            # Import faster-whisper model
+            import librosa
+            from interview_analyzer import whisper_model
+
+            print("Faster-Whisper model loaded, starting transcription...")
+
+            # Load audio with librosa first (bypasses Whisper's ffmpeg requirement)
+            # This way we can handle the audio loading ourselves
+            try:
+                print(f"Loading audio with librosa from: {converted_audio_path}")
+                # Load audio at 16kHz (Whisper's native sample rate)
+                audio_array, sample_rate = librosa.load(converted_audio_path, sr=16000)
+                print(f"Audio loaded successfully: {len(audio_array)} samples at {sample_rate}Hz")
+
+                # Pass numpy array directly to Faster-Whisper (bypasses file loading)
+                # faster-whisper can accept numpy arrays directly
+                print("Transcribing audio array...")
+                segments, info = whisper_model.transcribe(audio_array, beam_size=5)
+
+                # Extract text from segments (segments is a generator, so convert to list)
+                segments_list = list(segments)
+                transcribed_text = " ".join([segment.text for segment in segments_list]).strip()
+
+                # Log transcription info
+                print(f"Detected language: {info.language} (probability: {info.language_probability:.2f})")
+                print(f"Transcription result: '{transcribed_text}' (length: {len(transcribed_text)})")
+
+                # Log segment details
+                if len(segments_list) > 0:
+                    print(f"Found {len(segments_list)} audio segments")
+                    for i, segment in enumerate(segments_list[:3]):  # Print first 3 segments
+                        print(f"Segment {i}: {segment.text} (start: {segment.start:.2f}s, end: {segment.end:.2f}s)")
+                else:
+                    print("Warning: No audio segments found in transcription result")
+
+            except Exception as librosa_error:
+                print(f"librosa failed to load audio: {librosa_error}")
+                error_msg = str(librosa_error)
+                if "ffmpeg" in error_msg.lower() or "winerror 2" in error_msg.lower():
+                    # Clear error message about ffmpeg requirement
+                    raise Exception(
+                        "ffmpeg is required but not found. Please install ffmpeg:\n"
+                        "Windows: Download from https://www.gyan.dev/ffmpeg/builds/ and add to PATH\n"
+                        "Or use: choco install ffmpeg (if you have Chocolatey)\n"
+                        "After installation, restart your Flask server."
+                    )
+                else:
+                    raise
+
+        except ImportError as e:
+            print(f"Import error: {e}")
+            traceback.print_exc()
+            return jsonify({
+                'success': False,
+                'message': f'Faster-Whisper library not available: {str(e)}'
+            }), 500
+        except Exception as e:
+            print(f"Exception during transcription: {e}")
+            traceback.print_exc()
+            error_details = str(e)
+            # Check for common Whisper errors
+            if "CUDA" in error_details or "cuda" in error_details.lower():
+                error_details += " (GPU/CUDA issue - trying CPU mode)"
+            return jsonify({
+                'success': False,
+                'message': f'Transcription failed: {error_details}'
+            }), 500
+
+        if not transcribed_text or len(transcribed_text.strip()) == 0:
+            error_msg = 'Could not transcribe audio. Please ensure you are speaking clearly and try again.'
+            # Check if file exists and has content
+            if os.path.exists(converted_audio_path):
+                file_size = os.path.getsize(converted_audio_path)
+                error_msg += f' (Audio file size: {file_size} bytes)'
+            return jsonify({
+                'success': False,
+                'message': error_msg
+            }), 400
+
+        # Perform comprehensive speech analysis
+        print("Starting comprehensive speech analysis...")
+        try:
+            # For conversational interview, we don't have ideal answers, so we'll use generic analysis
+            # In a real scenario, you'd have question-specific ideal answers
+            ideal_answer = "This is a conversational interview response that should demonstrate good communication skills, clear articulation, and professional speaking patterns."
+            ideal_keywords = ["communication", "professional", "clear", "articulate", "confident"]
+
+            analysis_results = analyze_interview_response(
+                converted_audio_path,
+                ideal_answer,
+                ideal_keywords
+            )
+
+            print("Speech analysis completed successfully")
+            print(f"Analysis results keys: {list(analysis_results.keys()) if analysis_results else 'None'}")
+            print(f"Overall score: {analysis_results.get('overall_score', 'N/A') if analysis_results else 'N/A'}")
+
+            # Generate interviewer response based on analysis
+            overall_score = analysis_results.get('overall_score', 0)
+            fluency_score = analysis_results.get('fluency_score', 0)
+
+            if overall_score >= 80:
+                interviewer_response = f"Excellent delivery! I heard: \"{transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\". Your speech patterns are very professional."
+            elif overall_score >= 60:
+                interviewer_response = f"Good effort! I heard: \"{transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\". Keep practicing to improve your delivery."
+            else:
+                interviewer_response = f"I heard: \"{transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\". Let's work on improving your speech clarity and fluency."
+
+            # Add specific feedback
+            feedback_tips = []
+            if fluency_score < 60:
+                feedback_tips.append("Try speaking more slowly and clearly")
+            if analysis_results.get('pause_ratio', 0) > 0.6:
+                feedback_tips.append("Reduce long pauses between words")
+
+            if feedback_tips:
+                interviewer_response += f" Tips: {'; '.join(feedback_tips[:2])}."
+
+            # Return comprehensive analysis results
+            return jsonify({
+                'success': True,
+                'transcribed_text': transcribed_text,
+                'interviewer_response': interviewer_response,
+                'speech_analysis': {
+                    'overall_score': analysis_results.get('overall_score', 0),
+                    'performance_level': analysis_results.get('performance_level', 'Unknown'),
+                    'fluency_score': analysis_results.get('fluency_score', 0),
+                    'pitch_score': analysis_results.get('pitch_score', 0),
+                    'voice_quality_score': analysis_results.get('voice_quality_score', 0),
+                    'wpm': analysis_results.get('wpm', 0),
+                    'pause_ratio': analysis_results.get('pause_ratio', 0),
+                    'pitch_feedback': analysis_results.get('pitch_feedback', ''),
+                    'fluency_feedback': analysis_results.get('fluency_feedback', ''),
+                    'voice_quality_feedback': analysis_results.get('voice_quality_feedback', ''),
+                    'improvement_suggestions': analysis_results.get('improvement_suggestions', [])[:3]  # Top 3 suggestions
+                }
+            })
+
+        except Exception as analysis_error:
+            print(f"Speech analysis failed: {analysis_error}")
+            traceback.print_exc()
+
+            # Fallback response without analysis
+            interviewer_response = f"I heard you say: \"{transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\". Let's continue the conversation."
+
+            return jsonify({
+                'success': True,
+                'transcribed_text': transcribed_text,
+                'interviewer_response': interviewer_response,
+                'speech_analysis': None,
+                'analysis_error': 'Speech analysis unavailable'
+            })
+
+    except Exception as e:
+        print(f"Audio processing error: {e}")
+        traceback.print_exc()
+        error_message = str(e)
+        if "No module named" in error_message:
+            error_message = "Audio processing module not available. Please install required dependencies."
+        return jsonify({'success': False, 'error': error_message}), 500
+    finally:
+        # Clean up the temporary files
+        files_to_remove = []
+        if temp_audio_path and os.path.exists(temp_audio_path):
+            files_to_remove.append(temp_audio_path)
+        # Also remove converted file if different
+        if 'converted_audio_path' in locals() and converted_audio_path != temp_audio_path:
+            if converted_audio_path and os.path.exists(converted_audio_path):
+                files_to_remove.append(converted_audio_path)
+        
+        for file_path in files_to_remove:
+            try:
+                os.remove(file_path)
+                print(f"Cleaned up temp file: {file_path}")
+            except Exception as e:
+                print(f"Error removing temp file {file_path}: {e}")
+
+
 
 
 @app.route('/api/interview_history', methods=['GET'])

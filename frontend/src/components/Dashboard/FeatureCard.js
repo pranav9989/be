@@ -6,6 +6,7 @@ const FeatureCard = ({ title, description, icon, link, color }) => {
   const navigate = useNavigate();
 
   const handleButtonClick = (e) => {
+    e.stopPropagation(); // Prevent card click when button is clicked
     navigate(link);
   };
 

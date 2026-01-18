@@ -53,6 +53,13 @@ const Dashboard = ({ user, onLogout }) => {
       icon: "fas fa-user-cog",
       link: "/profile",
       color: "profile"
+    },
+    {
+      title: "Conversational AI Interviewer",
+      description: "Engage in real-time spoken interviews with AI, get instant feedback and analysis.",
+      icon: "fas fa-microphone-alt",
+      link: "/conversational-interview",
+      color: "hr" // Using 'hr' color for now, can be changed later
     }
   ];
 

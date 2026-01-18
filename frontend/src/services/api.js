@@ -69,4 +69,10 @@ export const healthAPI = {
   check: () => api.get('/health'),
 };
 
+export const audioAPI = {
+  uploadAudio: (formData) => api.post('/process_audio', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+};
+
 export default api;
