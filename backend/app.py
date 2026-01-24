@@ -42,6 +42,7 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from resume_processor import process_resume_for_faiss, search_resume_faiss, get_resume_chunks
 from assemblyai_websocket_stream import AssemblyAIWebSocketStreamer
+from assemblyai_websocket_stream import warmup_assemblyai
 from interview_analyzer import speech_to_text
 
 import PyPDF2
@@ -478,6 +479,54 @@ def analyze_resume_job_fit(resume_data, job_description):
         'jd_skills_found': jd_skills
     }
 
+def warmup_models():
+    """Warm up all ML models on startup to prevent cold-start delays"""
+    print("🔥 Warming up all models...")
+    
+    # Warm up Whisper models - ONLY MEDIUM.EN for streaming
+    try:
+        from interview_analyzer import model_manager
+        
+        # ONLY warm up medium.en (fast for live processing)
+        print("🔄 Warming up Whisper medium.en model (fast for live)...")
+        medium_model = model_manager.get_model("medium.en")
+        
+        # Create a short dummy audio for transcription warmup
+        sample_rate = 16000
+        duration = 1  # seconds (reduced from 2)
+        dummy_audio = np.random.randint(-1000, 1000, duration * sample_rate, dtype=np.int16)
+        dummy_audio_path = "temp_warmup_audio.wav"
+        
+        # Save as WAV
+        save_pcm_as_wav(dummy_audio.tobytes(), dummy_audio_path)
+        
+        # Transcribe with medium model only
+        print("🔄 Running quick test transcription...")
+        try:
+            segments, info = medium_model.transcribe(
+                dummy_audio_path,
+                language="en",
+                beam_size=2,
+                vad_filter=True,
+                vad_parameters=dict(min_silence_duration_ms=500)
+            )
+            # Consume the generator
+            segments_list = list(segments)
+            print(f"✅ Medium model warmed up (transcribed {len(segments_list)} segments)")
+        except Exception as e:
+            print(f"⚠️ Medium model warmup failed: {e}")
+        
+        # Clean up
+        if os.path.exists(dummy_audio_path):
+            os.remove(dummy_audio_path)
+            
+    except Exception as e:
+        print(f"⚠️ Model warmup failed: {e}")
+        import traceback
+        traceback.print_exc()
+    
+    print("✅ All models warmed up (medium.en only for streaming)")
+
 # ========== WEBSOCKET EVENT HANDLERS (Real-time Streaming) ==========
 
 @socketio.on('connect')
@@ -508,7 +557,7 @@ def handle_disconnect():
 
 @socketio.on('start_interview')
 def start_interview(data):
-    """Start live interview with AssemblyAI streaming"""
+    """Start live interview with AssemblyAI streaming AND audio recording"""
     user_id = data.get('user_id')
     room = f"interview_{user_id}"
 
@@ -517,6 +566,14 @@ def start_interview(data):
 
     # Initialize final text storage
     final_text_parts = []
+    
+    # Initialize audio recording
+    audio_chunks = []
+    
+    # Create timestamp for unique filename
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    audio_filename = f"interview_{user_id}_{timestamp}.wav"
+    audio_filepath = os.path.join(app.config['UPLOAD_FOLDER'], audio_filename)
 
     def on_partial(text):
         """Handle partial transcripts"""
@@ -536,8 +593,6 @@ def start_interview(data):
     def on_error(error):
         """Handle streaming errors"""
         print(f"❌ Streaming error for user {user_id}: {error}")
-        # Don't emit here as it might be outside request context
-        # The session will timeout and trigger cleanup
 
     try:
         # Try to create AssemblyAI WebSocket streaming session
@@ -552,20 +607,29 @@ def start_interview(data):
             session = MockAssemblyAIStreamer(on_partial, on_final, on_error)
             session.start()
 
-        # Store session data with unique key (user_id, socket_id) to prevent collisions
+        # Store session data with audio recording capability
         session_key = (user_id, request.sid)
         streaming_sessions[session_key] = {
             'room': room,
             'session': session,
             'final_text': final_text_parts,
-            'stats': RunningStatistics(),  # Initialize running statistics for incremental analysis
+            'audio_chunks': audio_chunks,  # Store audio chunks here
+            'audio_filename': audio_filename,
+            'audio_filepath': audio_filepath,
+            'stats': RunningStatistics(),
             'start_time': datetime.now(),
-            'user_id': user_id,  # Keep user_id for cleanup
-            'use_mock': use_mock  # Track if using mock for UI feedback
+            'user_id': user_id,
+            'use_mock': use_mock,
+            'chunk_count': 0  # Track total chunks
         }
 
-        emit('interview_started', {'status': 'success', 'use_mock': use_mock}, room=room)
+        emit('interview_started', {
+            'status': 'success', 
+            'use_mock': use_mock,
+            'audio_filename': audio_filename
+        }, room=room)
         print(f"✅ Live interview started for user {user_id} (mock: {use_mock})")
+        print(f"💾 Audio will be saved to: {audio_filepath}")
 
     except Exception as e:
         print(f"❌ Failed to start live interview: {e}")
@@ -575,48 +639,85 @@ def start_interview(data):
 # Socket.IO adds buffering/overhead that's bad for real-time PCM audio
 @socketio.on('audio_chunk')
 def receive_audio(data):
-    """Receive PCM audio chunks, analyze incrementally, and send to AssemblyAI"""
+    """Receive PCM audio chunks, SAVE them locally, and send to AssemblyAI"""
     user_id = data.get('user_id')
     session_key = (user_id, request.sid)
 
     if session_key not in streaming_sessions:
-        return
+        print(f"⚠️ No session found for {session_key}, discarding audio chunk")
+        return  # 🚨 This is where early chunks might be lost!
 
+    session = streaming_sessions[session_key]
+    
     try:
-        # Get raw PCM bytes from the audio data
+        # Get raw PCM bytes
         audio_data = data.get('audio')
-
-        # Convert to bytes if needed (Socket.IO might send it as different types)
+        
+        if not audio_data:
+            print(f"⚠️ Empty audio chunk for user {user_id}")
+            return
+            
+        # Convert to bytes
         if isinstance(audio_data, bytes):
             audio_bytes = audio_data
         elif isinstance(audio_data, (bytearray, memoryview)):
             audio_bytes = bytes(audio_data)
-        elif hasattr(audio_data, 'tobytes'):  # numpy array
+        elif hasattr(audio_data, 'tobytes'):
             audio_bytes = audio_data.tobytes()
         else:
-            print(f"⚠️ Unexpected audio data type: {type(audio_data)}")
+            print(f"⚠️ Unexpected audio type: {type(audio_data)}")
             return
-
-        # Convert PCM bytes to numpy array for analysis
-        pcm_np = np.frombuffer(audio_bytes, dtype=np.int16)
-
-        # 🔥 FAST incremental analysis (milliseconds, not seconds!)
-        session = streaming_sessions[session_key]
-        analyze_audio_chunk_fast(
-            pcm_np,
-            sample_rate=16000,
-            stats=session['stats']
-        )
-
-        # Send to AssemblyAI for live transcription
-        streaming_sessions[session_key]['session'].send_audio(audio_bytes)
+        
+        # 🔥 FIX: Add timestamp to first chunks to debug timing
+        import time
+        if session.get('chunk_count', 0) < 3:
+            timestamp = time.time()
+            print(f"🎤 FIRST CHUNKS DEBUG: Chunk {session.get('chunk_count', 0)} at {timestamp:.3f}s")
+            print(f"    Bytes: {len(audio_bytes)}, Sample check: {audio_bytes[:4].hex()}")
+        
+        # 🔥 FIX: Save audio chunk
+        session['audio_chunks'].append(audio_bytes)
+        
+        # Track chunk count
+        session['chunk_count'] = session.get('chunk_count', 0) + 1
+        
+        # Log first few chunks in detail
+        chunk_count = session['chunk_count']
+        if chunk_count <= 3:
+            try:
+                pcm_np = np.frombuffer(audio_bytes, dtype=np.int16)
+                rms = np.sqrt(np.mean(pcm_np.astype(float) ** 2))
+                print(f"🎤 Saving chunk {chunk_count}: {len(audio_bytes)} bytes, RMS={rms:.1f}")
+                print(f"    First 4 samples: {pcm_np[:4] if len(pcm_np) >= 4 else 'N/A'}")
+            except Exception as e:
+                print(f"🎤 Saving chunk {chunk_count}: {len(audio_bytes)} bytes (analysis failed: {e})")    
+        # Analyze for statistics
+        try:
+            pcm_np = np.frombuffer(audio_bytes, dtype=np.int16)
+            analyze_audio_chunk_fast(
+                pcm_np,
+                sample_rate=16000,
+                stats=session['stats']
+            )
+        except Exception as e:
+            pass  # Don't fail if analysis fails
+        
+        # Send to AssemblyAI
+        try:
+            session['session'].send_audio(audio_bytes)
+        except Exception as e:
+            print(f"❌ Failed to send to AssemblyAI: {e}")
+            if 'send_errors' not in session:
+                session['send_errors'] = 0
+            session['send_errors'] += 1
 
     except Exception as e:
-        print(f"❌ Error processing audio chunk for user {user_id}: {e}")
-        
+        print(f"❌ Audio processing error: {e}")
+
+
 @socketio.on('stop_interview')
 def stop_interview(data):
-    """Stop the live interview and perform final analysis using pre-aggregated stats"""
+    """Stop the live interview, SAVE audio file, and perform final analysis"""
     user_id = data.get('user_id')
     session_key = (user_id, request.sid)
 
@@ -626,15 +727,66 @@ def stop_interview(data):
 
     session_data = streaming_sessions[session_key]
     room = session_data['room']
+    
+    # Get audio file info
+    audio_filename = session_data.get('audio_filename', f"interview_{user_id}.wav")
+    audio_filepath = session_data.get('audio_filepath', '')
+    audio_chunks = session_data.get('audio_chunks', [])
+    
+    # Calculate total audio bytes
+    total_audio_bytes = sum(len(chunk) for chunk in audio_chunks)
 
     try:
         # 1️⃣ Stop AssemblyAI session
+        print("🛑 Stopping AssemblyAI session...")
         session_data['session'].stop()
+        
+        # 2️⃣ 🔥 CRITICAL: SAVE AUDIO FILE TO UPLOADS FOLDER
+        print(f"💾 Saving audio recording ({len(audio_chunks)} chunks, {total_audio_bytes} bytes)...")
+        
+        if audio_chunks:
+            # Combine all audio chunks
+            full_audio_bytes = b"".join(audio_chunks)
+            
+            # Ensure uploads folder exists
+            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+            
+            # Save as WAV file using your save_pcm_as_wav function
+            try:
+                save_pcm_as_wav(full_audio_bytes, audio_filepath)
+                print(f"✅ Audio saved to UPLOADS: {audio_filepath}")
+                print(f"📊 File size: {os.path.getsize(audio_filepath)} bytes")
+                
+                # Verify file was created
+                if os.path.exists(audio_filepath):
+                    file_size = os.path.getsize(audio_filepath)
+                    print(f"📁 File verified: {file_size} bytes")
+                else:
+                    print("❌ ERROR: Audio file was not created!")
+                    audio_filepath = None
+                    
+            except Exception as save_error:
+                print(f"❌ Failed to save audio file: {save_error}")
+                # Try fallback save method - just save raw bytes
+                try:
+                    with open(audio_filepath, 'wb') as f:
+                        f.write(full_audio_bytes)
+                    print(f"✅ Audio saved (raw bytes): {audio_filepath}")
+                except Exception as fallback_error:
+                    print(f"❌ Fallback save also failed: {fallback_error}")
+                    audio_filepath = None
+        else:
+            print("⚠️ No audio chunks to save")
+            audio_filepath = None
 
-        # 2️⃣ Combine final transcripts
+        # 3️⃣ Combine final transcripts
         full_transcript = " ".join(session_data['final_text'])
+        print(f"📝 Final transcript: {len(full_transcript)} characters")
+        
+        if not full_transcript.strip():
+            print("⚠️ Warning: Empty transcript - no speech detected")
 
-        # 3️⃣ Get incremental statistics
+        # 4️⃣ Get incremental statistics
         stats = session_data['stats']
         final_stats = stats.get_current_stats()
 
@@ -708,16 +860,23 @@ def stop_interview(data):
             'improvement_suggestions': []
         })
 
-        # 7️⃣ Cleanup session
+        # 5️⃣ Cleanup session
         del streaming_sessions[session_key]
 
-        # 8️⃣ Emit FINAL result (frontend-compatible, honest)
+        # 6️⃣ Emit FINAL result (frontend-compatible, honest)
         analysis_results = {
             'success': True,
             'processing_method': 'incremental_fast',
 
             # Transcript
             'transcript': full_transcript,
+            
+            # 🔥 AUDIO FILE INFO - ADDED
+            'audio_saved': audio_filepath is not None,
+            'audio_filename': audio_filename if audio_filepath else None,
+            'audio_filepath': audio_filepath,
+            'audio_chunks_count': len(audio_chunks),
+            'total_audio_bytes': total_audio_bytes,
 
             # Scores
             'overall_score': feedback_results.get('overall_score', 0),
@@ -740,18 +899,25 @@ def stop_interview(data):
             # UX
             'improvement_suggestions': feedback_results.get('improvement_suggestions', [])[:3],
             'total_duration': final_stats['total_duration'],
-            'speaking_time': final_stats['speaking_time']
+            'speaking_time': final_stats['speaking_time'],
+            
+            # Audio processing info
+            'chunks_processed': session_data.get('chunk_count', 0)
         }
 
         emit('interview_complete', analysis_results, room=room)
-        print(f"🛑 Interview stopped for user {user_id} — FAST analysis delivered")
+        print(f"✅ Interview completed for user {user_id}")
+        print(f"   ✓ Transcript: {len(full_transcript)} chars")
+        print(f"   ✓ Audio saved: {'Yes' if audio_filepath else 'No'}")
+        if audio_filepath:
+            print(f"   ✓ Audio file: {audio_filepath}")
+        print(f"   ✓ Analysis delivered")
 
     except Exception as e:
         print(f"❌ Error stopping interview for user {user_id}: {e}")
         import traceback
         traceback.print_exc()
         emit('interview_error', {'error': str(e)}, room=room)
-
 
 @socketio.on('leave_interview')
 def handle_leave_interview(data):
@@ -1212,24 +1378,66 @@ def analyze_audio_final():
         data = request.get_json()
         audio_path = data.get('audio_path')
         live_transcript = data.get('transcript', '')
-
+        
         if not audio_path or not os.path.exists(audio_path):
             return jsonify({'success': False, 'error': 'Audio file not found'}), 404
-
+        
         print(f"🔍 Analyzing audio file: {audio_path} with Whisper")
-
-        # Use Whisper for accurate transcription (consistent with live streaming approach)
+        
+        # Verify audio file is valid
         try:
-            accurate_transcript = speech_to_text(audio_path)
+            import wave
+            with wave.open(audio_path, 'rb') as wf:
+                frames = wf.getnframes()
+                rate = wf.getframerate()
+                duration = frames / float(rate)
+                print(f"📊 Audio file info: {duration:.2f}s, {rate}Hz, {frames} frames")
+                
+                if duration < 1.0:
+                    return jsonify({
+                        'success': False, 
+                        'error': 'Audio file too short (minimum 1 second required)'
+                    }), 400
+        except Exception as e:
+            print(f"⚠️ Could not verify audio file: {e}")
+        
+        # Use Whisper for accurate transcription
+        try:
+            print("🔄 Starting transcription...")
+            
+            # Use medium.en model for faster transcription
+            from interview_analyzer import speech_to_text
+            
+            # Add minimum speech duration to avoid random noise transcription
+            accurate_transcript = speech_to_text(
+                audio_path, 
+                model_name="medium.en",
+                use_vad=True,
+                min_speech_duration=1000  # 1 second minimum speech
+            )
+            
             if not accurate_transcript or len(accurate_transcript.strip()) == 0:
-                print("⚠️ Whisper transcription empty, using live transcript")
-                accurate_transcript = live_transcript
+                print("⚠️ Whisper transcription empty, checking if audio has speech...")
+                
+                # Check if there's actually speech in the audio
+                import librosa
+                y, sr = librosa.load(audio_path, sr=16000)
+                intervals = librosa.effects.split(y, top_db=20)
+                speaking_time = sum((end - start) / sr for start, end in intervals)
+                
+                if speaking_time < 0.5:  # Less than 0.5 seconds of speech
+                    accurate_transcript = "[No speech detected]"
+                else:
+                    accurate_transcript = live_transcript or "[Speech detected but not transcribed]"
+                    
+                print(f"📊 Audio analysis: {speaking_time:.2f}s of speech detected")
             else:
                 print(f"✅ Whisper transcription: {len(accurate_transcript)} characters")
+                
         except Exception as trans_error:
-            print(f"⚠️ Whisper transcription failed, using live transcript: {trans_error}")
-            accurate_transcript = live_transcript
-
+            print(f"⚠️ Whisper transcription failed: {trans_error}")
+            accurate_transcript = live_transcript or "[Transcription failed]"
+        
         # Perform comprehensive analysis using existing logic
         ideal_answer = "This is a comprehensive interview response that demonstrates clear communication, technical knowledge, and professional speaking patterns."
         ideal_keywords = ["communication", "professional", "technical", "clear", "knowledge"]
@@ -1586,6 +1794,34 @@ def serve_react(path):
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
-
+    
+    # Warm up AssemblyAI
+    try:
+        warmup_assemblyai()
+    except Exception as e:
+        print(f"⚠️ AssemblyAI warmup failed: {e}")
+    
+    # Warm up ML models
+    try:
+        warmup_models()
+    except Exception as e:
+        print(f"⚠️ Model warmup failed: {e}")
+    
+    # Preload Sentence Transformer embeddings
+    try:
+        from sentence_transformers import SentenceTransformer
+        print("🔄 Preloading sentence transformer...")
+        embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        # Warm it up with a dummy sentence
+        _ = embedder.encode(["test sentence"])
+        print("✅ Sentence transformer ready")
+    except Exception as e:
+        print(f"⚠️ Sentence transformer preload failed: {e}")
+    
     print("🚀 Starting Flask-SocketIO API server...")
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000, use_reloader=False)
+    print("📋 System Status:")
+    print("   ✓ Database initialized")
+    print("   ✓ ML models warmed up")
+    print("   ✓ WebSocket server ready")
+    
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, use_reloader=False, allow_unsafe_werkzeug=True)

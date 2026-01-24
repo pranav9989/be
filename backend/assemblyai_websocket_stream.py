@@ -3,6 +3,7 @@ import json
 import threading
 import time
 import os
+import random
 from urllib.parse import urlencode
 
 
@@ -152,3 +153,121 @@ class AssemblyAIWebSocketStreamer:
     def _on_close(self, ws, code, reason):
         self.is_active = False
         print(f"🔌 AssemblyAI WebSocket closed ({code}): {reason}")
+
+def warmup_assemblyai():
+    """
+    Warm up AssemblyAI using your specific interview audio file.
+    This ensures consistent warmup with real speech patterns.
+    """
+    print("🔥 Warming up AssemblyAI with your interview audio file...")
+    
+    def noop(*args, **kwargs):
+        pass
+
+    try:
+        # Path to your specific interview audio file
+        audio_file = "D:\\skin disease\\BE_PROJECT\\uploads\\interview_1_20260124_171606.wav"
+        
+        if not os.path.exists(audio_file):
+            print(f"❌ Audio file not found: {audio_file}")
+            print("📂 Available files in uploads folder:")
+            uploads_dir = "D:\\skin disease\\BE_PROJECT\\uploads\\"
+            if os.path.exists(uploads_dir):
+                files = os.listdir(uploads_dir)
+                wav_files = [f for f in files if f.lower().endswith('.wav')]
+                for f in wav_files[:10]:  # Show first 10 WAV files
+                    print(f"  - {f}")
+                if wav_files:
+                    # Use the most recent WAV file
+                    latest_file = max(wav_files, 
+                                     key=lambda f: os.path.getmtime(os.path.join(uploads_dir, f)))
+                    audio_file = os.path.join(uploads_dir, latest_file)
+                    print(f"🔄 Using latest file instead: {latest_file}")
+                else:
+                    print("🔄 Creating synthetic warmup audio...")
+                    return warmup_assemblyai()
+            else:
+                print("🔄 Creating synthetic warmup audio...")
+                return warmup_assemblyai()
+        
+        # Read the audio file
+        import wave
+        with wave.open(audio_file, 'rb') as wf:
+            # Get audio parameters
+            sample_rate = wf.getframerate()
+            channels = wf.getnchannels()
+            sample_width = wf.getsampwidth()
+            frames_count = wf.getnframes()
+            duration = frames_count / sample_rate
+            
+            # Verify format (must be 16kHz, mono, 16-bit for AssemblyAI)
+            if sample_rate != 16000:
+                print(f"⚠️ Audio file is {sample_rate}Hz (needs 16000Hz)")
+                # We'll still try to use it, but warn the user
+                
+            if channels != 1:
+                print(f"⚠️ Audio file has {channels} channels (needs mono)")
+                # We'll still try to use it
+            
+            frames = wf.readframes(frames_count)
+        
+        print(f"📊 Using warmup file: {audio_file}")
+        print(f"   Size: {os.path.getsize(audio_file)} bytes")
+        print(f"   Duration: {duration:.2f} seconds")
+        print(f"   Sample rate: {sample_rate}Hz")
+        print(f"   Channels: {channels}")
+        print(f"   Sample width: {sample_width} bytes")
+        
+        # Start AssemblyAI
+        streamer = AssemblyAIWebSocketStreamer(
+            on_partial=noop,
+            on_final=noop,
+            on_error=noop
+        )
+        streamer.start()
+        
+        # Send the audio in chunks (mimicking real-time streaming speed)
+        CHUNK_SIZE = 3200  # 200ms chunks at 16kHz, 16-bit mono
+        total_bytes = len(frames)
+        bytes_sent = 0
+        
+        print(f"📤 Streaming {total_bytes} bytes in {CHUNK_SIZE}-byte chunks...")
+        
+        for i in range(0, total_bytes, CHUNK_SIZE):
+            chunk = frames[i:i + CHUNK_SIZE]
+            if not chunk:
+                break
+                
+            streamer.send_audio(chunk)
+            bytes_sent += len(chunk)
+            
+            # Calculate progress
+            progress = (bytes_sent / total_bytes) * 100
+            if i % (CHUNK_SIZE * 10) == 0:  # Log every 10 chunks
+                print(f"   Progress: {progress:.1f}% ({bytes_sent}/{total_bytes} bytes)")
+            
+            # Add small delay to mimic real-time streaming
+            # At 16kHz, 16-bit mono: 16000 * 2 = 32000 bytes per second
+            # CHUNK_SIZE / 32000 = seconds per chunk
+            time.sleep(CHUNK_SIZE / (sample_rate * sample_width))
+        
+        print(f"✅ Sent {bytes_sent} bytes to AssemblyAI")
+        
+        # Wait a bit for processing
+        time.sleep(1.0)
+        streamer.stop()
+        
+        print("✅ AssemblyAI successfully warmed up with real interview audio")
+        print(f"   Used file: {os.path.basename(audio_file)}")
+        
+    except Exception as e:
+        print(f"❌ Warmup from file failed: {e}")
+        import traceback
+        traceback.print_exc()
+        
+        # Try fallback
+        print("🔄 Trying fallback warmup...")
+        try:
+            warmup_assemblyai()
+        except Exception as e2:
+            print(f"❌ Fallback warmup also failed: {e2}")

@@ -1047,40 +1047,57 @@ def analyze_interview_response_optimized(audio_path, ideal_answer_text="", ideal
 
 
 
-def speech_to_text(audio_path, model_name="medium.en", use_vad=True):
+def speech_to_text(audio_path, model_name="medium.en", use_vad=True, min_speech_duration=1000):
     """
     Transcribe audio using faster-whisper with configurable model.
     Can accept either a file path (str) or numpy array.
-
-    Args:
-        audio_path: Path to audio file or numpy array
-        model_name: "medium.en" (fast, live) or "large-v3" (accurate, offline)
-        use_vad: Whether to use voice activity detection
     """
     try:
         # Get the appropriate model
         model = model_manager.get_model(model_name)
-
+        
         # Configure VAD based on parameter
         vad_filter = use_vad
-
-        # faster-whisper can handle both file paths and numpy arrays
+        vad_parameters = None
+        
+        if vad_filter:
+            vad_parameters = {
+                "min_speech_duration_ms": min_speech_duration,
+                "max_speech_duration_s": 30,
+                "min_silence_duration_ms": 500,
+                "speech_pad_ms": 200
+            }
+        
+        # Handle both file paths and numpy arrays
         segments, info = model.transcribe(
             audio_path,
             language="en",
             beam_size=5,
-            vad_filter=vad_filter
+            vad_filter=vad_filter,
+            vad_parameters=vad_parameters,
+            # Add these parameters for better accuracy on first run
+            condition_on_previous_text=False,
+            temperature=0,
+            best_of=2
         )
-
+        
         # Join all segments to get full text
         transcribed_text = " ".join([segment.text for segment in segments])
+        
+        # Log transcription info for debugging
+        print(f"📝 Transcription completed:")
+        print(f"   Language: {info.language if info else 'Unknown'}")
+        print(f"   Text length: {len(transcribed_text)} characters")
+        print(f"   Model: {model_name}")
+        
         return transcribed_text.strip()
+        
     except Exception as e:
-        print(f"Error during speech-to-text transcription with {model_name}: {e}")
+        print(f"❌ Error during speech-to-text transcription with {model_name}: {e}")
         import traceback
         traceback.print_exc()
         return ""
-
+        
 def fluency_score(results):
     """
     Calculate fluency score (0-100) based on WPM, pause ratio, and fillers.
