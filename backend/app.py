@@ -9,32 +9,111 @@ import os
 import json
 import re
 import traceback
+import wave
+import time
 import faiss
 import numpy as np
 from pathlib import Path
 from datetime import datetime, timedelta
 from io import BytesIO
 
+def save_pcm_as_wav(pcm_bytes, path):
+    """Save raw PCM bytes as proper WAV file (16-bit, 16kHz, mono)"""
+    with wave.open(path, "wb") as wf:
+        wf.setnchannels(1)      # Mono
+        wf.setsampwidth(2)      # 16-bit PCM
+        wf.setframerate(16000)  # 16kHz
+        wf.writeframes(pcm_bytes)
+
 from flask import (
     Flask, request, jsonify, render_template, session, redirect, url_for, flash,
-    send_from_directory
+    send_from_directory, g
 )
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import (
     LoginManager, UserMixin, login_user, logout_user
 )
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 from dotenv import load_dotenv
 import google.generativeai as genai
 from resume_processor import process_resume_for_faiss, search_resume_faiss, get_resume_chunks
+from assemblyai_websocket_stream import AssemblyAIWebSocketStreamer
+from interview_analyzer import speech_to_text
 
 import PyPDF2
 import docx
 import random
-from interview_analyzer import speech_to_text, analyze_interview_response
+from interview_analyzer import (
+    speech_to_text, analyze_interview_response_optimized, RunningStatistics,
+    analyze_audio_chunk_fast, calculate_semantic_similarity, calculate_keyword_coverage,
+    fluency_score, clarity_score, generate_comprehensive_feedback
+)
+
+
+class MockAssemblyAIStreamer:
+    """
+    Mock streamer for testing without AssemblyAI API key.
+    Accumulates audio chunks and provides basic transcription on stop.
+    """
+    def __init__(self, on_partial, on_final, on_error=None):
+        self.on_partial = on_partial
+        self.on_final = on_final
+        self.on_error = on_error
+        self.audio_chunks = []
+        self.is_active = False
+
+    def start(self):
+        """Mock start - just set active flag"""
+        self.is_active = True
+        print("🎭 Mock AssemblyAI streamer started (no API key required)")
+
+    def send_audio(self, audio_bytes):
+        """Accumulate audio chunks for later transcription"""
+        if self.is_active:
+            self.audio_chunks.append(audio_bytes)
+
+    def stop(self):
+        """Mock stop - transcribe accumulated audio"""
+        if not self.is_active:
+            return
+
+        try:
+            self.is_active = False
+            print(f"🎭 Mock streamer stopping with {len(self.audio_chunks)} audio chunks")
+
+            if self.audio_chunks:
+                # Combine all audio chunks
+                full_audio_bytes = b"".join(self.audio_chunks)
+
+                # Save as temporary WAV file for transcription
+                temp_path = f"temp_mock_audio_{int(time.time())}.wav"
+                save_pcm_as_wav(full_audio_bytes, temp_path)
+
+                # Transcribe using local Whisper
+                transcript = speech_to_text(temp_path)
+
+                if transcript:
+                    # Simulate final transcript (we don't have partials in mock mode)
+                    self.on_final(transcript)
+                    print(f"🎭 Mock transcription complete: {len(transcript)} characters")
+                else:
+                    print("🎭 Mock transcription failed - no text returned")
+
+                # Clean up temp file
+                try:
+                    os.remove(temp_path)
+                except:
+                    pass
+
+        except Exception as e:
+            print(f"🎭 Mock streamer error: {e}")
+            if self.on_error:
+                self.on_error(str(e))
+
 
 # Load environment variables
 load_dotenv()
@@ -58,6 +137,9 @@ db = SQLAlchemy(app)
 CORS(app, supports_credentials=True)
 login_manager = LoginManager()
 login_manager.init_app(app)
+
+# WebSocket setup for real-time audio streaming
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 
 # For API endpoints, return JSON 401 instead of redirecting to login HTML
 @login_manager.unauthorized_handler
@@ -152,8 +234,7 @@ def jwt_required(f):
             return jsonify({'error': 'User not found'}), 401
 
         # Create a mock current_user object for Flask-Login decorators
-        global current_user
-        current_user = user
+        g.current_user = user
 
         return f(*args, **kwargs)
     return decorated_function
@@ -191,8 +272,10 @@ def get_gemini_api_key():
 
 
 
-# Global current_user for JWT compatibility
-current_user = None
+# Global current_user for JWT compatibility (deprecated - use g.current_user)
+
+# Global streaming transcription state
+streaming_sessions = {}  # user_id -> session data
 
 
 # -------------------- File text extraction & resume parsing --------------------
@@ -395,6 +478,296 @@ def analyze_resume_job_fit(resume_data, job_description):
         'jd_skills_found': jd_skills
     }
 
+# ========== WEBSOCKET EVENT HANDLERS (Real-time Streaming) ==========
+
+@socketio.on('connect')
+def handle_connect():
+    """Handle client connection"""
+    print(f"Client connected: {request.sid}")
+    emit('connected', {'status': 'success'})
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    """Handle client disconnection and clean up streaming sessions"""
+    print(f"Client disconnected: {request.sid}")
+
+    # Clean up any streaming sessions for this socket ID
+    sessions_to_remove = []
+    for session_key, session_data in streaming_sessions.items():
+        if session_key[1] == request.sid:  # session_key is (user_id, socket_id)
+            try:
+                session_data['session'].stop()
+                print(f"Cleaned up streaming session for user {session_key[0]}")
+            except Exception as e:
+                print(f"Error stopping session for user {session_key[0]}: {e}")
+            sessions_to_remove.append(session_key)
+
+    # Remove the sessions
+    for session_key in sessions_to_remove:
+        del streaming_sessions[session_key]
+
+@socketio.on('start_interview')
+def start_interview(data):
+    """Start live interview with AssemblyAI streaming"""
+    user_id = data.get('user_id')
+    room = f"interview_{user_id}"
+
+    join_room(room)
+    print(f"🎤 Starting live interview for user {user_id}")
+
+    # Initialize final text storage
+    final_text_parts = []
+
+    def on_partial(text):
+        """Handle partial transcripts"""
+        try:
+            socketio.emit('live_transcript', {'text': text}, room=room)
+        except Exception as e:
+            print(f"Error sending partial transcript: {e}")
+
+    def on_final(text):
+        """Handle final transcripts"""
+        try:
+            final_text_parts.append(text)
+            socketio.emit('final_transcript', {'text': text}, room=room)
+        except Exception as e:
+            print(f"Error sending final transcript: {e}")
+
+    def on_error(error):
+        """Handle streaming errors"""
+        print(f"❌ Streaming error for user {user_id}: {error}")
+        # Don't emit here as it might be outside request context
+        # The session will timeout and trigger cleanup
+
+    try:
+        # Try to create AssemblyAI WebSocket streaming session
+        use_mock = False
+        try:
+            session = AssemblyAIWebSocketStreamer(on_partial, on_final, on_error)
+            session.start()
+            print(f"✅ AssemblyAI streaming session started for user {user_id}")
+        except Exception as assemblyai_error:
+            print(f"⚠️ AssemblyAI not available ({assemblyai_error}), using mock streamer")
+            use_mock = True
+            session = MockAssemblyAIStreamer(on_partial, on_final, on_error)
+            session.start()
+
+        # Store session data with unique key (user_id, socket_id) to prevent collisions
+        session_key = (user_id, request.sid)
+        streaming_sessions[session_key] = {
+            'room': room,
+            'session': session,
+            'final_text': final_text_parts,
+            'stats': RunningStatistics(),  # Initialize running statistics for incremental analysis
+            'start_time': datetime.now(),
+            'user_id': user_id,  # Keep user_id for cleanup
+            'use_mock': use_mock  # Track if using mock for UI feedback
+        }
+
+        emit('interview_started', {'status': 'success', 'use_mock': use_mock}, room=room)
+        print(f"✅ Live interview started for user {user_id} (mock: {use_mock})")
+
+    except Exception as e:
+        print(f"❌ Failed to start live interview: {e}")
+        emit('interview_error', {'error': str(e)}, room=room)
+
+# TODO: Replace Socket.IO audio with direct WebSocket for better real-time performance
+# Socket.IO adds buffering/overhead that's bad for real-time PCM audio
+@socketio.on('audio_chunk')
+def receive_audio(data):
+    """Receive PCM audio chunks, analyze incrementally, and send to AssemblyAI"""
+    user_id = data.get('user_id')
+    session_key = (user_id, request.sid)
+
+    if session_key not in streaming_sessions:
+        return
+
+    try:
+        # Get raw PCM bytes from the audio data
+        audio_data = data.get('audio')
+
+        # Convert to bytes if needed (Socket.IO might send it as different types)
+        if isinstance(audio_data, bytes):
+            audio_bytes = audio_data
+        elif isinstance(audio_data, (bytearray, memoryview)):
+            audio_bytes = bytes(audio_data)
+        elif hasattr(audio_data, 'tobytes'):  # numpy array
+            audio_bytes = audio_data.tobytes()
+        else:
+            print(f"⚠️ Unexpected audio data type: {type(audio_data)}")
+            return
+
+        # Convert PCM bytes to numpy array for analysis
+        pcm_np = np.frombuffer(audio_bytes, dtype=np.int16)
+
+        # 🔥 FAST incremental analysis (milliseconds, not seconds!)
+        session = streaming_sessions[session_key]
+        analyze_audio_chunk_fast(
+            pcm_np,
+            sample_rate=16000,
+            stats=session['stats']
+        )
+
+        # Send to AssemblyAI for live transcription
+        streaming_sessions[session_key]['session'].send_audio(audio_bytes)
+
+    except Exception as e:
+        print(f"❌ Error processing audio chunk for user {user_id}: {e}")
+        
+@socketio.on('stop_interview')
+def stop_interview(data):
+    """Stop the live interview and perform final analysis using pre-aggregated stats"""
+    user_id = data.get('user_id')
+    session_key = (user_id, request.sid)
+
+    if session_key not in streaming_sessions:
+        print(f"⚠️ Session {session_key} not found in streaming sessions")
+        return
+
+    session_data = streaming_sessions[session_key]
+    room = session_data['room']
+
+    try:
+        # 1️⃣ Stop AssemblyAI session
+        session_data['session'].stop()
+
+        # 2️⃣ Combine final transcripts
+        full_transcript = " ".join(session_data['final_text'])
+
+        # 3️⃣ Get incremental statistics
+        stats = session_data['stats']
+        final_stats = stats.get_current_stats()
+
+        print(
+            f"📊 Final aggregated stats | "
+            f"WPM={final_stats['wpm']:.1f}, "
+            f"PauseRatio={final_stats['pause_ratio']:.3f}, "
+            f"PitchRange={final_stats['pitch_range']:.1f}"
+        )
+
+        # ---------- HONEST DERIVED METRICS ----------
+
+        # Pitch score (stability-based, research-acceptable)
+        if final_stats["pitch_mean"] > 0:
+            pitch_score = min(
+                100,
+                max(
+                    0,
+                    100 * (1 - final_stats["pitch_std"] / final_stats["pitch_mean"])
+                )
+            )
+        else:
+            pitch_score = None  # insufficient data
+
+        # Voice quality cannot be computed reliably in streaming mode
+        voice_quality_score = None
+
+        # 4️⃣ Semantic analysis (FAST, transcript-only)
+        ideal_answer = (
+            "This is a comprehensive interview response that demonstrates clear "
+            "communication, technical knowledge, and professional speaking patterns."
+        )
+        ideal_keywords = ["communication", "professional", "technical", "clear", "knowledge"]
+
+        semantic_similarity = calculate_semantic_similarity(full_transcript, ideal_answer)
+        keyword_coverage = calculate_keyword_coverage(full_transcript, ideal_keywords)
+
+        # 5️⃣ Fluency inputs
+        fluency_results = {
+            'wpm': final_stats['wpm'],
+            'pause_ratio': final_stats['pause_ratio'],
+            'filler_count': sum(stats.filler_counts.values()),
+            'speaking_time': final_stats['speaking_time'],
+            'total_duration': final_stats['total_duration']
+        }
+
+        fluency_score_val = fluency_score(fluency_results)
+
+        clarity_score_val = clarity_score(
+            {
+                'semantic_similarity': semantic_similarity,
+                'keyword_coverage': keyword_coverage,
+                'filler_count': fluency_results['filler_count']
+            },
+            ideal_answer,
+            ideal_keywords
+        )
+
+        # 6️⃣ Feedback generation (NO FAKE INPUTS)
+        feedback_results = generate_comprehensive_feedback({
+            'fluency_score': fluency_score_val,
+            'clarity_score': clarity_score_val,
+            'pitch_score': pitch_score,
+            'voice_quality_score': voice_quality_score,
+            'wpm': fluency_results['wpm'],
+            'pause_ratio': fluency_results['pause_ratio'],
+            'pitch_stability': (
+                final_stats['pitch_std'] / final_stats['pitch_mean']
+                if final_stats['pitch_mean'] > 0 else None
+            ),
+            'improvement_suggestions': []
+        })
+
+        # 7️⃣ Cleanup session
+        del streaming_sessions[session_key]
+
+        # 8️⃣ Emit FINAL result (frontend-compatible, honest)
+        analysis_results = {
+            'success': True,
+            'processing_method': 'incremental_fast',
+
+            # Transcript
+            'transcript': full_transcript,
+
+            # Scores
+            'overall_score': feedback_results.get('overall_score', 0),
+            'performance_level': feedback_results.get('performance_level', 'Unknown'),
+            'fluency_score': fluency_score_val,
+            'clarity_score': clarity_score_val,
+            'pitch_score': pitch_score,
+            'voice_quality_score': voice_quality_score,
+
+            # Metrics
+            'wpm': fluency_results['wpm'],
+            'pause_ratio': fluency_results['pause_ratio'],
+            'pitch_mean': final_stats['pitch_mean'],
+            'pitch_range': final_stats['pitch_range'],
+
+            # Semantic
+            'semantic_similarity': semantic_similarity,
+            'keyword_coverage': keyword_coverage,
+
+            # UX
+            'improvement_suggestions': feedback_results.get('improvement_suggestions', [])[:3],
+            'total_duration': final_stats['total_duration'],
+            'speaking_time': final_stats['speaking_time']
+        }
+
+        emit('interview_complete', analysis_results, room=room)
+        print(f"🛑 Interview stopped for user {user_id} — FAST analysis delivered")
+
+    except Exception as e:
+        print(f"❌ Error stopping interview for user {user_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        emit('interview_error', {'error': str(e)}, room=room)
+
+
+@socketio.on('leave_interview')
+def handle_leave_interview(data):
+    """Clean up streaming session"""
+    user_id = data.get('user_id')
+    session_key = (user_id, request.sid)
+
+    if session_key in streaming_sessions:
+        room = streaming_sessions[session_key]['room']
+        leave_room(room)
+
+        # Clean up session data
+        del streaming_sessions[session_key]
+
+        print(f"👋 User {user_id} left interview room and session cleaned up")
+
 # ========== API ROUTES (Updated for React) ==========
 
 @app.route('/')
@@ -485,18 +858,18 @@ def logout():
 @app.route('/api/profile', methods=['GET'])
 @jwt_required
 def get_profile():
-    skills = json.loads(current_user.skills) if current_user.skills else []
+    skills = json.loads(g.current_user.skills) if g.current_user.skills else []
     return jsonify({
         'user': {
-            'id': current_user.id,
-            'username': current_user.username,
-            'email': current_user.email,
-            'full_name': current_user.full_name,
-            'phone': current_user.phone,
-            'experience_years': current_user.experience_years,
+            'id': g.current_user.id,
+            'username': g.current_user.username,
+            'email': g.current_user.email,
+            'full_name': g.current_user.full_name,
+            'phone': g.current_user.phone,
+            'experience_years': g.current_user.experience_years,
             'skills': skills,
-            'resume_filename': current_user.resume_filename,
-            'created_at': current_user.created_at.isoformat()
+            'resume_filename': g.current_user.resume_filename,
+            'created_at': g.current_user.created_at.isoformat()
         }
     })
 
@@ -505,10 +878,10 @@ def get_profile():
 @jwt_required
 def update_profile():
     data = request.get_json()
-    current_user.full_name = data.get('full_name', current_user.full_name)
-    current_user.phone = data.get('phone', current_user.phone)
-    current_user.experience_years = data.get('experience_years', current_user.experience_years)
-    current_user.skills = json.dumps(data.get('skills', []))
+    g.current_user.full_name = data.get('full_name', g.current_user.full_name)
+    g.current_user.phone = data.get('phone', g.current_user.phone)
+    g.current_user.experience_years = data.get('experience_years', g.current_user.experience_years)
+    g.current_user.skills = json.dumps(data.get('skills', []))
     db.session.commit()
     return jsonify({'success': True, 'message': 'Profile updated successfully'})
 
@@ -524,7 +897,7 @@ def upload_resume():
         return jsonify({'success': False, 'message': 'No file selected'})
 
     if file:
-        filename = secure_filename(f"{current_user.id}_{file.filename}")
+        filename = secure_filename(f"{g.current_user.id}_{file.filename}")
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
 
@@ -542,9 +915,9 @@ def upload_resume():
 
         if text:
             resume_data = parse_resume_text(text)
-            current_user.resume_filename = filename
-            current_user.skills = json.dumps(resume_data['skills'])
-            current_user.experience_years = resume_data['experience_years']
+            g.current_user.resume_filename = filename
+            g.current_user.skills = json.dumps(resume_data['skills'])
+            g.current_user.experience_years = resume_data['experience_years']
 
             # Get job description from form data
             job_description = request.form.get('job_description', '').strip()
@@ -663,7 +1036,7 @@ def generate_resume_based_questions():
         variation_seed = data.get('variation_seed', '')  # For generating different questions each time
 
         # Check if user has a processed resume
-        if not current_user.resume_filename:
+        if not g.current_user.resume_filename:
             return jsonify({'success': False, 'error': 'No resume uploaded'})
 
         # Search resume content for relevant information
@@ -672,7 +1045,7 @@ def generate_resume_based_questions():
         else:
             search_query = "Generate technical interview questions based on my experience and skills"
 
-        search_results = search_resume_faiss(search_query, current_user.id, top_k=5)
+        search_results = search_resume_faiss(search_query, g.current_user.id, top_k=5)
 
         # Build context from resume chunks
         resume_context = "\n".join([result['text'] for result in search_results])
@@ -744,9 +1117,9 @@ def generate_resume_based_questions():
 @jwt_required
 def get_user_stats():
     try:
-        sessions_count = InterviewSession.query.filter_by(user_id=current_user.id).count()
+        sessions_count = InterviewSession.query.filter_by(user_id=g.current_user.id).count()
         completed_sessions = InterviewSession.query.filter(
-            InterviewSession.user_id == current_user.id,
+            InterviewSession.user_id == g.current_user.id,
             InterviewSession.score.isnot(None)
         ).all()
         avg_score = None
@@ -807,7 +1180,7 @@ def save_interview_session():
 
         # Create new interview session
         session = InterviewSession(
-            user_id=current_user.id,
+            user_id=g.current_user.id,
             session_type=session_type,
             questions=json.dumps({
                 'questions': questions,
@@ -831,9 +1204,69 @@ def save_interview_session():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
+@app.route('/api/analyze_audio_final', methods=['POST'])
+@jwt_required
+def analyze_audio_final():
+    """Analyze saved audio file for comprehensive speech analysis using AssemblyAI"""
+    try:
+        data = request.get_json()
+        audio_path = data.get('audio_path')
+        live_transcript = data.get('transcript', '')
+
+        if not audio_path or not os.path.exists(audio_path):
+            return jsonify({'success': False, 'error': 'Audio file not found'}), 404
+
+        print(f"🔍 Analyzing audio file: {audio_path} with Whisper")
+
+        # Use Whisper for accurate transcription (consistent with live streaming approach)
+        try:
+            accurate_transcript = speech_to_text(audio_path)
+            if not accurate_transcript or len(accurate_transcript.strip()) == 0:
+                print("⚠️ Whisper transcription empty, using live transcript")
+                accurate_transcript = live_transcript
+            else:
+                print(f"✅ Whisper transcription: {len(accurate_transcript)} characters")
+        except Exception as trans_error:
+            print(f"⚠️ Whisper transcription failed, using live transcript: {trans_error}")
+            accurate_transcript = live_transcript
+
+        # Perform comprehensive analysis using existing logic
+        ideal_answer = "This is a comprehensive interview response that demonstrates clear communication, technical knowledge, and professional speaking patterns."
+        ideal_keywords = ["communication", "professional", "technical", "clear", "knowledge"]
+
+        analysis_results = analyze_interview_response_optimized(
+            audio_path,
+            ideal_answer,
+            ideal_keywords
+        )
+
+        return jsonify({
+            'success': True,
+            'overall_score': analysis_results.get('overall_score', 0),
+            'performance_level': analysis_results.get('performance_level', 'Unknown'),
+            'fluency_score': analysis_results.get('fluency_score', 0),
+            'pitch_score': analysis_results.get('pitch_score', 0),
+            'voice_quality_score': analysis_results.get('voice_quality_score', 0),
+            'wpm': analysis_results.get('wpm', 0),
+            'pause_ratio': analysis_results.get('pause_ratio', 0),
+            'pitch_feedback': analysis_results.get('pitch_feedback', ''),
+            'fluency_feedback': analysis_results.get('fluency_feedback', ''),
+            'voice_quality_feedback': analysis_results.get('voice_quality_feedback', ''),
+            'improvement_suggestions': analysis_results.get('improvement_suggestions', [])[:3],
+            'transcript': accurate_transcript,
+            'live_transcript': live_transcript
+        })
+
+    except Exception as e:
+        print(f"❌ Final analysis error: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/process_audio', methods=['POST'])
 @jwt_required
 def process_audio():
+    """Batch audio processing endpoint (legacy) - processes full audio file after upload"""
     try:
         if 'audio_file' not in request.files:
             return jsonify({'success': False, 'message': 'No audio file provided'}), 400
@@ -858,7 +1291,7 @@ def process_audio():
         if not filename.endswith(('.webm', '.wav', '.mp3', '.ogg', '.m4a')):
             filename = filename.rsplit('.', 1)[0] + '.webm'
 
-        temp_audio_path = os.path.join(app.config['UPLOAD_FOLDER'], f"audio_{current_user.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}")
+        temp_audio_path = os.path.join(app.config['UPLOAD_FOLDER'], f"audio_{g.current_user.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}")
         audio_file.save(temp_audio_path)
 
         print(f"Saved audio file: {temp_audio_path}, size: {os.path.getsize(temp_audio_path)} bytes")
@@ -1012,7 +1445,7 @@ def process_audio():
             ideal_answer = "This is a conversational interview response that should demonstrate good communication skills, clear articulation, and professional speaking patterns."
             ideal_keywords = ["communication", "professional", "clear", "articulate", "confident"]
 
-            analysis_results = analyze_interview_response(
+            analysis_results = analyze_interview_response_optimized(
                 converted_audio_path,
                 ideal_answer,
                 ideal_keywords
@@ -1112,7 +1545,7 @@ def get_interview_history():
     try:
         session_type = request.args.get('type', None)
 
-        query = InterviewSession.query.filter_by(user_id=current_user.id)
+        query = InterviewSession.query.filter_by(user_id=g.current_user.id)
 
         if session_type:
             query = query.filter_by(session_type=session_type)
@@ -1154,5 +1587,5 @@ if __name__ == '__main__':
     with app.app_context():
         db.create_all()
 
-    print("🚀 Starting Flask API server...")
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    print("🚀 Starting Flask-SocketIO API server...")
+    socketio.run(app, debug=True, host='0.0.0.0', port=5000, use_reloader=False)

@@ -60,6 +60,13 @@ const Dashboard = ({ user, onLogout }) => {
       icon: "fas fa-microphone-alt",
       link: "/conversational-interview",
       color: "hr" // Using 'hr' color for now, can be changed later
+    },
+    {
+      title: "Live Streaming Interview",
+      description: "Experience real-time speech recognition with live captions, just like a professional interview.",
+      icon: "fas fa-broadcast-tower",
+      link: "/live-streaming-interview",
+      color: "streaming"
     }
   ];
 

@@ -130,6 +130,23 @@
   background: #D97706;
 }
 
+/* Streaming card */
+.streaming-card {
+  border-top-color: #8B5CF6;
+}
+
+.streaming-card i {
+  color: #8B5CF6;
+}
+
+.streaming-card .feature-btn {
+  background: #8B5CF6;
+}
+
+.streaming-card .feature-btn:hover {
+  background: #7C3AED;
+}
+
 /* Responsive adjustments */
 @media (max-width: 1199px) and (min-width: 768px) {
   .feature-card {

@@ -9,6 +9,7 @@ import Profile from './components/Profile/Profile';
 import HRInterview from './components/HRInterview/HRInterview';
 import ResumeUpload from './components/Resume/ResumeUpload';
 import ConversationalInterview from './components/ConversationalInterview/ConversationalInterview';
+import InterviewStreamer from './components/LiveStreamingInterview/InterviewStreamer';
 import LoadingSpinner from './components/Layout/LoadingSpinner';
 import './App.css';
 
@@ -82,6 +83,10 @@ function App() {
           <Route 
             path="/conversational-interview" 
             element={user ? <ConversationalInterview user={user} onLogout={handleLogout} /> : <Navigate to="/login" />} 
+          />
+          <Route
+            path="/live-streaming-interview"
+            element={user ? <InterviewStreamer userId={user.id} onLogout={handleLogout} /> : <Navigate to="/login" />}
           />
           <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
         </Routes>

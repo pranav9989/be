@@ -47,9 +47,9 @@ class WhisperModelManager:
                     device=device,
                     compute_type=compute_type
                 )
-                print(f"✅ Loaded {model_name} model successfully")
+                print(f"[OK] Loaded {model_name} model successfully")
             except Exception as e:
-                print(f"❌ Failed to load {model_name}: {e}")
+                print(f"[ERROR] Failed to load {model_name}: {e}")
                 # Fallback to medium.en if large-v3 fails
                 if model_name == "large-v3":
                     print("Falling back to medium.en")
@@ -182,6 +182,71 @@ class RunningStatistics:
             'avg_shimmer': avg_shimmer,
             'avg_hnr': avg_hnr
         }
+
+
+def analyze_audio_chunk_fast(pcm_chunk, sample_rate, stats: RunningStatistics):
+    """
+    Fast incremental analysis for a single PCM chunk (≈5 sec)
+    This replaces the heavy analysis and runs in milliseconds.
+
+    Args:
+        pcm_chunk: Numpy array of int16 PCM samples
+        sample_rate: Sample rate (typically 16000)
+        stats: RunningStatistics object to update incrementally
+    """
+    # Convert int16 PCM → float32 for librosa
+    audio = pcm_chunk.astype(np.float32) / 32768.0
+    duration = len(audio) / sample_rate
+
+    # --- Silence detection ---
+    intervals = librosa.effects.split(audio, top_db=25)
+    speaking_time = sum((e - s) / sample_rate for s, e in intervals)
+
+    stats.update_time_stats(duration, speaking_time)
+
+    # --- Pause stats ---
+    pauses = []
+    if len(intervals) > 1:
+        for i in range(len(intervals) - 1):
+            pause = (intervals[i+1][0] - intervals[i][1]) / sample_rate
+            if pause > 0.1:  # Only count pauses > 100ms
+                pauses.append(pause)
+    stats.update_pause_stats(pauses)
+
+    # --- FAST pitch analysis (YIN, not pYIN) ---
+    try:
+        # Downsample to 8kHz for efficiency (sufficient for pitch detection)
+        audio_8k = librosa.resample(audio, orig_sr=sample_rate, target_sr=8000)
+
+        # Use YIN algorithm (much faster than pYIN)
+        f0 = librosa.yin(
+            audio_8k,
+            fmin=65,    # Male speech range
+            fmax=300,   # Female speech range
+            sr=8000,
+            frame_length=512,   # Smaller frames for speed
+            hop_length=128      # Faster hop
+        )
+
+        # Filter out NaN/infinite values
+        f0 = f0[np.isfinite(f0)]
+        if len(f0) > 0:
+            stats.update_pitch_stats(f0)
+    except Exception as e:
+        print(f"Fast pitch analysis failed: {e}")
+
+    # --- Lightweight voice quality ---
+    try:
+        # Simple RMS-based shimmer approximation
+        rms = librosa.feature.rms(y=audio, frame_length=512, hop_length=256)[0]
+        if len(rms) > 1:
+            shimmer = np.std(rms) / np.mean(rms) if np.mean(rms) > 0 else 0
+            # Placeholder values for jitter and HNR (could be improved)
+            jitter = 0  # Would need proper calculation
+            hnr = 10    # Approximate good HNR
+            stats.update_voice_quality(jitter=jitter, shimmer=shimmer, hnr=hnr)
+    except Exception as e:
+        print(f"Fast voice quality analysis failed: {e}")
 
 def analyze_fluency_comprehensive(audio_path, transcribed_text):
     """
@@ -347,18 +412,18 @@ def analyze_pitch_comprehensive(audio_path):
     """
     y, sr = librosa.load(audio_path)
 
-    # Fundamental frequency (F0) tracking using pYIN
-    # Wider frequency range for better pitch detection
-    f0, voiced_flag, voiced_probs = librosa.pyin(
+    # Fundamental frequency (F0) tracking using YIN (much faster than pYIN)
+    # Focus on speech-relevant frequency range for better performance
+    f0 = librosa.yin(
         y, sr=sr,
-        fmin=librosa.note_to_hz('C2'),  # 65.4 Hz
-        fmax=librosa.note_to_hz('C6'),  # 1046.5 Hz
-        frame_length=2048,
-        hop_length=128
+        fmin=65,  # 65 Hz (male speech range)
+        fmax=300, # 300 Hz (female speech range)
+        frame_length=512,  # Smaller frames for speed
+        hop_length=128     # Faster hop
     )
 
-    # Filter out unvoiced frames and NaN values
-    f0_voiced = f0[voiced_flag & ~np.isnan(f0)]
+    # Filter out NaN/infinite values (YIN doesn't provide voiced_flag, so we filter directly)
+    f0_voiced = f0[np.isfinite(f0)]
 
     if len(f0_voiced) < 10:  # Need minimum samples for analysis
         return {
@@ -443,18 +508,17 @@ def analyze_voice_quality(audio_path):
     """
     y, sr = librosa.load(audio_path)
 
-    # Get fundamental frequency
-    f0, voiced_flag, voiced_probs = librosa.pyin(
+    # Get fundamental frequency using YIN (much faster than pYIN)
+    f0 = librosa.yin(
         y, sr=sr,
-        fmin=librosa.note_to_hz('C2'),
-        fmax=librosa.note_to_hz('C6'),
-        frame_length=2048,
-        hop_length=128
+        fmin=65,  # 65 Hz (male speech range)
+        fmax=300, # 300 Hz (female speech range)
+        frame_length=512,  # Smaller frames for speed
+        hop_length=128     # Faster hop
     )
 
-    # Filter to voiced frames only
-    voiced_frames = voiced_flag & ~np.isnan(f0)
-    f0_voiced = f0[voiced_frames]
+    # Filter to finite values only (YIN doesn't provide voiced_flag)
+    f0_voiced = f0[np.isfinite(f0)]
 
     if len(f0_voiced) < 20:  # Need minimum samples
         return {
@@ -769,16 +833,17 @@ def analyze_audio_chunk(audio_chunk, sample_rate, stats):
         sr_8k = sample_rate
 
     try:
-        f0, voiced_flag, _ = librosa.pyin(
+        # Use YIN instead of pYIN for much faster pitch detection
+        f0 = librosa.yin(
             chunk_8k, sr=sr_8k,
-            fmin=librosa.note_to_hz('C2'),
-            fmax=librosa.note_to_hz('C6'),
-            frame_length=1024,  # Smaller for speed
-            hop_length=256
+            fmin=65,    # Male speech range
+            fmax=300,   # Female speech range
+            frame_length=512,   # Smaller for speed
+            hop_length=128      # Faster hop
         )
 
-        # Update pitch statistics
-        voiced_f0 = f0[voiced_flag & ~np.isnan(f0)]
+        # Update pitch statistics (filter finite values)
+        voiced_f0 = f0[np.isfinite(f0)]
         if len(voiced_f0) > 0:
             stats.update_pitch_stats(voiced_f0)
     except Exception as e:
@@ -922,20 +987,24 @@ def analyze_interview_response_optimized(audio_path, ideal_answer_text="", ideal
         'hnr': final_stats['avg_hnr']
     }
 
+    overall_score = compute_overall_score_independent({
+        "semantic_similarity": semantic_similarity,
+        "keyword_coverage": keyword_coverage,
+        "pitch_mean": final_stats["pitch_mean"],
+        "pitch_range": final_stats["pitch_range"],
+        "speaking_time": final_stats["speaking_time"],
+        "total_duration": final_stats["total_duration"]
+    })
+
     # Generate comprehensive feedback
     feedback_data = generate_comprehensive_feedback({
-        'fluency_score': fluency_score(fluency_results),
-        'clarity_score': clarity_score({
-            'semantic_similarity': semantic_similarity,
-            'keyword_coverage': keyword_coverage,
-            'filler_count': fluency_results['filler_count']
-        }, ideal_answer_text, ideal_keywords),
-        'pitch_score': 70,  # Placeholder - would need proper pitch scoring
-        'voice_quality_score': 70,  # Placeholder - would need proper voice quality scoring
-        'wpm': fluency_results['wpm'],
-        'pause_ratio': fluency_results['pause_ratio'],
-        'pitch_stability': final_stats['pitch_std'] / final_stats['pitch_mean'] if final_stats['pitch_mean'] > 0 else 1,
-        'improvement_suggestions': []
+        "overall_score": overall_score,
+        "semantic_similarity": semantic_similarity,
+        "keyword_coverage": keyword_coverage,
+        "pitch_mean": final_stats["pitch_mean"],
+        "pitch_range": final_stats["pitch_range"],
+        "speaking_time": final_stats["speaking_time"],
+        "total_duration": final_stats["total_duration"]
     })
 
     return {
@@ -975,6 +1044,7 @@ def analyze_interview_response_optimized(audio_path, ideal_answer_text="", ideal
         "model_used": model_name,
         "voiced_segments_count": len(voiced_segments)
     }
+
 
 
 def speech_to_text(audio_path, model_name="medium.en", use_vad=True):
@@ -1034,96 +1104,141 @@ def clarity_score(results, ideal_answer, ideal_keywords):
                      0.2 * 0.9)  # Base score component
     return max(0, min(100, clarity))
 
+def compute_overall_score_independent(results):
+    """
+    Research-safe overall score using ONLY independent metrics.
+    """
+
+    # --- Content ---
+    semantic_similarity = results.get("semantic_similarity", 0.0)
+    keyword_coverage = results.get("keyword_coverage", 0.0)
+
+    semantic_score = semantic_similarity * 100
+    keyword_score = keyword_coverage * 100
+
+    # --- Pitch stability proxy (independent) ---
+    pitch_mean = results.get("pitch_mean", 0.0)
+    pitch_range = results.get("pitch_range", 0.0)
+
+    if pitch_mean > 0:
+        pitch_stability = 1.0 - min(pitch_range / pitch_mean, 1.0)
+    else:
+        pitch_stability = 0.0
+
+    pitch_score = pitch_stability * 100
+
+    # --- Engagement ---
+    speaking_time = results.get("speaking_time", 0.0)
+    total_duration = results.get("total_duration", 0.0)
+
+    engagement = (speaking_time / total_duration) if total_duration > 0 else 0.0
+    engagement_score = engagement * 100
+
+    # --- Final weighted score ---
+    overall_score = (
+        0.40 * semantic_score +
+        0.30 * keyword_score +
+        0.15 * pitch_score +
+        0.15 * engagement_score
+    )
+
+    return round(overall_score, 2)
+
 
 def generate_comprehensive_feedback(results):
     """
-    Generate comprehensive feedback based on all speech analysis metrics.
-    Returns: dict with overall feedback and improvement suggestions
+    Generate comprehensive qualitative feedback.
+    IMPORTANT:
+    - This function does NOT compute scores.
+    - It ONLY interprets already-computed, research-safe metrics.
     """
-    feedback_sections = []
 
-    # Overall performance summary
-    overall_score = (results.get('fluency_score', 0) + results.get('clarity_score', 0) +
-                    results.get('pitch_score', 0) + results.get('voice_quality_score', 0)) / 4
+    # ------------------------------------------------------------------
+    # Overall score MUST be precomputed using independent metrics
+    # ------------------------------------------------------------------
+    overall_score = float(results.get("overall_score", 0.0))
 
+    # Performance level interpretation
     if overall_score >= 80:
         performance_level = "Excellent"
-        performance_feedback = "Your speech delivery is very professional and engaging."
+        performance_feedback = "Your response is clear, confident, and technically strong."
     elif overall_score >= 70:
         performance_level = "Good"
-        performance_feedback = "Your speech delivery is solid with room for minor improvements."
+        performance_feedback = "Your response is solid, with minor areas for improvement."
     elif overall_score >= 60:
         performance_level = "Fair"
-        performance_feedback = "Your speech delivery needs some work to be more effective."
+        performance_feedback = "Your response is understandable but needs refinement."
     else:
         performance_level = "Needs Improvement"
-        performance_feedback = "Your speech delivery requires significant practice and refinement."
+        performance_feedback = "Your response needs clearer structure, content focus, and delivery."
 
-    # Collect all specific feedback
-    all_feedback = []
+    # ------------------------------------------------------------------
+    # Detailed feedback (descriptive only, no scoring)
+    # ------------------------------------------------------------------
+    detailed_feedback = []
 
-    # Add existing feedback from different analyses
-    for key in ['fluency_feedback', 'pitch_feedback', 'voice_quality_feedback']:
-        if key in results and results[key]:
-            all_feedback.append(results[key])
+    semantic_similarity = results.get("semantic_similarity", 0.0)
+    keyword_coverage = results.get("keyword_coverage", 0.0)
 
-    # Content feedback
-    semantic_score = results.get('semantic_similarity', 0)
-    keyword_score = results.get('keyword_coverage', 0)
+    if semantic_similarity < 0.3:
+        detailed_feedback.append("The answer does not closely address the question asked.")
+    elif semantic_similarity < 0.6:
+        detailed_feedback.append("The answer partially addresses the question but lacks depth.")
 
-    content_feedback = []
-    if semantic_score < 0.3:
-        content_feedback.append("content relevance needs improvement")
-    if keyword_score < 0.5:
-        content_feedback.append("include more key technical terms")
+    if keyword_coverage < 0.4:
+        detailed_feedback.append("Many expected technical terms are missing.")
+    elif keyword_coverage < 0.7:
+        detailed_feedback.append("Some important technical terms could be added.")
 
-    if content_feedback:
-        all_feedback.append("Content analysis: " + "; ".join(content_feedback))
+    # Pitch-related qualitative feedback (independent interpretation)
+    pitch_mean = results.get("pitch_mean", 0.0)
+    pitch_range = results.get("pitch_range", 0.0)
 
-    # Generate improvement suggestions
-    suggestions = []
+    if pitch_mean > 0:
+        pitch_variability_ratio = pitch_range / pitch_mean
+        if pitch_variability_ratio > 0.6:
+            detailed_feedback.append("Pitch varies significantly, which may reduce clarity.")
+        elif pitch_variability_ratio < 0.15:
+            detailed_feedback.append("Pitch is very flat; adding variation can improve engagement.")
 
-    # Fluency suggestions
-    wpm = results.get('wpm', 0)
-    if wpm < 100:
-        suggestions.append("Practice speaking at a slightly faster pace - aim for 120-150 words per minute")
-    elif wpm > 180:
-        suggestions.append("Slow down your speaking pace to improve clarity and comprehension")
+    # Engagement feedback
+    speaking_time = results.get("speaking_time", 0.0)
+    total_duration = results.get("total_duration", 0.0)
 
-    pause_ratio = results.get('pause_ratio', 0)
-    if pause_ratio > 0.6:
-        suggestions.append("Reduce excessive pauses by preparing your thoughts more thoroughly")
-    elif pause_ratio < 0.1:
-        suggestions.append("Add brief natural pauses between sentences for better rhythm")
+    if total_duration > 0:
+        engagement_ratio = speaking_time / total_duration
+        if engagement_ratio < 0.5:
+            detailed_feedback.append("There are long silent gaps; try to maintain a steadier response.")
 
-    # Pitch suggestions
-    pitch_stability = results.get('pitch_stability', 1)
-    if pitch_stability > 0.4:
-        suggestions.append("Work on maintaining more consistent pitch throughout your response")
-    elif pitch_stability < 0.1:
-        suggestions.append("Add natural pitch variation to make your speech more engaging")
+    # ------------------------------------------------------------------
+    # Improvement suggestions (actionable, capped)
+    # ------------------------------------------------------------------
+    improvement_suggestions = []
 
-    # Voice quality suggestions
-    hnr = results.get('hnr', 0)
-    if hnr < 10:
-        suggestions.append("Reduce background noise and speak in a quieter environment")
+    if semantic_similarity < 0.5:
+        improvement_suggestions.append("Focus more directly on answering the question.")
 
-    jitter = results.get('jitter', 0)
-    if jitter > 0.015:
-        suggestions.append("Practice vocal warm-ups to improve pitch stability")
+    if keyword_coverage < 0.6:
+        improvement_suggestions.append("Include more relevant technical keywords.")
 
-    # Content suggestions
-    if semantic_score < 0.5:
-        suggestions.append("Focus on directly addressing the question asked")
-    if keyword_score < 0.6:
-        suggestions.append("Incorporate more technical terms and industry-specific vocabulary")
+    if pitch_mean > 0 and pitch_range / pitch_mean > 0.5:
+        improvement_suggestions.append("Work on maintaining a more consistent pitch.")
 
+    if total_duration > 0 and speaking_time / total_duration < 0.6:
+        improvement_suggestions.append("Reduce long pauses to improve flow.")
+
+    # Limit to top 5 suggestions
+    improvement_suggestions = improvement_suggestions[:5]
+
+    # ------------------------------------------------------------------
+    # Final response
+    # ------------------------------------------------------------------
     return {
-        "overall_score": float(overall_score),
+        "overall_score": overall_score,
         "performance_level": performance_level,
         "performance_feedback": performance_feedback,
-        "detailed_feedback": all_feedback,
-        "improvement_suggestions": suggestions[:5],  # Limit to top 5 suggestions
+        "detailed_feedback": detailed_feedback,
+        "improvement_suggestions": improvement_suggestions,
         "summary": f"Overall Performance: {performance_level} ({overall_score:.1f}/100)"
     }
 
@@ -1180,6 +1295,7 @@ def analyze_interview_response(audio_file_path, ideal_answer_text, ideal_keyword
     }
 
     # Generate comprehensive feedback
+    results["overall_score"] = compute_overall_score_independent(results)
     feedback_results = generate_comprehensive_feedback(results)
     results.update(feedback_results)
 
