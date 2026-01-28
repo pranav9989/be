@@ -11,9 +11,12 @@
   border-top: 4px solid;
   display: flex;
   flex-direction: column;
-  height: 100%; /* Fill grid cell */
-  min-height: 260px; /* Slightly shorter for better balance */
-  max-height: 280px; /* Limit maximum height */
+  height: 100%;
+  /* Fill grid cell */
+  min-height: 260px;
+  /* Slightly shorter for better balance */
+  max-height: 280px;
+  /* Limit maximum height */
   position: relative;
   overflow: hidden;
   cursor: default;
@@ -26,8 +29,10 @@
 }
 
 .feature-card i {
-  font-size: 2.2rem; /* Slightly smaller */
-  margin-bottom: 0.8rem; /* Reduced spacing */
+  font-size: 2.2rem;
+  /* Slightly smaller */
+  margin-bottom: 0.8rem;
+  /* Reduced spacing */
   display: block;
   transition: transform 0.3s ease;
 }
@@ -41,7 +46,8 @@
   margin-bottom: 0.8rem;
   color: #1E3A8A;
   font-weight: 700;
-  min-height: 2.5rem; /* Prevent layout shift */
+  min-height: 2.5rem;
+  /* Prevent layout shift */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -49,13 +55,18 @@
 
 .feature-card p {
   color: #4B5563;
-  line-height: 1.4; /* Tighter line height */
+  line-height: 1.4;
+  /* Tighter line height */
   margin-bottom: 1rem;
-  font-size: 0.9rem; /* Smaller font */
-  flex-grow: 1; /* Fill available space */
-  overflow: hidden; /* Prevent overflow */
+  font-size: 0.9rem;
+  /* Smaller font */
+  flex-grow: 1;
+  /* Fill available space */
+  overflow: hidden;
+  /* Prevent overflow */
   display: -webkit-box;
-  -webkit-line-clamp: 3; /* Show max 3 lines */
+  -webkit-line-clamp: 3;
+  /* Show max 3 lines */
   -webkit-box-orient: vertical;
 }
 
@@ -72,8 +83,10 @@
   transition: all 0.2s ease;
   cursor: pointer;
   align-self: center;
-  margin-top: auto; /* Push to bottom */
-  min-width: 120px; /* Consistent button width */
+  margin-top: auto;
+  /* Push to bottom */
+  min-width: 120px;
+  /* Consistent button width */
 }
 
 .feature-btn:hover {
@@ -147,12 +160,31 @@
   background: #7C3AED;
 }
 
+/* Agentic Interview card */
+.agentic-card {
+  border-top-color: #2563EB;
+  /* same blue family as primary */
+}
+
+.agentic-card i {
+  color: #2563EB;
+}
+
+.agentic-card .feature-btn {
+  background: #2563EB;
+}
+
+.agentic-card .feature-btn:hover {
+  background: #1D4ED8;
+}
+
+
 /* Responsive adjustments */
 @media (max-width: 1199px) and (min-width: 768px) {
   .feature-card {
     min-height: 240px;
   }
-  
+
   .feature-card p {
     -webkit-line-clamp: 3;
   }
@@ -163,7 +195,7 @@
     min-height: 220px;
     max-height: none;
   }
-  
+
   .feature-card p {
     -webkit-line-clamp: 2;
   }

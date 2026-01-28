@@ -67,15 +67,22 @@ const Dashboard = ({ user, onLogout }) => {
       icon: "fas fa-broadcast-tower",
       link: "/live-streaming-interview",
       color: "streaming"
+    },
+    {
+      title: "Agentic Interview",
+      description: "A fully autonomous, voice-first interview where AI asks, listens, thinks, and adapts in real time.",
+      icon: "fas fa-brain",
+      link: "/agentic-interview",
+      color: "agentic"
     }
   ];
 
   return (
     <div className="dashboard-container">
-      <Header 
-        user={user} 
-        onLogout={onLogout} 
-        title="CS Interview Assistant" 
+      <Header
+        user={user}
+        onLogout={onLogout}
+        title="CS Interview Assistant"
       />
 
       <main className="dashboard-main">
@@ -96,21 +103,21 @@ const Dashboard = ({ user, onLogout }) => {
             <p>Track your interview preparation journey</p>
           </div>
           <div className="stats-grid">
-            <StatsCard 
-              number={stats.sessions} 
-              label="Practice Sessions" 
+            <StatsCard
+              number={stats.sessions}
+              label="Practice Sessions"
             />
-            <StatsCard 
-              number={stats.questions} 
-              label="Questions Answered" 
+            <StatsCard
+              number={stats.questions}
+              label="Questions Answered"
             />
-            <StatsCard 
-              number={stats.avg_score ? `${stats.avg_score.toFixed(1)}%` : '-'} 
-              label="Average Score" 
+            <StatsCard
+              number={stats.avg_score ? `${stats.avg_score.toFixed(1)}%` : '-'}
+              label="Average Score"
             />
-            <StatsCard 
-              number={1} 
-              label="Days Active" 
+            <StatsCard
+              number={1}
+              label="Days Active"
             />
           </div>
         </section>

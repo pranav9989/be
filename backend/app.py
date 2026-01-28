@@ -8,6 +8,7 @@ but improves RAG initialization, FAISS usage, and Gemini calls.
 import os
 import json
 import re
+import librosa
 import traceback
 import wave
 import time
@@ -32,7 +33,7 @@ from flask import (
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import (
-    LoginManager, UserMixin, login_user, logout_user
+    LoginManager, UserMixin, login_user, logout_user, current_user
 )
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -52,6 +53,13 @@ from interview_analyzer import (
     analyze_audio_chunk_fast, calculate_semantic_similarity, calculate_keyword_coverage,
     fluency_score, clarity_score, generate_comprehensive_feedback
 )
+
+from agent.analyzer import analyze_answer
+from agent.controller import InterviewAgentController
+
+import requests
+from flask import request, Response, jsonify
+import os
 
 
 class MockAssemblyAIStreamer:
@@ -216,34 +224,127 @@ def verify_token(token):
     except jwt.InvalidTokenError:
         return None
 
-def notify_backend_ready(user_id, sid):
-    session_key = (user_id, sid)
-    session = streaming_sessions.get(session_key)
+# Replace notify_backend_ready function in app.py
 
-    if not session:
+def notify_backend_ready(user_id, sid):
+    """Notify frontend that backend is ready to receive audio"""
+    session_key = (user_id, sid)
+    
+    if session_key not in streaming_sessions:
         print(f"⚠️ notify_backend_ready: session not found for {session_key}")
         return
-
-    session['ready'] = True
     
+    print(f"🔥 Backend ready notification for user {user_id}")
+    
+    streaming_sessions[session_key]['ready'] = True
+    streaming_sessions[session_key]['primed'] = True
+    
+    # 🔥 NEW: FLUSH BUFFERED AUDIO
+    flush_early_buffer(session_key)
+    
+    # Send backend_ready event
+    try:
+        socketio.emit(
+            'backend_ready',
+            {'status': 'ready', 'timestamp': time.time()},
+            room=streaming_sessions[session_key]['room']
+        )
+        print(f"📡 backend_ready emitted to room {streaming_sessions[session_key]['room']}")
+    except Exception as e:
+        print(f"❌ Failed to emit backend_ready: {e}")
 
-    # 🔥 Flush buffered audio safely
-    buffered = session.get('early_buffer', [])
-    if buffered:
-        print(f"📤 Flushing {len(buffered)} buffered chunks")
-        for chunk in buffered:
-            session['session'].send_audio(chunk)
-        buffered.clear()
+def check_silence_and_switch_turn(session_key):
+    """Check for silence and automatically switch turns"""
+    session = streaming_sessions.get(session_key)
+    if not session:
+        return
+    
+    current_turn = session.get('turn')
+    if current_turn == 'USER':
+        # Check if user has been silent for more than 2 seconds
+        last_activity = session.get('last_audio_time')
+        if last_activity and (time.time() - last_activity) > 2.0:
+            print(f"⏱️ User silent for 2+ seconds, switching to INTERVIEWER turn")
+            session['turn'] = 'INTERVIEWER'
+            
+            # Get next question from agent
+            try:
+                agent_response = InterviewAgentController.get_next_question(
+                    session_id=str(session['user_id']),
+                    last_answer=""
+                )
+                next_question = agent_response.get('next_question', 'Could you elaborate on that?')
+                
+                # Emit next question
+                socketio.emit(
+                    "agent_next_question",
+                    {"question": next_question},
+                    room=session['room']
+                )
+                print(f"🤖 Auto-switch: Asking next question: {next_question[:50]}...")
+            except Exception as e:
+                print(f"❌ Error getting next question on auto-switch: {e}")
 
-    session['primed'] = True
+def silence_watcher(session_key, timeout=15):
+    while True:
+        session = streaming_sessions.get(session_key)
+        if not session:
+            return
 
-    socketio.emit(
-        'backend_ready',
-        {'status': 'ready'},
-        room=session['room']
-    )
+        # Stop if turn changed
+        if session.get("turn") != "USER":
+            return
 
-    print(f"📡 backend_ready emitted safely for user {user_id}")
+        # Stop if already finalized
+        if session.get("finalized"):
+            return
+
+        last_time = session.get("last_audio_time", time.time())
+
+        if time.time() - last_time >= timeout:
+            print("⏱️ Silence detected → finalizing answer")
+
+            session["finalized"] = True
+
+            final_text = " ".join(session.get("final_text", [])).strip()
+
+            # 🔥 CORRECT: use stored callback
+            on_final_cb = session.get("on_final")
+            if on_final_cb and final_text:
+                on_final_cb(final_text)
+
+            return
+
+        time.sleep(1)
+
+def flush_early_buffer(session_key):
+    """Flush early buffered audio chunks to AssemblyAI"""
+    if session_key not in streaming_sessions:
+        return
+    
+    session = streaming_sessions[session_key]
+    
+    if 'early_buffer' not in session or not session['early_buffer']:
+        return
+    
+    print(f"📤 Flushing {len(session['early_buffer'])} buffered audio chunks to AssemblyAI")
+    
+    # Send all buffered audio chunks to AssemblyAI
+    for i, audio_bytes in enumerate(session['early_buffer']):
+        try:
+            session["session"].send_audio(audio_bytes)
+            session['chunk_count'] = session.get('chunk_count', 0) + 1
+            if i < 5:  # Log first few chunks
+                print(f"📤 Sent buffered chunk {i+1} ({len(audio_bytes)} bytes)")
+        except Exception as e:
+            print(f"❌ Failed to send buffered chunk {i+1}: {e}")
+    
+    # Clear the buffer
+    session['early_buffer'] = []
+    
+    # Update stats
+    session['buffer_flushed'] = True
+    print(f"✅ Early buffer flushed to AssemblyAI")
 
 
 @app.route('/api/debug_sessions', methods=['GET'])
@@ -604,23 +705,27 @@ def handle_connect():
 def handle_disconnect():
     """Handle client disconnection and clean up streaming sessions"""
     print(f"Client disconnected: {request.sid}")
-
+    
     # Clean up any streaming sessions for this socket ID
     sessions_to_remove = []
     for session_key, session_data in streaming_sessions.items():
         if session_key[1] == request.sid:  # session_key is (user_id, socket_id)
             try:
-                session_data['session'].stop()
-                print(f"Cleaned up streaming session for user {session_key[0]}")
+                if 'session' in session_data and session_data['session']:
+                    session_data['session'].stop()
+                    print(f"Cleaned up streaming session for user {session_key[0]}")
             except Exception as e:
                 print(f"Error stopping session for user {session_key[0]}: {e}")
             sessions_to_remove.append(session_key)
-
+    
     # Remove the sessions
     for session_key in sessions_to_remove:
-        del streaming_sessions[session_key]
+        if session_key in streaming_sessions:
+            del streaming_sessions[session_key]
+            print(f"Removed session {session_key} from tracking")
     
-# Add this handler right after handle_disconnect
+    print(f"Active sessions remaining: {len(streaming_sessions)}")
+    
 @socketio.on('trigger_backend_ready')
 def handle_trigger_backend_ready(data):
     """Handle the trigger to send backend_ready from main context"""
@@ -632,48 +737,170 @@ def handle_trigger_backend_ready(data):
         room = streaming_sessions[session_key].get('room')
         if room:
             print(f"🔄 Sending backend_ready from main context for user {user_id}")
-            emit('backend_ready', {'status': 'ready'}, room=room)
+            socketio.emit('backend_ready', {'status': 'ready'}, room=room)
             print(f"✅ backend_ready sent successfully")
+        else:
+            print(f"⚠️ No room found for session {session_key}")
 
 @socketio.on('start_interview')
 def start_interview(data):
     """Start live interview with AssemblyAI streaming AND audio recording"""
     user_id = data.get('user_id')
-    sid = request.sid              
+    sid = request.sid
+    session_key = (user_id, sid)
+    
+    # 🔥 CRITICAL: Check if session already exists
+    if session_key in streaming_sessions:
+        print(f"⚠️ Interview already in progress for user {user_id}, cleaning up old session")
+        try:
+            old_session = streaming_sessions[session_key]
+            if 'session' in old_session and old_session['session']:
+                old_session['session'].stop()
+        except:
+            pass
+        del streaming_sessions[session_key]
+    
+    # Initialize session BEFORE any other operations
     room = f"interview_{user_id}"
-
     join_room(room)
-    print(f"🎤 Starting live interview for user {user_id}")
+    
+    streaming_sessions[session_key] = {
+        "turn": "INTERVIEWER",  # Start with interviewer turn
+        "current_question": None,
+        "session": None,
+        "room": room,
+        "early_buffer": [],
+        "final_text": [],
+        "audio_chunks": [],
+        "stats": RunningStatistics(),
+        "user_id": user_id,
+        "chunk_count": 0,
+        "ready": False,
+        "primed": False,
+        "buffer_count": 0
+    }
 
-    # Initialize final text storage
-    final_text_parts = []
-    
-    # Initialize audio recording
-    audio_chunks = []
-    
-    # Create timestamp for unique filename
+    # Get timestamp for audio file
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     audio_filename = f"interview_{user_id}_{timestamp}.wav"
     audio_filepath = os.path.join(app.config['UPLOAD_FOLDER'], audio_filename)
-
-    # 🔥 TRACK STATE
-    is_session_ready = False
-    early_audio_buffer = []
     
+    # Store audio file info
+    streaming_sessions[session_key]["audio_filename"] = audio_filename
+    streaming_sessions[session_key]["audio_filepath"] = audio_filepath
+
+    # --------------------------------
+    # PARTIAL TRANSCRIPTS
+    # --------------------------------
     def on_partial(text):
-        """Handle partial transcripts"""
         try:
             socketio.emit('live_transcript', {'text': text}, room=room)
         except Exception as e:
             print(f"Error sending partial transcript: {e}")
 
+    # --------------------------------
+    # FINAL TRANSCRIPTS (AGENT LOOP) - FIXED VERSION
+    # --------------------------------
+    # Replace your existing on_final function with this improved version
     def on_final(text):
-        """Handle final transcripts"""
+        """Handle final transcription with proper turn management"""
+        session = streaming_sessions.get(session_key)
+        if not session:
+            print("⚠️ Session not found in on_final")
+            return
+
+        print(f"📝 Final transcript received: {text}")
+        
+        # Store transcript
+        session['final_text'].append(text)
+        
+        # 🚫 CRITICAL: Only process if it's USER's turn
+        current_turn = session.get("turn")
+        if current_turn != "USER":
+            print(f"🚫 Ignored transcript – turn is {current_turn}, not USER")
+            return
+
+        current_question = session.get("current_question")
+        if not current_question:
+            print("⚠️ No current question found for analysis")
+            return
+
+        print(f"🔍 Analyzing answer for question: {current_question[:50]}...")
+        
         try:
-            final_text_parts.append(text)
-            socketio.emit('final_transcript', {'text': text}, room=room)
+            # Analyze the answer
+            analysis = analyze_answer(
+                question=current_question,
+                answer=text
+            )
+
+            # Get next action from agent
+            agent_response = InterviewAgentController.handle_answer(
+                session_id=str(user_id),
+                answer=text,
+                analysis=analysis
+            )
+
+            # Check if interview should end
+            if agent_response.get("action") == "FINALIZE":
+                print("🎉 Interview complete - agent decided to finalize")
+                socketio.emit("agent_interview_complete", {
+                    "message": "Interview completed successfully"
+                }, room=room)
+                return
+
+            # Get next question
+            next_question = agent_response.get("next_question")
+            
+            if not next_question:
+                print("⚠️ No next question received from agent")
+                next_question = "Could you elaborate on that?"
+            
+            # 🔒 CRITICAL: Switch turn to INTERVIEWER
+            session["turn"] = "INTERVIEWER"
+            session["current_question"] = next_question
+
+            print(f"🗣️ Switching to INTERVIEWER turn, next question: {next_question[:50]}...")
+            
+            # 🔥 FIRST: Emit that user's answer is complete
+            socketio.emit(
+                "user_answer_complete",
+                {
+                    "answer": text,
+                    "question": current_question,
+                    "next_question": next_question
+                },
+                room=room
+            )
+            
+            print("✅ Emitted user_answer_complete")
+            
+            # 🔥 THEN: Emit next question (frontend will play TTS)
+            socketio.emit(
+                "agent_next_question",
+                {"question": next_question},
+                room=room
+            )
+            
+            print("✅ Emitted agent_next_question")
+            
         except Exception as e:
-            print(f"Error sending final transcript: {e}")
+            print(f"❌ Error in agent loop: {e}")
+            import traceback
+            traceback.print_exc()
+            
+            # Fallback: ask a generic follow-up question
+            fallback_question = "Could you elaborate on that?"
+            session["turn"] = "INTERVIEWER"
+            session["current_question"] = fallback_question
+            
+            socketio.emit(
+                "agent_next_question",
+                {"question": fallback_question},
+                room=room
+            )
+    
+    streaming_sessions[session_key]["on_final"] = on_final
 
     def on_error(error):
         """Handle streaming errors"""
@@ -686,156 +913,248 @@ def start_interview(data):
             sid
         )
                 
+    # Replace the start_interview session creation part in app.py
+
     try:
         # Try to create AssemblyAI WebSocket streaming session
         use_mock = False
         try:
+            # 🔥 FIXED: Use simple config without invalid parameters
             session = AssemblyAIWebSocketStreamer(
                 on_partial=on_partial, 
                 on_final=on_final, 
                 on_error=on_error,
-                on_ready=on_ready  # This callback is CRITICAL
+                on_ready=on_ready,
             )
             session.start()
             print(f"✅ AssemblyAI streaming session started for user {user_id}")
+        
         except Exception as assemblyai_error:
             print(f"⚠️ AssemblyAI not available ({assemblyai_error}), using mock streamer")
             use_mock = True
             session = MockAssemblyAIStreamer(on_partial, on_final, on_error)
             session.start()
-            # For mock, immediately signal ready
-            on_ready()
+            # Call on_ready immediately for mock
+            socketio.start_background_task(notify_backend_ready, user_id, sid)
 
-        # Store session data with audio recording capability
-        session_key = (user_id, sid)
-        streaming_sessions[session_key] = {
-            'sid': sid, 
-            'room': room,
-            'session': session,
-            'final_text': final_text_parts,
-            'audio_chunks': audio_chunks,
-            'early_buffer': early_audio_buffer,  # 🔥 Buffer for early audio
-            'audio_filename': audio_filename,
-            'audio_filepath': audio_filepath,
-            'stats': RunningStatistics(),
-            'start_time': datetime.now(),
-            'user_id': user_id,
-            'use_mock': use_mock,
-            'chunk_count': 0,
-            'ready': False,  # Track if backend is ready
-            'primed': False,  # Track if AssemblyAI is primed
-            'buffer_count': 0  # Track buffered chunks
-        }
+        # Update session
+        streaming_sessions[session_key].update({
+            "session": session,
+            "use_mock": use_mock,
+            "start_time": datetime.now(),
+            "last_audio_time": time.time(),
+            "silence_timer": None,
+            "finalized": False,
+        })
+
+        # --------------------------------
+        # START AGENT SESSION (INTRO)
+        # --------------------------------
+        print("🤖 Starting interview agent session...")
+        intro_question = InterviewAgentController.start_session(
+            session_id=str(user_id),
+            user_id=user_id
+        )
+        
+        if not intro_question:
+            intro_question = "Tell me briefly about yourself."
+
+        print(f"🤖 Agent intro question: {intro_question}")
+        
+        # Store question in session
+        streaming_sessions[session_key]["current_question"] = intro_question
+        streaming_sessions[session_key]["turn"] = "INTERVIEWER"
+        streaming_sessions[session_key]["agent_session_id"] = str(user_id)
+
+        # 🔥 CRITICAL: Emit intro question IMMEDIATELY
+        socketio.emit(
+            "agent_intro_question",
+            {"question": intro_question},
+            room=room
+        )
 
         emit('interview_started', {
             'status': 'success', 
             'use_mock': use_mock,
             'audio_filename': audio_filename,
-            'priming_duration': 500,  # Increased for cold start
-            'requires_buffering': True  # Let frontend know audio will be buffered
+            'priming_duration': 0,  # 🔥 NO DELAY
+            'requires_buffering': False,  # 🔥 NO BUFFERING NEEDED
+            'intro_question': intro_question
         }, room=room)
         
-        print(f"✅ Live interview started for user {user_id} (mock: {use_mock})")
-        print(f"💾 Audio will be saved to: {audio_filepath}")
+        print(f"✅ Live interview fully initialized for user {user_id}")
 
     except Exception as e:
         print(f"❌ Failed to start live interview: {e}")
+        import traceback
+        traceback.print_exc()
         emit('interview_error', {'error': str(e)}, room=room)
 
+@socketio.on("interviewer_done")
+def interviewer_done(data):
+    user_id = data.get("user_id")
+    sid = request.sid
+    session_key = (user_id, sid)
 
-# TODO: Replace Socket.IO audio with direct WebSocket for better real-time performance
-# Socket.IO adds buffering/overhead that's bad for real-time PCM audio
+    session = streaming_sessions.get(session_key)
+    if not session:
+        return
+
+    session["turn"] = "USER"
+    session["finalized"] = False
+    session["last_audio_time"] = time.time() + 2
+
+    # 🔥 FLUSH buffered audio now that USER turn begins
+    early_buffer = session.get("early_buffer", [])
+    if early_buffer:
+        print(f"🔄 Flushing {len(early_buffer)} buffered audio chunks")
+        for chunk in early_buffer:
+            session["session"].send_audio(chunk)
+        early_buffer.clear()
+
+    socketio.start_background_task(
+        silence_watcher,
+        session_key,
+        15
+    )
+
+    print(f"🎤 Turn switched to USER for user {user_id}")
+
+
+# Replace your audio_chunk handler in app.py with this improved version
+
 @socketio.on('audio_chunk')
 def receive_audio(data):
-    """Receive PCM audio chunks, SAVE them locally, and send to AssemblyAI"""
+    """Receive PCM audio chunks and send to AssemblyAI ONLY during USER turn"""
+    user_id = data.get('user_id')
+    sid = request.sid
+    session_key = (user_id, sid)
+
+    # -------------------------
+    # Locate session
+    # -------------------------
+    session = streaming_sessions.get(session_key)
+
+    if not session:
+        # fallback: find any session for this user
+        for key, s in streaming_sessions.items():
+            if key[0] == user_id:
+                session = s
+                session_key = key
+                break
+
+    if not session:
+        print(f"⚠️ No session found for user {user_id}, discarding audio")
+        return
+
+    try:
+        audio_data = data.get('audio')
+        if not audio_data:
+            return
+
+        # -------------------------
+        # Convert audio to bytes
+        # -------------------------
+        if isinstance(audio_data, bytes):
+            audio_bytes = audio_data
+        elif isinstance(audio_data, (bytearray, memoryview)):
+            audio_bytes = bytes(audio_data)
+        elif isinstance(audio_data, str):
+            import base64
+            audio_bytes = base64.b64decode(audio_data)
+        elif hasattr(audio_data, "tobytes"):
+            audio_bytes = audio_data.tobytes()
+        else:
+            print(f"⚠️ Unknown audio type: {type(audio_data)}")
+            return
+
+        # -------------------------
+        # Track chunk count
+        # -------------------------
+        chunk_count = session.get("chunk_count", 0) + 1
+        session["chunk_count"] = chunk_count
+
+        current_turn = session.get("turn", "INTERVIEWER")
+
+        # ============================================================
+        # 🔥 THE ONLY PLACE audio is sent to AssemblyAI
+        # ============================================================
+        if current_turn == "USER":
+            # update silence timer
+            session["last_audio_time"] = time.time()
+
+            try:
+                session["session"].send_audio(audio_bytes)
+
+                if chunk_count <= 10 or chunk_count % 50 == 0:
+                    pcm_np = np.frombuffer(audio_bytes, dtype=np.int16)
+                    if len(pcm_np) > 0:
+                        rms = np.sqrt(np.mean(pcm_np.astype(float) ** 2))
+                        print(
+                            f"🎤 USER audio chunk {chunk_count}: "
+                            f"{len(audio_bytes)} bytes, RMS={rms:.1f}"
+                        )
+
+            except Exception as e:
+                print(f"❌ Failed to send to AssemblyAI: {e}")
+
+        else:
+            # Not USER turn → do nothing (backend ignores safely)
+            if chunk_count % 100 == 0:
+                print(
+                    f"🎙️ Ignoring audio chunk {chunk_count} "
+                    f"(turn={current_turn})"
+                )
+
+    except Exception as e:
+        print(f"❌ Audio processing error: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+        
+@socketio.on('interviewer_audio_chunk')
+def receive_interviewer_audio(data):
+    """Receive interviewer's TTS audio chunks and record them"""
     user_id = data.get('user_id')
     sid = request.sid
     session_key = (user_id, sid)
 
     if session_key not in streaming_sessions:
-        # Check for legacy session format
-        for key in list(streaming_sessions.keys()):
-            if key[0] == user_id:  # Match by user_id only
-                session_key = key
-                break
-        else:
-            print(f"⚠️ No session found for user {user_id}, discarding audio chunk")
-            return
+        return
 
     session = streaming_sessions[session_key]
     
     try:
-        # Get raw PCM bytes
         audio_data = data.get('audio')
-        
         if not audio_data:
-            print(f"⚠️ Empty audio chunk for user {user_id}")
             return
             
         # Convert to bytes
         if isinstance(audio_data, bytes):
             audio_bytes = audio_data
-        elif isinstance(audio_data, (bytearray, memoryview)):
-            audio_bytes = bytes(audio_data)
-        elif hasattr(audio_data, 'tobytes'):
-            audio_bytes = audio_data.tobytes()
         else:
-            print(f"⚠️ Unexpected audio type: {type(audio_data)}")
             return
         
-        # Always save for recording
+        # Record interviewer audio
         session['audio_chunks'].append(audio_bytes)
         session['chunk_count'] = session.get('chunk_count', 0) + 1
         
-        chunk_count = session['chunk_count']
+        print(f"🎙️ Recorded interviewer audio chunk {session['chunk_count']}")
         
-        # 🔥 CHECK IF SESSION IS READY
-        if not session.get('primed', False):
-            # Buffer early audio chunks
-            if 'early_buffer' not in session:
-                session['early_buffer'] = []
-            
-            session['early_buffer'].append(audio_bytes)
-            buffer_count = len(session['early_buffer'])
-            
-            if chunk_count <= 3 or buffer_count <= 3:
-                print(f"📦 Buffered audio chunk {chunk_count} (buffer: {buffer_count})")
-            
-            # Store buffer count for debugging
-            session['buffer_count'] = buffer_count
-            
-            return  # 🔥 DON'T send to AssemblyAI yet!
-        
-        # Session is primed - send to AssemblyAI
-        try:
-            session['session'].send_audio(audio_bytes)
-            
-            if chunk_count <= 3:
-                try:
-                    pcm_np = np.frombuffer(audio_bytes, dtype=np.int16)
-                    rms = np.sqrt(np.mean(pcm_np.astype(float) ** 2))
-                    print(f"🎤 Sent chunk {chunk_count}: {len(audio_bytes)} bytes, RMS={rms:.1f}")
-                except Exception as e:
-                    print(f"🎤 Sent chunk {chunk_count}: {len(audio_bytes)} bytes")
-        except Exception as e:
-            print(f"❌ Failed to send to AssemblyAI: {e}")
-            if 'send_errors' not in session:
-                session['send_errors'] = 0
-            session['send_errors'] += 1
-
     except Exception as e:
-        print(f"❌ Audio processing error: {e}")
+        print(f"❌ Interviewer audio recording error: {e}")
 
 @socketio.on('stop_interview')
 def stop_interview(data):
     """Stop the live interview, SAVE audio file, and perform final analysis"""
     user_id = data.get('user_id')
     sid = request.sid
-    session_key = (user_id, sid)
-
-    # 🔥 Check for legacy session format
+    session_key = (user_id, sid)  # CORRECT format
+    
+    # Check for session with CORRECT format first
     if session_key not in streaming_sessions:
-        # Try to find session by user_id only
+        # Try to find session by user_id only (fallback for legacy)
         for key in list(streaming_sessions.keys()):
             if key[0] == user_id:  # Match by user_id only
                 session_key = key
@@ -1248,6 +1567,59 @@ def signup():
         }
     })
 
+# app.py (API ROUTES section, near other /api routes)
+
+@app.route("/api/tts/murf", methods=["POST"])
+def murf_tts():
+    data = request.get_json()
+    text = data.get("text")
+    username = data.get("username", "anonymous")  # ✅ SAFE DEFAULT
+
+    if not text:
+        return jsonify({"error": "No text provided"}), 400
+
+    api_key = os.getenv("MURF_API_KEY")
+    if not api_key:
+        return jsonify({"error": "MURF_API_KEY not set"}), 500
+
+    # 1️⃣ Call Murf Generate API
+    response = requests.post(
+        "https://api.murf.ai/v1/speech/generate",
+        headers={
+            "Content-Type": "application/json",
+            "api-key": api_key
+        },
+        json={
+            "text": text,
+            "voiceId": "en-US-natalie",
+            "format": "MP3"
+        }
+    )
+
+    if response.status_code != 200:
+        print("❌ Murf error:", response.text)
+        return jsonify({"error": "Murf TTS failed"}), 500
+
+    # 2️⃣ Download generated audio
+    audio_url = response.json().get("audioFile")
+    if not audio_url:
+        return jsonify({"error": "No audioFile returned by Murf"}), 500
+
+    audio_data = requests.get(audio_url).content
+
+    # 3️⃣ Save interviewer TTS audio
+    user_folder = f"uploads/{username}/interviewer"
+    os.makedirs(user_folder, exist_ok=True)
+
+    filename = f"{user_folder}/q_{int(time.time())}.mp3"
+    with open(filename, "wb") as f:
+        f.write(audio_data)
+
+    print(f"🔊 Interviewer audio saved at: {filename}")
+
+    # 4️⃣ Return audio to frontend
+    return Response(audio_data, mimetype="audio/mpeg")
+
 
 @app.route('/api/logout', methods=['POST'])
 @jwt_required
@@ -1331,7 +1703,7 @@ def upload_resume():
 
             # Process resume with FAISS for interview questions
             try:
-                chunk_count = process_resume_for_faiss(text, current_user.id)
+                chunk_count = process_resume_for_faiss(text, g.current_user.id)
                 resume_data['chunks_processed'] = chunk_count
                 resume_data['rag_ready'] = True
             except Exception as e:
@@ -1437,7 +1809,7 @@ def generate_resume_based_questions():
         variation_seed = data.get('variation_seed', '')  # For generating different questions each time
 
         # Check if user has a processed resume
-        if not g.current_user.resume_filename:
+        if not g.current_user.resume_filename:  # FIXED: Use g.current_user
             return jsonify({'success': False, 'error': 'No resume uploaded'})
 
         # Search resume content for relevant information
@@ -1446,7 +1818,7 @@ def generate_resume_based_questions():
         else:
             search_query = "Generate technical interview questions based on my experience and skills"
 
-        search_results = search_resume_faiss(search_query, g.current_user.id, top_k=5)
+        search_results = search_resume_faiss(search_query, g.current_user.id, top_k=5)  # FIXED: Use g.current_user.id
 
         # Build context from resume chunks
         resume_context = "\n".join([result['text'] for result in search_results])
@@ -1459,8 +1831,9 @@ def generate_resume_based_questions():
         genai.configure(api_key=api_key)
         gemini_model = genai.GenerativeModel("models/gemini-flash-latest")
 
-        skills = json.loads(user.skills) if user.skills else []
-        experience = user.experience_years
+        # FIXED: Get skills from g.current_user
+        skills = json.loads(g.current_user.skills) if g.current_user.skills else []  # FIXED HERE
+        experience = g.current_user.experience_years  # FIXED HERE
 
         # Add variation seed to make questions different each time
         variation_text = f" (Variation: {variation_seed})" if variation_seed else ""
@@ -1655,7 +2028,6 @@ def analyze_audio_final():
                 print("⚠️ Whisper transcription empty, checking if audio has speech...")
                 
                 # Check if there's actually speech in the audio
-                import librosa
                 y, sr = librosa.load(audio_path, sr=16000)
                 intervals = librosa.effects.split(y, top_db=20)
                 speaking_time = sum((end - start) / sr for start, end in intervals)
@@ -1978,8 +2350,26 @@ def process_audio():
             except Exception as e:
                 print(f"Error removing temp file {file_path}: {e}")
 
-
-
+@socketio.on("agent_start")
+def handle_agent_start():
+    """Handle agent interview start - triggered by frontend"""
+    if not current_user or not current_user.is_authenticated:
+        emit("agent_error", {"error": "User not authenticated"})
+        return
+    
+    session_id = str(current_user.id)
+    
+    # 1️⃣ Create agent session
+    intro_q = InterviewAgentController.start_session(
+        session_id=session_id,
+        user_id=current_user.id
+    )
+    
+    if not intro_q:
+        intro_q = "Tell me about yourself."
+    
+    # 2️⃣ Send intro question to frontend
+    emit("agent_intro_question", {"question": intro_q})
 
 @app.route('/api/interview_history', methods=['GET'])
 @jwt_required

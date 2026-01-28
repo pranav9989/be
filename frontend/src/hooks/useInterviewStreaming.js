@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import io from 'socket.io-client';
 
-const API_BASE = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 export const useInterviewStreaming = (userId) => {
     const [isConnected, setIsConnected] = useState(false);
@@ -14,7 +14,10 @@ export const useInterviewStreaming = (userId) => {
     const [error, setError] = useState(null);
     const [useMock, setUseMock] = useState(false);
     const [isFinalizing, setIsFinalizing] = useState(false);
-    const [status, setStatus] = useState('Ready'); // 🔥 ADDED: Status for user feedback
+    const [status, setStatus] = useState('Ready'); // 🔥 Status for user feedback
+    const [timeRemaining, setTimeRemaining] = useState(30 * 60);
+    const [messages, setMessages] = useState([]);
+    const [currentTurn, setCurrentTurn] = useState('INTERVIEWER');
 
     const socketRef = useRef(null);
     const audioContextRef = useRef(null);
@@ -24,17 +27,167 @@ export const useInterviewStreaming = (userId) => {
     const backendReadyRef = useRef(false); // Track if backend is ready
     const pendingAudioRef = useRef([]); // Buffer audio before backend is ready
     const isFirstInterviewRef = useRef(true); // 🔥 Track if first interview
+    const audioPlayingRef = useRef(false); // Track if TTS audio is playing
+    const currentAudioRef = useRef(null); // Store current audio element
+    const audioChunksSentRef = useRef(0);
+
+    // Helper function to clean up audio resources
+    const cleanupAudio = useCallback(async () => {
+        console.log('🧹 Cleaning up audio resources...');
+
+        // Stop any playing audio
+        if (currentAudioRef.current) {
+            currentAudioRef.current.pause();
+            currentAudioRef.current = null;
+        }
+        audioPlayingRef.current = false;
+
+        if (processorRef.current) {
+            processorRef.current.disconnect();
+            processorRef.current = null;
+        }
+
+        if (streamRef.current) {
+            streamRef.current.getTracks().forEach(track => track.stop());
+            streamRef.current = null;
+        }
+
+        if (audioContextRef.current) {
+            await audioContextRef.current.close();
+            audioContextRef.current = null;
+        }
+
+        backendReadyRef.current = false;
+        pendingAudioRef.current = [];
+    }, []);
+
+    // Convert Float32Array to 16-bit PCM (required by AssemblyAI)
+    const floatTo16BitPCM = useCallback((float32Array) => {
+        if (!float32Array || float32Array.length === 0) {
+            return new ArrayBuffer(0);
+        }
+
+        const buffer = new ArrayBuffer(float32Array.length * 2);
+        const view = new DataView(buffer);
+        let offset = 0;
+
+        for (let i = 0; i < float32Array.length; i++, offset += 2) {
+            let s = Math.max(-1, Math.min(1, float32Array[i]));
+            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+        }
+        return buffer;
+    }, []);
+
+    const speakWithMurf = useCallback(async (text) => {
+        if (!text) return;
+
+        try {
+            audioPlayingRef.current = true;
+            setStatus("🗣️ Interviewer speaking...");
+
+            const res = await fetch(`${API_BASE_URL}/api/tts/murf`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    text: text.substring(0, 1000),
+                    username: userId.toString()
+                })
+            });
+
+            if (!res.ok) {
+                throw new Error(`TTS failed with status: ${res.status}`);
+            }
+
+            const audioBlob = await res.blob();
+
+            // Send interviewer audio to backend for recording
+            if (socketRef.current?.connected) {
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                socketRef.current.emit("interviewer_audio_chunk", {
+                    user_id: userId,
+                    audio: arrayBuffer
+                });
+            }
+
+            // Play audio
+            const audioUrl = URL.createObjectURL(audioBlob);
+            const audio = new Audio(audioUrl);
+            currentAudioRef.current = audio;
+
+            return new Promise((resolve) => {
+                audio.onended = () => {
+                    audioPlayingRef.current = false;
+                    currentAudioRef.current = null;
+                    URL.revokeObjectURL(audioUrl);
+                    console.log('✅ Audio playback finished');
+                    resolve();
+                };
+
+                audio.onerror = (err) => {
+                    console.error("❌ Audio playback error:", err);
+                    audioPlayingRef.current = false;
+                    currentAudioRef.current = null;
+                    URL.revokeObjectURL(audioUrl);
+                    resolve();
+                };
+
+                audio.play().catch(err => {
+                    console.error("❌ Failed to play audio:", err);
+                    audioPlayingRef.current = false;
+                    currentAudioRef.current = null;
+                    URL.revokeObjectURL(audioUrl);
+                    resolve();
+                });
+            });
+
+        } catch (err) {
+            console.error("❌ TTS Error:", err);
+            audioPlayingRef.current = false;
+            currentAudioRef.current = null;
+            // Simulate speaking time
+            await new Promise(resolve => setTimeout(resolve, 2000));
+        }
+    }, [userId]);
+
+    // Update live WPM calculation
+    const updateLiveWPM = useCallback((text) => {
+        if (startTimeRef.current && text && text.trim()) {
+            const words = text.trim().split(/\s+/).length;
+            const minutes = (Date.now() - startTimeRef.current) / 60000;
+            const liveWpm = minutes > 0 ? Math.round(words / minutes) : 0;
+            setWpm(liveWpm);
+        }
+    }, []);
+
+    const stopRecording = useCallback(async () => {
+        if (!isRecording) return;
+
+        console.log('⏳ Stopping interview...');
+        setIsFinalizing(true);
+        setStatus('⏳ Finalizing...');
+        setCurrentTurn('STOPPING');
+
+        await new Promise(resolve => setTimeout(resolve, 1500));
+
+        if (socketRef.current?.connected) {
+            socketRef.current.emit('stop_interview', { user_id: userId });
+        } else {
+            console.warn('⚠️ Socket not connected, cannot stop interview');
+            setError('Connection lost during interview');
+            setIsRecording(false);
+            setIsFinalizing(false);
+            cleanupAudio();
+        }
+    }, [isRecording, userId, cleanupAudio]);
 
     // Initialize WebSocket connection
     useEffect(() => {
-        socketRef.current = io('http://localhost:5000');
+        socketRef.current = io(API_BASE_URL);
 
         socketRef.current.on('connect', () => {
             setIsConnected(true);
             setError(null);
             console.log('✅ Connected to WebSocket server');
-
-
         });
 
         socketRef.current.on('disconnect', () => {
@@ -48,7 +201,7 @@ export const useInterviewStreaming = (userId) => {
             console.log('✅ BACKEND READY - Safe to send audio now!');
             backendReadyRef.current = true;
 
-            // Flush any buffered audio
+            // Flush any buffered audio (but only if it's user's turn)
             if (pendingAudioRef.current.length > 0) {
                 console.log(`📤 Flushing ${pendingAudioRef.current.length} buffered audio chunks...`);
                 pendingAudioRef.current.forEach(buffer => {
@@ -60,7 +213,9 @@ export const useInterviewStreaming = (userId) => {
                 pendingAudioRef.current = [];
             }
 
-            setStatus('🎤 Speak now...');
+            if (currentTurn === 'USER') {
+                setStatus('🎤 Speak now...');
+            }
         });
 
         // Listen for interview started
@@ -73,6 +228,7 @@ export const useInterviewStreaming = (userId) => {
             setFinalTranscript('');
             setUseMock(data.use_mock || false);
             startTimeRef.current = Date.now();
+            setCurrentTurn('INTERVIEWER');
 
             // 🔥 RESET backend readiness
             backendReadyRef.current = false;
@@ -86,8 +242,6 @@ export const useInterviewStreaming = (userId) => {
                 setStatus('🎤 Starting interview...');
             }
 
-
-
             try {
                 // Get microphone permission and setup
                 console.log('🎤 Requesting microphone access...');
@@ -96,7 +250,8 @@ export const useInterviewStreaming = (userId) => {
                         sampleRate: 16000,
                         channelCount: 1,
                         echoCancellation: true,
-                        noiseSuppression: true
+                        noiseSuppression: true,
+                        autoGainControl: true
                     }
                 });
 
@@ -117,9 +272,12 @@ export const useInterviewStreaming = (userId) => {
                     'pcm-processor'
                 );
 
+                audioChunksSentRef.current = 0;
+
                 processorRef.current.port.onmessage = (event) => {
                     const float32Samples = event.data;
                     const pcmBuffer = floatTo16BitPCM(float32Samples);
+
 
                     // 🔥 BUFFER audio until backend is ready
                     if (!backendReadyRef.current) {
@@ -129,14 +287,16 @@ export const useInterviewStreaming = (userId) => {
                         if (pendingAudioRef.current.length === 1) {
                             console.log('📦 Buffering audio until backend is ready...');
                         }
-                        return;
                     }
 
-                    // Send audio to backend
-                    socketRef.current.emit('audio_chunk', {
-                        user_id: userId,
-                        audio: pcmBuffer
-                    });
+                    if (socketRef.current?.connected) {
+                        socketRef.current.emit('audio_chunk', {
+                            user_id: userId,
+                            audio: pcmBuffer
+                        });
+                    }
+
+
                 };
 
                 // Connect audio nodes
@@ -151,20 +311,96 @@ export const useInterviewStreaming = (userId) => {
 
                 console.log('✅ Audio pipeline ready, waiting for backend...');
 
-                await new Promise(resolve =>
-                    setTimeout(resolve, data.priming_duration + 500)
-                );
+                // Wait for backend ready (but don't block if using mock)
+                if (data.priming_duration) {
+                    await new Promise(resolve =>
+                        setTimeout(resolve, Math.min(data.priming_duration, 2000))
+                    );
+                }
 
-
-                console.log('✅ Backend ready - audio will now be sent');
-                setStatus('🎤 Speak now...');
+                console.log('✅ Backend ready - audio will now be sent during user turn');
 
             } catch (err) {
                 console.error('❌ Error setting up audio:', err);
                 setError('Failed to access microphone: ' + err.message);
                 setStatus('❌ Microphone error');
                 setIsRecording(false);
+                cleanupAudio();
             }
+        });
+
+        // Intro question from agent
+        socketRef.current.on("agent_intro_question", async (data) => {
+            console.log('🗣️ Interviewer asking intro question:', data.question);
+            setCurrentTurn('INTERVIEWER');
+            setStatus("🗣️ Interviewer speaking...");
+            setLiveTranscript(''); // Clear any partial transcript
+
+            setMessages(prev => [
+                ...prev,
+                { role: "interviewer", text: data.question }
+            ]);
+
+            // Speak the question
+            await speakWithMurf(data.question);
+
+            // After speaking, tell backend interviewer is done
+            if (socketRef.current?.connected) {
+                socketRef.current.emit("interviewer_done", {
+                    user_id: userId
+                });
+            }
+
+            // Switch to user's turn
+            setCurrentTurn('USER');
+            setStatus('🎤 Your turn - Answer the question...');
+            console.log('✅ Switched to USER turn');
+        });
+
+        // Next question from agent
+        socketRef.current.on("agent_next_question", async (data) => {
+            console.log('🗣️ Interviewer asking next question:', data.question);
+            setCurrentTurn('INTERVIEWER');
+            setStatus("🗣️ Interviewer speaking...");
+            setLiveTranscript(''); // Clear any partial transcript
+
+            setMessages(prev => [
+                ...prev,
+                { role: "interviewer", text: data.question }
+            ]);
+
+            // Speak the question
+            await speakWithMurf(data.question);
+
+            // After speaking, tell backend interviewer is done
+            if (socketRef.current?.connected) {
+                socketRef.current.emit("interviewer_done", {
+                    user_id: userId
+                });
+            }
+
+            // Switch to user's turn
+            setCurrentTurn('USER');
+            setStatus('🎤 Your turn - Answer the question...');
+            console.log('✅ Switched to USER turn');
+        });
+
+        // User answer complete (final transcript)
+        socketRef.current.on('user_answer_complete', (data) => {
+            console.log('✅ User answer complete:', data.answer);
+
+            // Add user's answer to messages
+            setMessages(prev => [
+                ...prev,
+                { role: "user", text: data.answer }
+            ]);
+
+            // Clear live transcript after answer is processed
+            setLiveTranscript('');
+
+            // Switch back to interviewer's turn (they'll ask next question)
+            setCurrentTurn('INTERVIEWER');
+            setStatus('⏳ Waiting for next question...');
         });
 
         // Listen for live transcript updates from AssemblyAI (partial)
@@ -174,30 +410,18 @@ export const useInterviewStreaming = (userId) => {
             updateLiveWPM(data.text);
         });
 
-        // Listen for final transcript parts (accumulate during interview)
-        socketRef.current.on('final_transcript', (data) => {
-            console.log('📝 Final transcript part:', data.text);
-            if (!interviewDone) {
-                // During interview: accumulate final transcript parts
-                setFinalTranscript(prev => prev + (prev ? " " : "") + data.text);
-            }
-            setLiveTranscript(''); // Clear partial after final
-        });
-
         // Listen for interview completion
         socketRef.current.on('interview_complete', (data) => {
             console.log('🎯 Interview complete:', data);
             setIsFinalizing(false);
             setInterviewDone(true);
             setIsRecording(false);
+            setCurrentTurn('DONE');
             setStatus('✅ Interview completed');
 
             // Set final transcript
             if (data.transcript) {
                 setFinalTranscript(data.transcript);
-            } else if (finalTranscript) {
-                // Use accumulated transcript if no final from backend
-                console.log('⚠️ No transcript in completion data, using accumulated');
             }
 
             // Process analysis
@@ -224,7 +448,19 @@ export const useInterviewStreaming = (userId) => {
             setError(data.error);
             setIsRecording(false);
             setStatus('❌ Error occurred');
+            setCurrentTurn('ERROR');
             cleanupAudio();
+        });
+
+        // Interview complete signal from agent
+        socketRef.current.on('agent_interview_complete', (data) => {
+            console.log('🎉 Agent interview complete:', data.message);
+            setStatus('⏳ Finalizing interview...');
+
+            // Stop recording after a short delay
+            setTimeout(() => {
+                stopRecording();
+            }, 1000);
         });
 
         // Cleanup on unmount
@@ -234,28 +470,31 @@ export const useInterviewStreaming = (userId) => {
             }
             cleanupAudio();
         };
-    }, [userId]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [userId]); // Note: We're disabling exhaustive-deps because we handle dependencies manually
 
-    // Helper function to clean up audio resources
-    const cleanupAudio = useCallback(async () => {
-        if (processorRef.current) {
-            processorRef.current.disconnect();
-            processorRef.current = null;
-        }
+    // Track current turn changes
+    useEffect(() => {
+        console.log(`🔄 Turn changed to: ${currentTurn}`);
+    }, [currentTurn]);
 
-        if (streamRef.current) {
-            streamRef.current.getTracks().forEach(track => track.stop());
-            streamRef.current = null;
-        }
+    // Countdown timer
+    useEffect(() => {
+        if (!isRecording || interviewDone) return;
 
-        if (audioContextRef.current) {
-            await audioContextRef.current.close();
-            audioContextRef.current = null;
-        }
+        const interval = setInterval(() => {
+            setTimeRemaining(prev => {
+                if (prev <= 1) {
+                    clearInterval(interval);
+                    stopRecording();
+                    return 0;
+                }
+                return prev - 1;
+            });
+        }, 1000);
 
-        backendReadyRef.current = false;
-        pendingAudioRef.current = [];
-    }, []);
+        return () => clearInterval(interval);
+    }, [isRecording, interviewDone, stopRecording]);
 
     const startRecording = useCallback(async () => {
         try {
@@ -264,7 +503,11 @@ export const useInterviewStreaming = (userId) => {
             setLiveTranscript('');
             setFinalTranscript('');
             setInterviewDone(false);
+            setIsFinalizing(false);
             setStatus('🎤 Starting interview...');
+            setCurrentTurn('INTERVIEWER');
+            setTimeRemaining(30 * 60);
+            setMessages([]);
 
             // Clean up any previous audio resources
             await cleanupAudio();
@@ -279,85 +522,12 @@ export const useInterviewStreaming = (userId) => {
         }
     }, [userId, cleanupAudio]);
 
-    // Convert Float32Array to 16-bit PCM (required by AssemblyAI)
-    const floatTo16BitPCM = useCallback((float32Array) => {
-        const buffer = new ArrayBuffer(float32Array.length * 2);
-        const view = new DataView(buffer);
-        let offset = 0;
-
-        for (let i = 0; i < float32Array.length; i++, offset += 2) {
-            let s = Math.max(-1, Math.min(1, float32Array[i]));
-            view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true);
-        }
-        return buffer;
-    }, []);
-
-    // Update live WPM calculation
-    const updateLiveWPM = useCallback((text) => {
-        if (startTimeRef.current && text.trim()) {
-            const words = text.trim().split(/\s+/).length;
-            const minutes = (Date.now() - startTimeRef.current) / 60000;
-            const liveWpm = minutes > 0 ? Math.round(words / minutes) : 0;
-            setWpm(liveWpm);
-        }
-    }, []);
-
-    // Perform final analysis using your existing backend logic
-    const performFinalAnalysis = useCallback(async (audioPath, transcript) => {
-        try {
-            console.log('🔍 Performing final analysis on:', audioPath);
-            setStatus('🔍 Analyzing...');
-
-            const response = await fetch(`${API_BASE}/api/analyze_audio_final`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${localStorage.getItem('token')}`
-                },
-                body: JSON.stringify({
-                    audio_path: audioPath,
-                    transcript: transcript
-                })
-            });
-
-            if (response.ok) {
-                const analysisData = await response.json();
-                console.log('✅ Final analysis complete:', analysisData);
-                setAnalysis(analysisData);
-                setStatus('✅ Analysis complete');
-            } else {
-                console.error('❌ Final analysis failed');
-                setError('Analysis failed');
-                setStatus('❌ Analysis failed');
-            }
-        } catch (err) {
-            console.error('❌ Error in final analysis:', err);
-            setError('Analysis error: ' + err.message);
-            setStatus('❌ Analysis error');
-        }
-    }, []);
-
-    const stopRecording = useCallback(async () => {
-        if (!isRecording) return;
-
-        console.log('⏳ Stopping interview...');
-        setIsFinalizing(true);
-        setStatus('⏳ Finalizing...');
-
-        // Stop audio processing first
-        if (processorRef.current) {
-            processorRef.current.port.onmessage = null;
-        }
-
-        // Give a moment for any final audio to be sent
-        await new Promise(resolve => setTimeout(resolve, 1000));
-
-        // Stop the interview on backend
-        socketRef.current.emit('stop_interview', { user_id: userId });
-
-        // Note: Don't clean up audio context yet - backend might still be processing
-
-    }, [isRecording, userId]);
+    // Format time remaining as MM:SS
+    const formatTime = (seconds) => {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    };
 
     return {
         // State
@@ -369,17 +539,21 @@ export const useInterviewStreaming = (userId) => {
         error,
         useMock,
         isFinalizing,
-        status, // 🔥 ADDED: Status message for user feedback
+        status,
+        timeRemaining: formatTime(timeRemaining),
+        currentTurn,
+        messages,
 
         // Actions
         startRecording,
         stopRecording,
 
-        // Live data access
+        // Live data
         liveTranscript,
         finalTranscript,
         interviewDone,
         liveWpm: wpm,
-        finalAnalysis: analysis
+        finalAnalysis: analysis,
+        isInterviewerSpeaking: currentTurn === 'INTERVIEWER' || audioPlayingRef.current
     };
 };

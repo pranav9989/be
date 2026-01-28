@@ -11,6 +11,7 @@ import ResumeUpload from './components/Resume/ResumeUpload';
 import ConversationalInterview from './components/ConversationalInterview/ConversationalInterview';
 import InterviewStreamer from './components/LiveStreamingInterview/InterviewStreamer';
 import LoadingSpinner from './components/Layout/LoadingSpinner';
+import AgenticInterview from './components/AgenticInterview/AgenticInterview';
 import './App.css';
 
 function App() {
@@ -52,43 +53,47 @@ function App() {
     <Router>
       <div className="App">
         <Routes>
-          <Route 
-            path="/login" 
-            element={!user ? <Login onLogin={handleLogin} /> : <Navigate to="/dashboard" />} 
+          <Route
+            path="/login"
+            element={!user ? <Login onLogin={handleLogin} /> : <Navigate to="/dashboard" />}
           />
-          <Route 
-            path="/signup" 
-            element={!user ? <Signup onLogin={handleLogin} /> : <Navigate to="/dashboard" />} 
+          <Route
+            path="/signup"
+            element={!user ? <Signup onLogin={handleLogin} /> : <Navigate to="/dashboard" />}
           />
-          <Route 
-            path="/dashboard" 
-            element={user ? <Dashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" />} 
+          <Route
+            path="/dashboard"
+            element={user ? <Dashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
           />
-          <Route 
-            path="/technical-chat" 
-            element={user ? <ChatInterface user={user} onLogout={handleLogout} /> : <Navigate to="/login" />} 
+          <Route
+            path="/technical-chat"
+            element={user ? <ChatInterface user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
           />
-          <Route 
-            path="/profile" 
-            element={user ? <Profile user={user} onLogout={handleLogout} /> : <Navigate to="/login" />} 
+          <Route
+            path="/profile"
+            element={user ? <Profile user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
           />
-          <Route 
-            path="/hr-interview" 
-            element={user ? <HRInterview user={user} onLogout={handleLogout} /> : <Navigate to="/login" />} 
+          <Route
+            path="/hr-interview"
+            element={user ? <HRInterview user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
           />
-          <Route 
-            path="/upload-resume" 
-            element={user ? <ResumeUpload user={user} onLogout={handleLogout} /> : <Navigate to="/login" />} 
+          <Route
+            path="/upload-resume"
+            element={user ? <ResumeUpload user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
           />
-          <Route 
-            path="/conversational-interview" 
-            element={user ? <ConversationalInterview user={user} onLogout={handleLogout} /> : <Navigate to="/login" />} 
+          <Route
+            path="/conversational-interview"
+            element={user ? <ConversationalInterview user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
           />
           <Route
             path="/live-streaming-interview"
             element={user ? <InterviewStreamer userId={user.id} onLogout={handleLogout} /> : <Navigate to="/login" />}
           />
           <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
+          <Route
+            path="/agentic-interview"
+            element={user ? <AgenticInterview user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
+          />
         </Routes>
       </div>
     </Router>
