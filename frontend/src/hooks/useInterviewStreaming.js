@@ -162,23 +162,27 @@ export const useInterviewStreaming = (userId) => {
     const stopRecording = useCallback(async () => {
         if (!isRecording) return;
 
-        console.log('⏳ Stopping interview...');
-        setIsFinalizing(true);
-        setStatus('⏳ Finalizing...');
-        setCurrentTurn('STOPPING');
+        console.log('🛑 Interview stopped by user');
 
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // 🔥 IMMEDIATE UI RESET
+        setIsRecording(false);
+        setIsFinalizing(false);
+        setInterviewDone(true);
+        setCurrentTurn('DONE');
+        setStatus('🛑 Interview stopped');
 
+        // ⏱ Reset timer so restart works cleanly
+        setTimeRemaining(30 * 60);
+
+        // 🔇 Cleanup audio immediately
+        await cleanupAudio();
+
+        // 🔌 Inform backend (best-effort)
         if (socketRef.current?.connected) {
             socketRef.current.emit('stop_interview', { user_id: userId });
-        } else {
-            console.warn('⚠️ Socket not connected, cannot stop interview');
-            setError('Connection lost during interview');
-            setIsRecording(false);
-            setIsFinalizing(false);
-            cleanupAudio();
         }
     }, [isRecording, userId, cleanupAudio]);
+
 
     // Initialize WebSocket connection
     useEffect(() => {
@@ -524,10 +528,14 @@ export const useInterviewStreaming = (userId) => {
 
     // Format time remaining as MM:SS
     const formatTime = (seconds) => {
+        if (typeof seconds !== 'number' || isNaN(seconds) || seconds < 0) {
+            return '00:00';
+        }
         const mins = Math.floor(seconds / 60);
         const secs = seconds % 60;
         return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     };
+
 
     return {
         // State

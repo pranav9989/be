@@ -33,12 +33,6 @@ const AgenticInterview = ({ user, onLogout }) => {
         startRecording();
     };
 
-    const formatTime = (seconds) => {
-        const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins}:${secs.toString().padStart(2, "0")}`;
-    };
-
     return (
         <>
             <Header user={user} onLogout={onLogout} title="Agentic Interview" />
@@ -71,7 +65,7 @@ const AgenticInterview = ({ user, onLogout }) => {
                             </div>
 
                             <div className="timer">
-                                ⏱️ {formatTime(timeRemaining)}
+                                ⏱️ {timeRemaining}
                             </div>
                         </>
                     )}
@@ -90,7 +84,10 @@ const AgenticInterview = ({ user, onLogout }) => {
                     ) : (
                         <button
                             className="agentic-exit-btn"
-                            onClick={stopRecording}
+                            onClick={() => {
+                                stopRecording();
+                                setStarted(false);
+                            }}
                         >
                             ⛔ End Interview
                         </button>
