@@ -8,7 +8,6 @@ but improves RAG initialization, FAISS usage, and Gemini calls.
 import os
 import json
 import re
-import librosa
 import traceback
 import wave
 import time
@@ -33,7 +32,7 @@ from flask import (
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import (
-    LoginManager, UserMixin, login_user, logout_user, current_user
+    LoginManager, UserMixin, login_user, logout_user
 )
 from flask_socketio import SocketIO, emit, join_room, leave_room
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -43,16 +42,18 @@ from dotenv import load_dotenv
 import google.generativeai as genai
 from resume_processor import process_resume_for_faiss, search_resume_faiss, get_resume_chunks
 from assemblyai_websocket_stream import AssemblyAIWebSocketStreamer, warmup_assemblyai
-from interview_analyzer import speech_to_text
+from interview_analyzer import (
+    speech_to_text,
+    RunningStatistics,
+    analyze_audio_chunk_fast,   # 🔥 ADD THIS
+    calculate_semantic_similarity,
+    compute_research_metrics,
+    finalize_interview
+)
 
 import PyPDF2
 import docx
 import random
-from interview_analyzer import (
-    speech_to_text, analyze_interview_response_optimized, RunningStatistics,
-    analyze_audio_chunk_fast, calculate_semantic_similarity, calculate_keyword_coverage,
-    fluency_score, clarity_score, generate_comprehensive_feedback
-)
 
 from agent.analyzer import analyze_answer
 from agent.controller import InterviewAgentController
@@ -117,7 +118,10 @@ def finalize_user_answer(session_key):
         )
 
         if next_question:
-            # Update session for next turn
+            if session.get("terminated"):
+                print("🚫 Session terminated — skipping agent_next_question emit")
+                return
+
             session["current_question"] = next_question
             socketio.emit(
                 "agent_next_question",
@@ -294,7 +298,8 @@ def verify_token(token):
     except jwt.InvalidTokenError:
         return None
 
-# Replace notify_backend_ready function in app.py
+# Global streaming transcription state
+streaming_sessions = {}  # user_id -> session data
 
 def notify_backend_ready(user_id, sid):
     """Notify frontend that backend is ready to receive audio"""
@@ -473,14 +478,6 @@ def get_gemini_api_key():
             return v
     return None
 
-
-
-# Global current_user for JWT compatibility (deprecated - use g.current_user)
-
-# Global streaming transcription state
-streaming_sessions = {}  # user_id -> session data
-
-
 # -------------------- File text extraction & resume parsing --------------------
 def extract_text_from_pdf(file_stream):
     try:
@@ -632,20 +629,6 @@ def parse_resume_text(text):
         'raw_text': text[:1000]
     }
 
-def get_session_buffer_status(user_id, sid):
-    """Get buffer status for debugging"""
-    session_key = (user_id, sid)
-    if session_key in streaming_sessions:
-        session = streaming_sessions[session_key]
-        return {
-            'chunk_count': session.get('chunk_count', 0),
-            'buffer_count': session.get('buffer_count', 0),
-            'primed': session.get('primed', False),
-            'ready': session.get('ready', False),
-            'early_buffer_len': len(session.get('early_buffer', []))
-        }
-    return None
-
 def analyze_resume_job_fit(resume_data, job_description):
     """Analyze how well the resume fits the job description"""
     if not job_description:
@@ -794,30 +777,100 @@ def handle_trigger_backend_ready(data):
 
 @socketio.on("stop_interview")
 def stop_interview(data):
-    user_id = data.get("user_id")
+    """Stop the live interview and perform final analysis using pre-aggregated stats"""
+    user_id = data.get('user_id')
     sid = request.sid
     session_key = (user_id, sid)
 
-    session = streaming_sessions.get(session_key)
-    if not session:
+    if session_key not in streaming_sessions:
+        print(f"⚠️ Session {session_key} not found in streaming sessions")
         return
 
-    print(f"🛑 STOP command received for user {user_id}")
+    session_data = streaming_sessions[session_key]
+    room = session_data['room']
 
-    # 1. Mark Destroyed IMMEDIATELY
-    # This signals silence_watcher to exit without finalizing
-    session["destroyed"] = True
-    session["turn"] = "STOPPED" 
-
-    # 2. Stop AssemblyAI
     try:
-        if session.get("session"):
-            session["session"].stop()
-    except:
-        pass
+        # 1️⃣ IMMEDIATELY set turn to DONE to stop any further processing
+        session_data["turn"] = "DONE"
+        session_data["destroyed"] = True
+        
+        # 2️⃣ Stop AssemblyAI session
+        if 'session' in session_data and session_data['session']:
+            session_data['session'].stop()
 
-    # 3. Do NOT finalize answer. 
-    # The mental model says: Stop means Stop.
+        # 3️⃣ Combine final transcripts - FIXED: Ensure all text is captured
+        full_transcript = " ".join(session_data.get('final_text', []))
+        
+        # If transcript is empty, try to get from AssemblyAI session
+        if not full_transcript and 'session' in session_data:
+            # Try to get any pending transcription
+            try:
+                if hasattr(session_data['session'], 'get_final_transcript'):
+                    pending_text = session_data['session'].get_final_transcript()
+                    if pending_text:
+                        full_transcript = pending_text
+            except:
+                pass
+
+        # 4️⃣ Get incremental statistics
+        stats = session_data.get('stats', RunningStatistics())
+        final_stats = stats.get_current_stats()
+
+        print(
+            f"📊 Final aggregated stats | "
+            f"WPM={final_stats.get('wpm', 0):.1f}, "
+            f"PauseRatio={final_stats.get('pause_ratio', 0):.3f}, "
+            f"TotalWords={final_stats.get('total_words', 0)}"
+        )
+
+        # 5️⃣ FINAL METRICS
+        expected_answer = session_data.get('current_question', '')
+        results = finalize_interview(
+            stats=stats,
+            user_answer=full_transcript,
+            expected_answer=expected_answer
+        )
+
+        # 6️⃣ Emit FINAL result BEFORE cleanup
+        analysis_results = {
+            'success': True,
+            'processing_method': 'incremental_fast',
+            'transcript': full_transcript,
+            'metrics': results.get('metrics', {}),
+            'semantic_similarity': results.get('semantic_similarity', 0),
+            'analysis_valid': results.get('analysis_valid', False),
+            'total_duration': final_stats.get('total_duration', 0),
+            'speaking_time': final_stats.get('speaking_time', 0),
+            'total_words': final_stats.get('total_words', 0)
+        }
+
+        emit('interview_complete', analysis_results, room=room)
+        print(f"🛑 Interview stopped for user {user_id} — FINAL metrics delivered")
+
+        # 7️⃣ Cleanup session AFTER emitting results
+        # Remove any pending audio chunks
+        session_data["user_audio_chunks"] = []
+        session_data["interviewer_audio_chunks"] = []
+        session_data["early_buffer"] = []
+        
+        # Mark as destroyed
+        session_data["destroyed"] = True
+        
+        # Small delay before removing to ensure all events are processed
+        import threading
+        def delayed_cleanup():
+            time.sleep(2)  # Wait 2 seconds
+            if session_key in streaming_sessions:
+                del streaming_sessions[session_key]
+                print(f"🧹 Cleaned up session {session_key}")
+        
+        threading.Thread(target=delayed_cleanup).start()
+
+    except Exception as e:
+        print(f"❌ Error stopping interview for user {user_id}: {e}")
+        import traceback
+        traceback.print_exc()
+        emit('interview_error', {'error': str(e)}, room=room)
 
 @socketio.on('start_interview')
 def start_interview(data):
@@ -835,20 +888,13 @@ def start_interview(data):
                 old_session['session'].stop()
         except:
             pass
-        old_session = streaming_sessions.get(session_key)
-        if old_session:
-            old_session["destroyed"] = True
-            try:
-                if old_session.get("session"):
-                    old_session["session"].stop()
-            except:
-                pass
-
+        del streaming_sessions[session_key]
     
     # Initialize session BEFORE any other operations
     room = f"interview_{user_id}"
     join_room(room)
     
+    # Initialize fresh session
     streaming_sessions[session_key] = {
         "turn": "INTERVIEWER",  # Start with interviewer turn
         "current_question": None,
@@ -895,23 +941,37 @@ def start_interview(data):
     # --------------------------------
     # FINAL TRANSCRIPTS (AGENT LOOP) - FIXED VERSION
     # --------------------------------
-    # Replace your existing on_final function with this improved version
     def on_final(text):
         session = streaming_sessions.get(session_key)
         
-        if not session or session.get("destroyed"): return
-        if session.get("turn") != "USER" or session.get("finalized"): return
+        if not session or session.get("destroyed"): 
+            print(f"⚠️ Session destroyed, ignoring transcription: {text}")
+            return
+        
+        # Only accept transcription during USER turn or if we're finalizing
+        if session.get("turn") != "USER" and not session.get("finalizing"):
+            print(f"⚠️ Not USER turn ({session.get('turn')}), ignoring: {text}")
+            return
 
         text = text.strip()
-        if not text: return
+        if not text: 
+            return
 
         print(f"📝 Buffered Final: {text}")
+        
+        # Append to final_text list
+        if "final_text" not in session:
+            session["final_text"] = []
+        
         session["final_text"].append(text)
+        
+        # Also update stats
+        if "stats" in session:
+            session["stats"].update_transcript(text)
         
         # ✅ Reset timer on final sentence completion
         session["last_voice_time"] = time.time()
 
-        
     streaming_sessions[session_key]["on_final"] = on_final
 
     def on_error(error):
@@ -925,8 +985,6 @@ def start_interview(data):
             sid
         )
                 
-    # Replace the start_interview session creation part in app.py
-
     try:
         # Try to create AssemblyAI WebSocket streaming session
         use_mock = False
@@ -1010,6 +1068,10 @@ def interviewer_done(data):
     session = streaming_sessions.get(session_key)
     if not session:
         return
+    
+    # Prevent if already stopped
+    if session.get("turn") == "DONE":
+        return
 
     print(f"🎤 USER turn started for user {user_id}")
 
@@ -1019,57 +1081,134 @@ def interviewer_done(data):
     session["final_text"] = []
     
     # 2. Start Clock B (Silence Timer)
-    # Set to NOW so the timer starts ticking immediately
     session["last_voice_time"] = time.time() 
 
     # 3. Start the Watcher Thread
-    # We create a new thread for every turn to ensure clean state
     if not session.get("silence_thread_started"):
         session["silence_thread_started"] = True
         socketio.start_background_task(silence_watcher, session_key)
 
-
-# Replace your audio_chunk handler in app.py with this improved version
-
 @socketio.on("audio_chunk")
 def receive_audio(data):
-    """
-    Feeds Clock A (AssemblyAI).
-    ❌ DOES NOT UPDATE CLOCK B (Silence Timer).
-    """
     user_id = data.get("user_id")
     sid = request.sid
     session_key = (user_id, sid)
     session = streaming_sessions.get(session_key)
 
-    # Safety checks
+    # ---- HARD SAFETY ----
     if not session or session.get("destroyed"):
         return
+    
+    if session.get("turn") == "DONE":
+        return
+    
     if session.get("turn") != "USER":
-        return 
+        # Still send to AssemblyAI but don't analyze
+        audio = data.get("audio")
+        if audio and session.get("session"):
+            try:
+                if isinstance(audio, memoryview):
+                    audio_bytes = audio.tobytes()
+                elif isinstance(audio, bytearray):
+                    audio_bytes = bytes(audio)
+                elif isinstance(audio, bytes):
+                    audio_bytes = audio
+                elif isinstance(audio, str):
+                    import base64
+                    audio_bytes = base64.b64decode(audio)
+                else:
+                    return
+                
+                session["session"].send_audio(audio_bytes)
+            except:
+                pass
+        return
+    
     if session.get("finalized"):
         return
 
     audio = data.get("audio")
-    if not audio:
+    if audio is None:
         return
 
-    # Decode audio
-    if isinstance(audio, str):
-        import base64
-        audio_bytes = base64.b64decode(audio)
-    else:
-        audio_bytes = audio
+    try:
+        # ---- Normalize audio to bytes ----
+        if isinstance(audio, memoryview):
+            audio_bytes = audio.tobytes()
+        elif isinstance(audio, bytearray):
+            audio_bytes = bytes(audio)
+        elif isinstance(audio, bytes):
+            audio_bytes = audio
+        elif isinstance(audio, str):
+            import base64
+            audio_bytes = base64.b64decode(audio)
+        else:
+            return
 
-    # 1. Store Data / Feed AssemblyAI
-    session["user_audio_chunks"].append(audio_bytes)
-    
-    if session.get("session"):
-        session["session"].send_audio(audio_bytes)
-    
-    # 🚨 CRITICAL CHANGE: 
-    # We intentionally do NOT update session["last_voice_time"] here.
-    # This prevents open-mic static from resetting the silence timer.
+        if len(audio_bytes) < 2:
+            return
+
+        # ---- Ensure buffers exist ----
+        session.setdefault("user_audio_chunks", [])
+        session.setdefault("stats", RunningStatistics())
+
+        # ---- 1️⃣ AssemblyAI (safe) ----
+        session["user_audio_chunks"].append(audio_bytes)
+        if session.get("session"):
+            session["session"].send_audio(audio_bytes)
+
+        # ---- 2️⃣ Fast incremental analysis ----
+        pcm = np.frombuffer(audio_bytes, dtype=np.int16)
+
+        # 🔥 FIXED: Use the OLD analyze_audio_chunk_fast but with FIXED silence detection
+        from interview_analyzer import analyze_audio_chunk_fast as old_analyze
+        
+        # Temporary fix: modify the function parameters
+        import librosa
+        
+        # Convert for analysis
+        audio_float = pcm.astype(np.float32) / 32768.0
+        duration = len(audio_float) / 16000
+        
+        # 🔥 FIX THE BUG: Use proper VAD parameters
+        intervals = librosa.effects.split(
+            audio_float, 
+            top_db=30,  # 🔥 INCREASED from 25 to 30
+            frame_length=2048,
+            hop_length=512
+        )
+        
+        # Calculate REALISTIC speaking time
+        speaking_time = sum((e - s) / 16000 for s, e in intervals)
+        
+        # 🔥 CRITICAL: Cap at reasonable maximum
+        speaking_time = min(speaking_time, duration * 0.85)  # Max 85% speaking time
+        
+        # Update stats manually
+        stats = session["stats"]
+        stats.update_time_stats(duration, speaking_time)
+        
+        # Update pauses
+        pauses = []
+        if len(intervals) > 1:
+            for i in range(len(intervals) - 1):
+                pause = (intervals[i+1][0] - intervals[i][1]) / 16000
+                if pause > 0.1:
+                    pauses.append(pause)
+        stats.update_pause_stats(pauses)
+        
+        # Still call old function for pitch/voice quality
+        old_analyze(pcm_chunk=pcm, sample_rate=16000, stats=stats)
+
+        # Update silence clock
+        before = stats.speaking_time - (duration * 0.3)  # Estimate
+        after = stats.speaking_time
+        if after > before + 0.05:
+            session["last_voice_time"] = time.time()
+
+    except Exception as e:
+        print(f"⚠️ audio_chunk handler error: {e}")
+
         
 @socketio.on('interviewer_audio_chunk')
 def receive_interviewer_audio(data):
@@ -1104,7 +1243,6 @@ def handle_leave_interview(data):
         if session:
             session["destroyed"] = True
             print(f"👋 Session marked destroyed by user {user_id}")
-
 
         print(f"👋 User {user_id} left interview room and session cleaned up")
 
@@ -1187,7 +1325,6 @@ def signup():
         }
     })
 
-# app.py (API ROUTES section, near other /api routes)
 
 @app.route("/api/tts/murf", methods=["POST"])
 def murf_tts():
@@ -1598,398 +1735,48 @@ def save_interview_session():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
-@app.route('/api/analyze_audio_final', methods=['POST'])
-@jwt_required
+@app.route("/api/analyze_audio_final", methods=["POST"])
 def analyze_audio_final():
-    """Analyze saved audio file for comprehensive speech analysis using AssemblyAI"""
+    """
+    Research-safe final analysis.
+    NO post-hoc scoring.
+    NO fluency / pitch / feedback.
+    """
+
     try:
         data = request.get_json()
-        audio_path = data.get('audio_path')
-        live_transcript = data.get('transcript', '')
-        
+        audio_path = data.get("audio_path")
+        expected_answer = data.get("expected_answer", "")
+        live_transcript = data.get("transcript", "")
+
         if not audio_path or not os.path.exists(audio_path):
-            return jsonify({'success': False, 'error': 'Audio file not found'}), 404
-        
-        print(f"🔍 Analyzing audio file: {audio_path} with Whisper")
-        
-        # Verify audio file is valid
+            return jsonify({"success": False, "error": "Audio file not found"}), 404
+
+        # Optional: Whisper transcript (for display only)
+        from interview_analyzer import speech_to_text
+
         try:
-            import wave
-            with wave.open(audio_path, 'rb') as wf:
-                frames = wf.getnframes()
-                rate = wf.getframerate()
-                duration = frames / float(rate)
-                print(f"📊 Audio file info: {duration:.2f}s, {rate}Hz, {frames} frames")
-                
-                if duration < 1.0:
-                    return jsonify({
-                        'success': False, 
-                        'error': 'Audio file too short (minimum 1 second required)'
-                    }), 400
-        except Exception as e:
-            print(f"⚠️ Could not verify audio file: {e}")
-        
-        # Use Whisper for accurate transcription
-        try:
-            print("🔄 Starting transcription...")
-            
-            # Use medium.en model for faster transcription
-            from interview_analyzer import speech_to_text
-            
-            # Add minimum speech duration to avoid random noise transcription
-            accurate_transcript = speech_to_text(
-                audio_path, 
+            transcript = speech_to_text(
+                audio_path,
                 model_name="medium.en",
                 use_vad=True,
-                min_speech_duration=1000  # 1 second minimum speech
+                min_speech_duration=1000
             )
-            
-            if not accurate_transcript or len(accurate_transcript.strip()) == 0:
-                print("⚠️ Whisper transcription empty, checking if audio has speech...")
-                
-                # Check if there's actually speech in the audio
-                y, sr = librosa.load(audio_path, sr=16000)
-                intervals = librosa.effects.split(y, top_db=20)
-                speaking_time = sum((end - start) / sr for start, end in intervals)
-                
-                if speaking_time < 0.5:  # Less than 0.5 seconds of speech
-                    accurate_transcript = "[No speech detected]"
-                else:
-                    accurate_transcript = live_transcript or "[Speech detected but not transcribed]"
-                    
-                print(f"📊 Audio analysis: {speaking_time:.2f}s of speech detected")
-            else:
-                print(f"✅ Whisper transcription: {len(accurate_transcript)} characters")
-                
-        except Exception as trans_error:
-            print(f"⚠️ Whisper transcription failed: {trans_error}")
-            accurate_transcript = live_transcript or "[Transcription failed]"
-        
-        # Perform comprehensive analysis using existing logic
-        ideal_answer = "This is a comprehensive interview response that demonstrates clear communication, technical knowledge, and professional speaking patterns."
-        ideal_keywords = ["communication", "professional", "technical", "clear", "knowledge"]
+            transcript = transcript.strip() or live_transcript
+        except Exception:
+            transcript = live_transcript or "[Transcription unavailable]"
 
-        analysis_results = analyze_interview_response_optimized(
-            audio_path,
-            ideal_answer,
-            ideal_keywords
-        )
+        # 🚫 NO METRICS COMPUTED HERE
+        # Metrics must ONLY come from streaming analyzer
 
         return jsonify({
-            'success': True,
-            'overall_score': analysis_results.get('overall_score', 0),
-            'performance_level': analysis_results.get('performance_level', 'Unknown'),
-            'fluency_score': analysis_results.get('fluency_score', 0),
-            'pitch_score': analysis_results.get('pitch_score', 0),
-            'voice_quality_score': analysis_results.get('voice_quality_score', 0),
-            'wpm': analysis_results.get('wpm', 0),
-            'pause_ratio': analysis_results.get('pause_ratio', 0),
-            'pitch_feedback': analysis_results.get('pitch_feedback', ''),
-            'fluency_feedback': analysis_results.get('fluency_feedback', ''),
-            'voice_quality_feedback': analysis_results.get('voice_quality_feedback', ''),
-            'improvement_suggestions': analysis_results.get('improvement_suggestions', [])[:3],
-            'transcript': accurate_transcript,
-            'live_transcript': live_transcript
+            "success": True,
+            "transcript": transcript
         })
 
     except Exception as e:
-        print(f"❌ Final analysis error: {e}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'success': False, 'error': str(e)}), 500
+        return jsonify({"success": False, "error": str(e)}), 500
 
-@app.route('/api/process_audio', methods=['POST'])
-@jwt_required
-def process_audio():
-    """Batch audio processing endpoint (legacy) - processes full audio file after upload"""
-    try:
-        if 'audio_file' not in request.files:
-            return jsonify({'success': False, 'message': 'No audio file provided'}), 400
-
-        audio_file = request.files['audio_file']
-        if audio_file.filename == '':
-            return jsonify({'success': False, 'message': 'No selected file'}), 400
-
-        # Check file size (max 10MB)
-        audio_file.seek(0, os.SEEK_END)
-        file_size = audio_file.tell()
-        audio_file.seek(0)
-
-        if file_size == 0:
-            return jsonify({'success': False, 'message': 'Audio file is empty'}), 400
-
-        if file_size > 10 * 1024 * 1024:  # 10MB
-            return jsonify({'success': False, 'message': 'Audio file too large (max 10MB)'}), 400
-
-        # Save the audio file temporarily with proper extension
-        filename = secure_filename(audio_file.filename)
-        if not filename.endswith(('.webm', '.wav', '.mp3', '.ogg', '.m4a')):
-            filename = filename.rsplit('.', 1)[0] + '.webm'
-
-        temp_audio_path = os.path.join(app.config['UPLOAD_FOLDER'], f"audio_{g.current_user.id}_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{filename}")
-        audio_file.save(temp_audio_path)
-
-        print(f"Saved audio file: {temp_audio_path}, size: {os.path.getsize(temp_audio_path)} bytes")
-
-        # Convert WebM to WAV if needed (Whisper needs WAV or formats supported by ffmpeg)
-        # Since ffmpeg might not be installed, use librosa + soundfile as fallback
-        converted_audio_path = temp_audio_path
-        if filename.lower().endswith('.webm'):
-            converted_audio_path = temp_audio_path.rsplit('.', 1)[0] + '.wav'
-            try:
-                # Try pydub first (requires ffmpeg)
-                from pydub import AudioSegment
-                audio = AudioSegment.from_file(temp_audio_path, format="webm")
-                audio.export(converted_audio_path, format="wav")
-                print(f"Converted WebM to WAV using pydub: {converted_audio_path}")
-                # Remove original WebM file
-                if os.path.exists(temp_audio_path):
-                    os.remove(temp_audio_path)
-            except (ImportError, Exception) as e:
-                print(f"pydub conversion failed ({e}), trying librosa + soundfile...")
-                try:
-                    # Fallback: Use librosa + soundfile (doesn't require ffmpeg)
-                    import librosa
-                    import soundfile as sf
-
-                    # Load audio with librosa (handles many formats)
-                    y, sr = librosa.load(temp_audio_path, sr=16000)  # 16kHz is good for speech
-                    # Save as WAV using soundfile
-                    sf.write(converted_audio_path, y, sr)
-                    print(f"Converted WebM to WAV using librosa: {converted_audio_path}")
-                    # Remove original WebM file
-                    if os.path.exists(temp_audio_path):
-                        os.remove(temp_audio_path)
-                except ImportError:
-                    print("soundfile not available. Installing soundfile is recommended: pip install soundfile")
-                    # Last resort: try with original file (might fail if ffmpeg not available)
-                    converted_audio_path = temp_audio_path
-                    print("Will attempt transcription with original WebM file (requires ffmpeg)")
-                except Exception as e2:
-                    print(f"librosa conversion also failed: {e2}")
-                    # Last resort: try with original file
-                    converted_audio_path = temp_audio_path
-                    print("Will attempt transcription with original WebM file (requires ffmpeg)")
-
-        # Transcribe audio
-        print("Starting transcription...")
-        print(f"Using audio file: {converted_audio_path}")
-
-        # Verify file exists and has content
-        if not os.path.exists(converted_audio_path):
-            return jsonify({
-                'success': False,
-                'message': f'Audio file not found: {converted_audio_path}'
-            }), 400
-
-        file_size = os.path.getsize(converted_audio_path)
-        print(f"Audio file exists, size: {file_size} bytes")
-
-        if file_size == 0:
-            return jsonify({
-                'success': False,
-                'message': 'Audio file is empty after conversion'
-            }), 400
-
-        transcribed_text = None
-        try:
-            # Import faster-whisper model
-            import librosa
-            from interview_analyzer import whisper_model
-
-            print("Faster-Whisper model loaded, starting transcription...")
-
-            # Load audio with librosa first (bypasses Whisper's ffmpeg requirement)
-            # This way we can handle the audio loading ourselves
-            try:
-                print(f"Loading audio with librosa from: {converted_audio_path}")
-                # Load audio at 16kHz (Whisper's native sample rate)
-                audio_array, sample_rate = librosa.load(converted_audio_path, sr=16000)
-                print(f"Audio loaded successfully: {len(audio_array)} samples at {sample_rate}Hz")
-
-                # Pass numpy array directly to Faster-Whisper (bypasses file loading)
-                # faster-whisper can accept numpy arrays directly
-                print("Transcribing audio array...")
-                segments, info = whisper_model.transcribe(audio_array, beam_size=5)
-
-                # Extract text from segments (segments is a generator, so convert to list)
-                segments_list = list(segments)
-                transcribed_text = " ".join([segment.text for segment in segments_list]).strip()
-
-                # Log transcription info
-                print(f"Detected language: {info.language} (probability: {info.language_probability:.2f})")
-                print(f"Transcription result: '{transcribed_text}' (length: {len(transcribed_text)})")
-
-                # Log segment details
-                if len(segments_list) > 0:
-                    print(f"Found {len(segments_list)} audio segments")
-                    for i, segment in enumerate(segments_list[:3]):  # Print first 3 segments
-                        print(f"Segment {i}: {segment.text} (start: {segment.start:.2f}s, end: {segment.end:.2f}s)")
-                else:
-                    print("Warning: No audio segments found in transcription result")
-
-            except Exception as librosa_error:
-                print(f"librosa failed to load audio: {librosa_error}")
-                error_msg = str(librosa_error)
-                if "ffmpeg" in error_msg.lower() or "winerror 2" in error_msg.lower():
-                    # Clear error message about ffmpeg requirement
-                    raise Exception(
-                        "ffmpeg is required but not found. Please install ffmpeg:\n"
-                        "Windows: Download from https://www.gyan.dev/ffmpeg/builds/ and add to PATH\n"
-                        "Or use: choco install ffmpeg (if you have Chocolatey)\n"
-                        "After installation, restart your Flask server."
-                    )
-                else:
-                    raise
-
-        except ImportError as e:
-            print(f"Import error: {e}")
-            traceback.print_exc()
-            return jsonify({
-                'success': False,
-                'message': f'Faster-Whisper library not available: {str(e)}'
-            }), 500
-        except Exception as e:
-            print(f"Exception during transcription: {e}")
-            traceback.print_exc()
-            error_details = str(e)
-            # Check for common Whisper errors
-            if "CUDA" in error_details or "cuda" in error_details.lower():
-                error_details += " (GPU/CUDA issue - trying CPU mode)"
-            return jsonify({
-                'success': False,
-                'message': f'Transcription failed: {error_details}'
-            }), 500
-
-        if not transcribed_text or len(transcribed_text.strip()) == 0:
-            error_msg = 'Could not transcribe audio. Please ensure you are speaking clearly and try again.'
-            # Check if file exists and has content
-            if os.path.exists(converted_audio_path):
-                file_size = os.path.getsize(converted_audio_path)
-                error_msg += f' (Audio file size: {file_size} bytes)'
-            return jsonify({
-                'success': False,
-                'message': error_msg
-            }), 400
-
-        # Perform comprehensive speech analysis
-        print("Starting comprehensive speech analysis...")
-        try:
-            # For conversational interview, we don't have ideal answers, so we'll use generic analysis
-            # In a real scenario, you'd have question-specific ideal answers
-            ideal_answer = "This is a conversational interview response that should demonstrate good communication skills, clear articulation, and professional speaking patterns."
-            ideal_keywords = ["communication", "professional", "clear", "articulate", "confident"]
-
-            analysis_results = analyze_interview_response_optimized(
-                converted_audio_path,
-                ideal_answer,
-                ideal_keywords
-            )
-
-            print("Speech analysis completed successfully")
-            print(f"Analysis results keys: {list(analysis_results.keys()) if analysis_results else 'None'}")
-            print(f"Overall score: {analysis_results.get('overall_score', 'N/A') if analysis_results else 'N/A'}")
-
-            # Generate interviewer response based on analysis
-            overall_score = analysis_results.get('overall_score', 0)
-            fluency_score = analysis_results.get('fluency_score', 0)
-
-            if overall_score >= 80:
-                interviewer_response = f"Excellent delivery! I heard: \"{transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\". Your speech patterns are very professional."
-            elif overall_score >= 60:
-                interviewer_response = f"Good effort! I heard: \"{transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\". Keep practicing to improve your delivery."
-            else:
-                interviewer_response = f"I heard: \"{transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\". Let's work on improving your speech clarity and fluency."
-
-            # Add specific feedback
-            feedback_tips = []
-            if fluency_score < 60:
-                feedback_tips.append("Try speaking more slowly and clearly")
-            if analysis_results.get('pause_ratio', 0) > 0.6:
-                feedback_tips.append("Reduce long pauses between words")
-
-            if feedback_tips:
-                interviewer_response += f" Tips: {'; '.join(feedback_tips[:2])}."
-
-            # Return comprehensive analysis results
-            return jsonify({
-                'success': True,
-                'transcribed_text': transcribed_text,
-                'interviewer_response': interviewer_response,
-                'speech_analysis': {
-                    'overall_score': analysis_results.get('overall_score', 0),
-                    'performance_level': analysis_results.get('performance_level', 'Unknown'),
-                    'fluency_score': analysis_results.get('fluency_score', 0),
-                    'pitch_score': analysis_results.get('pitch_score', 0),
-                    'voice_quality_score': analysis_results.get('voice_quality_score', 0),
-                    'wpm': analysis_results.get('wpm', 0),
-                    'pause_ratio': analysis_results.get('pause_ratio', 0),
-                    'pitch_feedback': analysis_results.get('pitch_feedback', ''),
-                    'fluency_feedback': analysis_results.get('fluency_feedback', ''),
-                    'voice_quality_feedback': analysis_results.get('voice_quality_feedback', ''),
-                    'improvement_suggestions': analysis_results.get('improvement_suggestions', [])[:3]  # Top 3 suggestions
-                }
-            })
-
-        except Exception as analysis_error:
-            print(f"Speech analysis failed: {analysis_error}")
-            traceback.print_exc()
-
-            # Fallback response without analysis
-            interviewer_response = f"I heard you say: \"{transcribed_text[:100]}{'...' if len(transcribed_text) > 100 else ''}\". Let's continue the conversation."
-
-            return jsonify({
-                'success': True,
-                'transcribed_text': transcribed_text,
-                'interviewer_response': interviewer_response,
-                'speech_analysis': None,
-                'analysis_error': 'Speech analysis unavailable'
-            })
-
-    except Exception as e:
-        print(f"Audio processing error: {e}")
-        traceback.print_exc()
-        error_message = str(e)
-        if "No module named" in error_message:
-            error_message = "Audio processing module not available. Please install required dependencies."
-        return jsonify({'success': False, 'error': error_message}), 500
-    finally:
-        # Clean up the temporary files
-        files_to_remove = []
-        if temp_audio_path and os.path.exists(temp_audio_path):
-            files_to_remove.append(temp_audio_path)
-        # Also remove converted file if different
-        if 'converted_audio_path' in locals() and converted_audio_path != temp_audio_path:
-            if converted_audio_path and os.path.exists(converted_audio_path):
-                files_to_remove.append(converted_audio_path)
-        
-        for file_path in files_to_remove:
-            try:
-                os.remove(file_path)
-                print(f"Cleaned up temp file: {file_path}")
-            except Exception as e:
-                print(f"Error removing temp file {file_path}: {e}")
-
-@socketio.on("agent_start")
-def handle_agent_start():
-    """Handle agent interview start - triggered by frontend"""
-    if not current_user or not current_user.is_authenticated:
-        emit("agent_error", {"error": "User not authenticated"})
-        return
-    
-    session_id = str(current_user.id)
-    
-    # 1️⃣ Create agent session
-    intro_q = InterviewAgentController.start_session(
-        session_id=session_id,
-        user_id=current_user.id
-    )
-    
-    if not intro_q:
-        intro_q = "Tell me about yourself."
-    
-    # 2️⃣ Send intro question to frontend
-    emit("agent_intro_question", {"question": intro_q})
 
 @app.route('/api/interview_history', methods=['GET'])
 @jwt_required

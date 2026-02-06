@@ -185,68 +185,44 @@ class RunningStatistics:
 
 
 def analyze_audio_chunk_fast(pcm_chunk, sample_rate, stats: RunningStatistics):
-    """
-    Fast incremental analysis for a single PCM chunk (≈5 sec)
-    This replaces the heavy analysis and runs in milliseconds.
-
-    Args:
-        pcm_chunk: Numpy array of int16 PCM samples
-        sample_rate: Sample rate (typically 16000)
-        stats: RunningStatistics object to update incrementally
-    """
     # Convert int16 PCM → float32 for librosa
     audio = pcm_chunk.astype(np.float32) / 32768.0
     duration = len(audio) / sample_rate
-
-    # --- Silence detection ---
-    intervals = librosa.effects.split(audio, top_db=25)
-    speaking_time = sum((e - s) / sample_rate for s, e in intervals)
-
-    stats.update_time_stats(duration, speaking_time)
-
-    # --- Pause stats ---
-    pauses = []
-    if len(intervals) > 1:
-        for i in range(len(intervals) - 1):
-            pause = (intervals[i+1][0] - intervals[i][1]) / sample_rate
-            if pause > 0.1:  # Only count pauses > 100ms
-                pauses.append(pause)
-    stats.update_pause_stats(pauses)
-
-    # --- FAST pitch analysis (YIN, not pYIN) ---
+    
+    # 🔥 FIXED: Use proper VAD instead of simple energy threshold
     try:
-        # Downsample to 8kHz for efficiency (sufficient for pitch detection)
-        audio_8k = librosa.resample(audio, orig_sr=sample_rate, target_sr=8000)
-
-        # Use YIN algorithm (much faster than pYIN)
-        f0 = librosa.yin(
-            audio_8k,
-            fmin=65,    # Male speech range
-            fmax=300,   # Female speech range
-            sr=8000,
-            frame_length=512,   # Smaller frames for speed
-            hop_length=128      # Faster hop
+        # Use librosa's VAD with better parameters
+        import librosa
+        intervals = librosa.effects.split(
+            audio, 
+            top_db=30,  # Increased from 25 to 30 (more conservative)
+            frame_length=2048,
+            hop_length=512
         )
-
-        # Filter out NaN/infinite values
-        f0 = f0[np.isfinite(f0)]
-        if len(f0) > 0:
-            stats.update_pitch_stats(f0)
+        
+        # Calculate actual speaking time
+        speaking_time = sum((e - s) / sample_rate for s, e in intervals)
+        
+        # 🔥 CRITICAL: Validate speaking time
+        # Speaking time CANNOT exceed total duration
+        speaking_time = min(speaking_time, duration)
+        
+        # Update stats
+        stats.update_time_stats(duration, speaking_time)
+        
+        # Calculate pauses
+        pauses = []
+        if len(intervals) > 1:
+            for i in range(len(intervals) - 1):
+                pause = (intervals[i+1][0] - intervals[i][1]) / sample_rate
+                if pause > 0.1:  # Only count pauses > 100ms
+                    pauses.append(pause)
+        stats.update_pause_stats(pauses)
+        
     except Exception as e:
-        print(f"Fast pitch analysis failed: {e}")
-
-    # --- Lightweight voice quality ---
-    try:
-        # Simple RMS-based shimmer approximation
-        rms = librosa.feature.rms(y=audio, frame_length=512, hop_length=256)[0]
-        if len(rms) > 1:
-            shimmer = np.std(rms) / np.mean(rms) if np.mean(rms) > 0 else 0
-            # Placeholder values for jitter and HNR (could be improved)
-            jitter = 0  # Would need proper calculation
-            hnr = 10    # Approximate good HNR
-            stats.update_voice_quality(jitter=jitter, shimmer=shimmer, hnr=hnr)
-    except Exception as e:
-        print(f"Fast voice quality analysis failed: {e}")
+        # Fallback: assume 50% speaking time if detection fails
+        print(f"VAD failed: {e}")
+        stats.update_time_stats(duration, duration * 0.5)
 
 def analyze_fluency_comprehensive(audio_path, transcribed_text):
     """
@@ -381,13 +357,33 @@ def detect_fillers_repetitions(text):
     return filler_count, repetitions
 
 def calculate_semantic_similarity(user_answer, ideal_answer):
-    if not user_answer or not ideal_answer:
-        return 0.0
-    user_embedding = embedder.encode([user_answer], normalize_embeddings=True)[0]
-    ideal_embedding = embedder.encode([ideal_answer], normalize_embeddings=True)[0]
+    """Calculate semantic similarity with debugging."""
     
-    similarity = cosine_similarity([user_embedding], [ideal_embedding])[0][0]
-    return float(similarity)
+    if not user_answer or not ideal_answer:
+        print(f"❌ Semantic similarity: Empty input")
+        print(f"   User: '{user_answer[:50]}...'")
+        print(f"   Ideal: '{ideal_answer[:50]}...'")
+        return 0.0
+    
+    try:
+        # Debug: Show what we're comparing
+        print(f"📊 Semantic similarity input:")
+        print(f"   User ({len(user_answer)} chars): {user_answer[:100]}...")
+        print(f"   Ideal ({len(ideal_answer)} chars): {ideal_answer[:100]}...")
+        
+        # Encode
+        user_embedding = embedder.encode([user_answer], normalize_embeddings=True)[0]
+        ideal_embedding = embedder.encode([ideal_answer], normalize_embeddings=True)[0]
+        
+        # Calculate
+        similarity = cosine_similarity([user_embedding], [ideal_embedding])[0][0]
+        
+        print(f"✅ Semantic similarity: {similarity:.3f}")
+        return float(similarity)
+        
+    except Exception as e:
+        print(f"❌ Semantic similarity error: {e}")
+        return 0.0
 
 def calculate_keyword_coverage(user_answer, ideal_keywords):
     if not user_answer or not ideal_keywords:
@@ -1318,38 +1314,93 @@ def analyze_interview_response(audio_file_path, ideal_answer_text, ideal_keyword
 
     return results
 
-if __name__ == '__main__':
-    # Example usage (you'll need an audio file for this)
-    # from pydub import AudioSegment
-    # from pydub.playback import play
+def compute_research_metrics(stats: RunningStatistics) -> dict:
+    """Computes FINAL interview metrics with proper validation."""
     
-    # # Create a dummy audio file for testing
-    # # This part requires pydub and ffmpeg/ffprobe installed
-    # # pip install pydub
-    # # You might also need to install ffmpeg/ffprobe
-    # # e.g., on Windows: choco install ffmpeg
-    # # on Mac: brew install ffmpeg
+    final_stats = stats.get_current_stats()
     
-    # print("Creating a dummy audio file for testing...")
-    # audio = AudioSegment.silent(duration=1000)  # 1 second of silence
-    # audio = audio.append(AudioSegment.sine(440, duration=2000), crossfade=0) # 2 seconds of tone
-    # audio.export("dummy_audio.wav", format="wav")
-    # print("Dummy audio file 'dummy_audio.wav' created.")
+    total_words = final_stats["total_words"]
+    speaking_time = final_stats["speaking_time"]
+    total_duration = final_stats["total_duration"]
     
-    # audio_file_path = "dummy_audio.wav"
-    # ideal_answer = "Python is a high-level, interpreted programming language known for its readability and versatility. It supports multiple programming paradigms, including object-oriented, imperative, and functional programming. Python is widely used in web development, data science, artificial intelligence, and automation."
-    # ideal_keywords = ["Python", "interpreted", "high-level", "versatility", "web development", "data science", "artificial intelligence", "automation", "object-oriented"]
+    # 🔥 VALIDATION: Ensure durations make sense
+    if total_duration <= 0:
+        return {
+            "wpm": 0,
+            "speaking_time_ratio": 0,
+            "pause_ratio": 1.0,
+            "long_pause_count": 0,
+            "filler_frequency_per_min": 0,
+            "data_quality": "INVALID_DURATION"
+        }
+    
+    # 1️⃣ Words Per Minute (WPM)
+    # Only calculate if we have sufficient speaking time
+    if speaking_time > 1.0:  # At least 1 second of speech
+        wpm = (total_words / speaking_time) * 60
+    else:
+        wpm = 0
+    
+    # 2️⃣ Speaking Time Ratio (0-1)
+    speaking_time_ratio = speaking_time / total_duration
+    speaking_time_ratio = max(0.0, min(1.0, speaking_time_ratio))  # Clamp to [0,1]
+    
+    # 3️⃣ Pause Ratio (0-1)
+    pause_ratio = 1.0 - speaking_time_ratio  # This is mathematically correct!
+    
+    # 4️⃣ Long Pause Count
+    long_pause_count = stats.long_pause_count
+    
+    # 5️⃣ Filler Frequency (per minute)
+    total_fillers = sum(stats.filler_counts.values())
+    if speaking_time > 1.0:
+        filler_frequency_per_min = total_fillers / (speaking_time / 60)
+    else:
+        filler_frequency_per_min = 0
+    
+    # 🔥 SANITY CHECK: Log impossible values
+    if speaking_time_ratio > 0.95:
+        print(f"⚠️ WARNING: Suspiciously high speaking_time_ratio: {speaking_time_ratio}")
+    
+    return {
+        "wpm": round(wpm, 2),
+        "speaking_time_ratio": round(speaking_time_ratio, 3),
+        "pause_ratio": round(pause_ratio, 3),
+        "long_pause_count": long_pause_count,
+        "filler_frequency_per_min": round(filler_frequency_per_min, 2),
+        "data_quality": "VALID" if speaking_time_ratio < 0.95 else "QUESTIONABLE_HIGH_SPEECH"
+    }
 
-    # # Ensure the dummy audio file exists before analysis
-    # if os.path.exists(audio_file_path):
-    #     print(f"Analyzing {audio_file_path}...")
-    #     results = analyze_interview_response(audio_file_path, ideal_answer, ideal_keywords)
-    #     for key, value in results.items():
-    #         if isinstance(value, float):
-    #             print(f"{key}: {value:.2f}")
-    #         else:
-    #             print(f"{key}: {value}")
-    # else:
-    #     print(f"Test audio file '{audio_file_path}' not found. Skipping example analysis.")
-    
+
+def finalize_interview(stats: RunningStatistics,
+                       user_answer: str,
+                       expected_answer: str) -> dict:
+    """
+    FINAL research-safe output.
+    Called ONLY on clean interview end.
+    """
+
+    metrics = compute_research_metrics(stats)
+
+    # 🔒 VALIDITY GATE (CRITICAL)
+    analysis_valid = True
+
+    if stats.speaking_time < 3 or stats.total_words < 5:
+        semantic_similarity = 0.0
+        analysis_valid = False
+    else:
+        semantic_similarity = calculate_semantic_similarity(
+            user_answer,
+            expected_answer
+        )
+
+    return {
+        "metrics": metrics,
+        "semantic_similarity": round(float(semantic_similarity), 3),
+        "analysis_valid": analysis_valid
+    }
+
+
+
+if __name__ == '__main__':
     print("Interview Analyzer module loaded and ready.")

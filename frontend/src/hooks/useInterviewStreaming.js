@@ -18,6 +18,7 @@ export const useInterviewStreaming = (userId) => {
     const [timeRemaining, setTimeRemaining] = useState(30 * 60);
     const [messages, setMessages] = useState([]);
     const [currentTurn, setCurrentTurn] = useState('INTERVIEWER');
+    const [metrics, setMetrics] = useState(null);
 
     const socketRef = useRef(null);
     const audioContextRef = useRef(null);
@@ -30,6 +31,8 @@ export const useInterviewStreaming = (userId) => {
     const audioPlayingRef = useRef(false); // Track if TTS audio is playing
     const currentAudioRef = useRef(null); // Store current audio element
     const audioChunksSentRef = useRef(0);
+    const hardStopRef = useRef(false); // 🔥 MASTER KILL SWITCH
+
 
     // Helper function to clean up audio resources
     const cleanupAudio = useCallback(async () => {
@@ -79,6 +82,11 @@ export const useInterviewStreaming = (userId) => {
     }, []);
 
     const speakWithMurf = useCallback(async (text) => {
+        if (hardStopRef.current || interviewDone) {
+            console.log('🚫 TTS blocked (interview ended)');
+            return;
+        }
+
         if (!text) return;
 
         try {
@@ -160,25 +168,29 @@ export const useInterviewStreaming = (userId) => {
     }, []);
 
     const stopRecording = useCallback(async () => {
-        if (!isRecording) return;
+        if (hardStopRef.current) return;
 
-        console.log('⏳ Stopping interview...');
+        console.log('🛑 HARD STOP: Ending interview NOW');
+
+        hardStopRef.current = true;          // 🔥 KILL SWITCH
         setIsFinalizing(true);
-        setStatus('⏳ Finalizing...');
-        setCurrentTurn('STOPPING');
+        setInterviewDone(true);
+        setIsRecording(false);
+        setCurrentTurn('DONE');
+        setStatus('🛑 Interview ended');
 
-        await new Promise(resolve => setTimeout(resolve, 1500));
+        // 🔥 STOP TIMER IMMEDIATELY
+        setTimeRemaining(0);
 
+        // 🔥 STOP AUDIO / MIC / TTS
+        await cleanupAudio();
+
+        // 🔥 INFORM BACKEND (BEST EFFORT)
         if (socketRef.current?.connected) {
             socketRef.current.emit('stop_interview', { user_id: userId });
-        } else {
-            console.warn('⚠️ Socket not connected, cannot stop interview');
-            setError('Connection lost during interview');
-            setIsRecording(false);
-            setIsFinalizing(false);
-            cleanupAudio();
         }
-    }, [isRecording, userId, cleanupAudio]);
+
+    }, [userId, cleanupAudio]);
 
     // Initialize WebSocket connection
     useEffect(() => {
@@ -331,6 +343,10 @@ export const useInterviewStreaming = (userId) => {
 
         // Intro question from agent
         socketRef.current.on("agent_intro_question", async (data) => {
+            if (hardStopRef.current || interviewDone) {
+                console.log('🚫 Ignoring agent event (interview ended)');
+                return;
+            }
             console.log('🗣️ Interviewer asking intro question:', data.question);
             setCurrentTurn('INTERVIEWER');
             setStatus("🗣️ Interviewer speaking...");
@@ -359,6 +375,10 @@ export const useInterviewStreaming = (userId) => {
 
         // Next question from agent
         socketRef.current.on("agent_next_question", async (data) => {
+            if (hardStopRef.current || interviewDone) {
+                console.log('🚫 Ignoring agent event (interview ended)');
+                return;
+            }
             console.log('🗣️ Interviewer asking next question:', data.question);
             setCurrentTurn('INTERVIEWER');
             setStatus("🗣️ Interviewer speaking...");
@@ -412,21 +432,27 @@ export const useInterviewStreaming = (userId) => {
 
         // Listen for interview completion
         socketRef.current.on('interview_complete', (data) => {
-            console.log('🎯 Interview complete:', data);
+            console.log('🎯 Interview complete with metrics:', data);
             setIsFinalizing(false);
             setInterviewDone(true);
             setIsRecording(false);
             setCurrentTurn('DONE');
-            setStatus('✅ Interview completed');
+            setStatus('✅ Interview completed - Analysis ready');
 
             // Set final transcript
             if (data.transcript) {
                 setFinalTranscript(data.transcript);
             }
 
+            // Store metrics for display
+            if (data.metrics) {
+                setMetrics(data.metrics);
+                console.log('📊 Metrics received:', data.metrics);
+            }
+
             // Process analysis
             if (data.success) {
-                console.log('✅ Analysis completed instantly');
+                console.log('✅ Analysis completed with metrics');
                 setAnalysis({
                     ...data,
                     // Ensure we have audio path for display
@@ -480,7 +506,7 @@ export const useInterviewStreaming = (userId) => {
 
     // Countdown timer
     useEffect(() => {
-        if (!isRecording || interviewDone) return;
+        if (!isRecording || interviewDone || hardStopRef.current) return;
 
         const interval = setInterval(() => {
             setTimeRemaining(prev => {
@@ -496,6 +522,7 @@ export const useInterviewStreaming = (userId) => {
         return () => clearInterval(interval);
     }, [isRecording, interviewDone, stopRecording]);
 
+
     const startRecording = useCallback(async () => {
         try {
             setError(null);
@@ -507,6 +534,7 @@ export const useInterviewStreaming = (userId) => {
             setStatus('🎤 Starting interview...');
             setCurrentTurn('INTERVIEWER');
             setTimeRemaining(30 * 60);
+            setIsRecording(true);
             setMessages([]);
 
             // Clean up any previous audio resources
@@ -522,12 +550,19 @@ export const useInterviewStreaming = (userId) => {
         }
     }, [userId, cleanupAudio]);
 
-    // Format time remaining as MM:SS
     const formatTime = (seconds) => {
+        if (typeof seconds !== 'number' || !isFinite(seconds) || seconds <= 0) {
+            return '00:00';
+        }
+
         const mins = Math.floor(seconds / 60);
-        const secs = seconds % 60;
-        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        const secs = Math.floor(seconds % 60);
+
+        return `${mins.toString().padStart(2, '0')}:${secs
+            .toString()
+            .padStart(2, '0')}`;
     };
+
 
     return {
         // State
