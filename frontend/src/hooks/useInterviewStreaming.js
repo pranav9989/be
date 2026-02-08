@@ -183,7 +183,13 @@ export const useInterviewStreaming = (userId) => {
         setTimeRemaining(0);
 
         // 🔥 STOP AUDIO / MIC / TTS
-        await cleanupAudio();
+        if (currentAudioRef.current) {
+            currentAudioRef.current.pause();
+            currentAudioRef.current.currentTime = 0;
+            currentAudioRef.current = null;
+        }
+        audioPlayingRef.current = false;
+
 
         // 🔥 INFORM BACKEND (BEST EFFORT)
         if (socketRef.current?.connected) {
