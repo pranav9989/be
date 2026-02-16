@@ -2,7 +2,6 @@ import os
 import json
 import faiss
 from sentence_transformers import SentenceTransformer
-import google.generativeai as genai
 
 # ================== ENV SETUP ==================
 try:
@@ -11,12 +10,10 @@ try:
 except Exception:
     pass
 
+import requests
 
-def get_gemini_api_key():
-    return (
-        os.environ.get("GEMINI_API_KEY")
-        or os.environ.get("GEMIN_API_KEY")
-    )
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = "gemma3:1b"
 
 
 # ================== PATHS ==================
@@ -79,21 +76,13 @@ def get_relevant_chunks_filtered(query, index, metas, model, topic=None, k=5):
     return results
 
 
-# ================== GEMINI ==================
 def generate_rag_response(query, context):
-    api_key = get_gemini_api_key()
-    if not api_key:
-        return "❌ GEMINI_API_KEY not found in environment."
-
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("models/gemini-flash-latest")
-
     prompt = f"""
 You are an expert Computer Science interviewer.
-Use the context as a grounding reference.
-You may expand and explain using standard CS knowledge.
-Do not contradict the context.
-Explain clearly as for interview preparation.
+Use the context as grounding reference.
+You may expand using standard CS knowledge.
+Do NOT contradict the context.
+Explain clearly for interview preparation.
 
 Context:
 {context}
@@ -105,10 +94,24 @@ Answer:
 """
 
     try:
-        response = model.generate_content(prompt)
-        return response.text
+        response = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False
+            },
+            timeout=60
+        )
+
+        if response.status_code == 200:
+            return response.json()["response"].strip()
+        else:
+            return f"❌ Ollama error: {response.text}"
+
     except Exception as e:
-        return f"❌ Gemini error: {e}"
+        return f"❌ Ollama connection error: {str(e)}"
+
 
 
 # ================== MAIN ==================

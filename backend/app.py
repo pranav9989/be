@@ -62,6 +62,30 @@ import requests
 from flask import request, Response, jsonify
 import os
 
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = "gemma3:1b"
+
+def ollama_generate(prompt, timeout=60):
+    try:
+        response = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False
+            },
+            timeout=timeout
+        )
+
+        if response.status_code == 200:
+            return response.json()["response"]
+        else:
+            return None
+    except Exception as e:
+        print("Ollama error:", e)
+        return None
+
+
 def finalize_user_answer(session_key):
     """
     The Single Source of Truth for ending a turn.
@@ -1519,30 +1543,34 @@ def generate_hr_questions():
         skills = json.loads(user.skills) if user.skills else []
         experience = user.experience_years
 
-        api_key = get_gemini_api_key()
-        if not api_key:
-            return jsonify({'success': False, 'error': 'Gemini API key not configured'})
-
-        genai.configure(api_key=api_key)
-        gemini_model = genai.GenerativeModel("models/gemini-flash-latest")
-
         prompt = f"""
-        Generate 5 HR interview questions for a candidate with the following profile:
-        - Skills: {', '.join(skills)}
-        - Experience: {experience} years
+Generate 5 HR interview questions for a candidate with:
 
-        Include a mix of:
-        1. General HR questions
-        2. Behavioral questions
-        3. Technical leadership questions (if experienced)
-        4. Questions about their specific skills
+Skills: {', '.join(skills)}
+Experience: {experience} years
 
-        Return as JSON array with questions and expected answer guidelines.
-        """
-        response = gemini_model.generate_content(prompt)
+Include:
+- General HR
+- Behavioral
+- Leadership (if experienced)
+- Skill-specific
+
+Return ONLY valid JSON.
+Format:
+[
+  {{"question": "...", "type": "general"}},
+  {{"question": "...", "type": "behavioral"}}
+]
+"""
+
+        response_text = ollama_generate(prompt)
+
+        if not response_text:
+            raise Exception("No response from Ollama")
+
         try:
-            questions = json.loads(response.text)
-        except:
+            questions = json.loads(response_text)
+        except Exception:
             questions = [
                 {"question": "Tell me about yourself", "type": "general"},
                 {"question": "Why do you want to work here?", "type": "general"},
@@ -1550,7 +1578,9 @@ def generate_hr_questions():
                 {"question": "How do you handle tight deadlines?", "type": "behavioral"},
                 {"question": "Where do you see yourself in 5 years?", "type": "general"}
             ]
+
         return jsonify({'success': True, 'questions': questions})
+
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
@@ -1563,66 +1593,58 @@ def generate_resume_based_questions():
         data = request.get_json()
         job_description = data.get('job_description', '')
         question_count = data.get('question_count', 5)
-        variation_seed = data.get('variation_seed', '')  # For generating different questions each time
+        variation_seed = data.get('variation_seed', '')
 
-        # Check if user has a processed resume
-        if not g.current_user.resume_filename:  # FIXED: Use g.current_user
+        if not g.current_user.resume_filename:
             return jsonify({'success': False, 'error': 'No resume uploaded'})
 
-        # Search resume content for relevant information
         if job_description:
             search_query = f"Generate interview questions for this job: {job_description}"
         else:
             search_query = "Generate technical interview questions based on my experience and skills"
 
-        search_results = search_resume_faiss(search_query, g.current_user.id, top_k=5)  # FIXED: Use g.current_user.id
+        search_results = search_resume_faiss(
+            search_query,
+            g.current_user.id,
+            top_k=5
+        )
 
-        # Build context from resume chunks
         resume_context = "\n".join([result['text'] for result in search_results])
 
-        # Generate questions using Gemini with resume context
-        api_key = get_gemini_api_key()
-        if not api_key:
-            return jsonify({'success': False, 'error': 'Gemini API key not configured'})
+        skills = json.loads(g.current_user.skills) if g.current_user.skills else []
+        experience = g.current_user.experience_years
 
-        genai.configure(api_key=api_key)
-        gemini_model = genai.GenerativeModel("models/gemini-flash-latest")
-
-        # FIXED: Get skills from g.current_user
-        skills = json.loads(g.current_user.skills) if g.current_user.skills else []  # FIXED HERE
-        experience = g.current_user.experience_years  # FIXED HERE
-
-        # Add variation seed to make questions different each time
-        variation_text = f" (Variation: {variation_seed})" if variation_seed else ""
+        variation_text = f"(Variation: {variation_seed})" if variation_seed else ""
 
         prompt = f"""
-        Based on the following resume content and job requirements, generate {question_count} targeted interview questions{variation_text}.
+Based on this resume content and job description,
+generate {question_count} targeted interview questions {variation_text}.
 
-        Resume Content:
-        {resume_context}
+Resume Content:
+{resume_context}
 
-        Candidate Profile:
-        - Skills: {', '.join(skills)}
-        - Experience: {experience} years
-        - Job Description: {job_description}
+Candidate Skills: {', '.join(skills)}
+Experience: {experience} years
+Job Description: {job_description}
 
-        Generate {question_count} specific, relevant interview questions that:
-        1. Test technical skills mentioned in the resume
-        2. Probe deeper into projects and experiences described
-        3. Assess problem-solving abilities demonstrated in the resume
-        4. Evaluate fit for the job description provided
+Rules:
+- Generate {question_count} DIFFERENT questions
+- Return ONLY valid JSON array
+- Each item format:
+  {{
+    "question": "...",
+    "type": "technical | behavioral | project-based | situational"
+  }}
+"""
 
-        IMPORTANT: Create COMPLETELY DIFFERENT questions each time. Focus on different aspects of the resume, different skills, and different scenarios. Avoid repeating similar question patterns or themes.
+        response_text = ollama_generate(prompt, timeout=90)
 
-        Return as JSON array with each question object containing 'question' and 'type' fields.
-        Types should be: 'technical', 'behavioral', 'project-based', or 'situational'.
-        """
+        if not response_text:
+            raise Exception("No response from Ollama")
 
-        response = gemini_model.generate_content(prompt)
         try:
-            questions = json.loads(response.text)
-        except:
-            # Fallback questions if parsing fails
+            questions = json.loads(response_text)
+        except Exception:
             questions = [
                 {"question": "Can you walk me through your most challenging project?", "type": "project-based"},
                 {"question": "How do your technical skills align with this role?", "type": "technical"},
@@ -1638,10 +1660,11 @@ def generate_resume_based_questions():
         })
 
     except Exception as e:
-        print(f"Resume-based questions error: {e}")
+        print("Resume-based questions error:", e)
         import traceback
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
+
 
 
 @app.route('/api/user_stats', methods=['GET'])
