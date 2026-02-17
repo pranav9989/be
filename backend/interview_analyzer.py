@@ -74,7 +74,11 @@ class RunningStatistics:
     def __init__(self):
         # Text/transcription statistics
         self.total_words = 0
-        self.transcript_parts = []
+        self.transcript_parts = []  # This stores ALL user speech parts
+
+        # 🔥 Store full conversation
+        self.conversation = []  # List of {"role": "interviewer" or "user", "text": text}
+        self.full_transcript = []  # Formatted conversation for display
 
         # Time statistics
         self.total_duration = 0.0
@@ -99,18 +103,30 @@ class RunningStatistics:
         self.shimmer_values = []
         self.hnr_values = []
 
-        # 🔥 NEW: Track per-question scores
-        self.question_scores = []  # List of (question, answer, similarity_score, keyword_score)
+        # 🔥 Track per-question scores WITH expected answers
+        self.question_scores = []  # List of dicts with question, answer, expected_answer, similarity, keyword_coverage
         self.total_semantic_score = 0.0
         self.total_keyword_score = 0.0
         self.question_count = 0
 
-    # 🔥 NEW: Add method to record question-answer pair
-    def record_qa_pair(self, question, answer, similarity_score, keyword_score):
-        """Record a question-answer pair with its scores"""
+    # 🔥 Record interviewer question
+    def record_question(self, question):
+        """Record interviewer question"""
+        self.conversation.append({
+            'role': 'interviewer',
+            'text': question
+        })
+        # Also add to formatted transcript
+        self.full_transcript.append(f"Interviewer: {question}")
+        print(f"📝 Recorded question: {question[:50]}...")
+
+    # 🔥 MODIFIED: Update record_qa_pair to include expected_answer
+    def record_qa_pair(self, question, answer, expected_answer, similarity_score, keyword_score):
+        """Record a question-answer pair with its scores and the expected answer"""
         self.question_scores.append({
             'question': question,
             'answer': answer,
+            'expected_answer': expected_answer,  # 🔥 NEW: Store expected answer
             'similarity': similarity_score,
             'keyword_coverage': keyword_score
         })
@@ -118,9 +134,17 @@ class RunningStatistics:
         self.total_keyword_score += keyword_score
         self.question_count += 1
         
+        # Record user answer in conversation
+        self.conversation.append({
+            'role': 'user',
+            'text': answer
+        })
+        self.full_transcript.append(f"User: {answer}")
+        
         print(f"📝 Recorded Q&A pair #{self.question_count}:")
         print(f"   Q: {question[:50]}...")
         print(f"   A: {answer[:50]}...")
+        print(f"   Expected: {expected_answer[:50]}...")  # 🔥 NEW: Log expected answer
         print(f"   Semantic: {similarity_score:.3f}, Keyword: {keyword_score:.3f}")
 
     def update_transcript(self, new_text):
@@ -174,11 +198,14 @@ class RunningStatistics:
         if np.isfinite(hnr):
             self.hnr_values.append(hnr)
 
-    # 🔥 MODIFY: Update get_current_stats to include Q&A scores
+    # 🔥 MODIFIED: Update get_current_stats to include expected answers
     def get_current_stats(self):
         """Get current computed statistics including Q&A scores."""
         # Calculate derived statistics
-        transcript = " ".join(self.transcript_parts)
+        transcript = " ".join(self.transcript_parts)  # This is user speech only
+        
+        # Create formatted conversation
+        conversation_text = "\n\n".join(self.full_transcript)
 
         # WPM calculation
         wpm = (self.total_words / self.speaking_time * 60) if self.speaking_time > 3 else 0
@@ -195,7 +222,7 @@ class RunningStatistics:
         avg_shimmer = np.mean(self.shimmer_values) if self.shimmer_values else 0
         avg_hnr = np.mean(self.hnr_values) if self.hnr_values else 0
 
-        # 🔥 NEW: Calculate average Q&A scores
+        # Calculate average Q&A scores
         avg_semantic = self.total_semantic_score / self.question_count if self.question_count > 0 else 0
         avg_keyword = self.total_keyword_score / self.question_count if self.question_count > 0 else 0
         
@@ -204,6 +231,8 @@ class RunningStatistics:
 
         return {
             'transcript': transcript,
+            'conversation': conversation_text,  # Full conversation
+            'conversation_parts': self.conversation,  # Raw conversation parts
             'total_words': self.total_words,
             'total_duration': self.total_duration,
             'speaking_time': self.speaking_time,
@@ -218,12 +247,12 @@ class RunningStatistics:
             'avg_jitter': avg_jitter,
             'avg_shimmer': avg_shimmer,
             'avg_hnr': avg_hnr,
-            # 🔥 NEW Q&A metrics
+            # Q&A metrics
             'question_count': self.question_count,
             'avg_semantic_similarity': avg_semantic,
             'avg_keyword_coverage': avg_keyword,
             'combined_relevance_score': combined_score,
-            'qa_pairs': self.question_scores  # Include all pairs for debugging
+            'qa_pairs': self.question_scores  # Now includes expected_answer
         }
 
 
@@ -288,10 +317,6 @@ def analyze_audio_chunk_fast(pcm_chunk, sample_rate, stats: RunningStatistics):
         stats.update_time_stats(duration, speaking_time)
         stats.update_pause_stats(pauses_in_chunk)
         
-        # Log for debugging
-        if speaking_time > 0:
-            print(f"🎤 Chunk: {duration:.1f}s, Speech: {speaking_time:.1f}s, "
-                  f"Pauses: {len(pauses_in_chunk)}, Long pauses (5s+): {stats.long_pause_count}")
         
     except Exception as e:
         print(f"VAD failed: {e}")

@@ -537,6 +537,9 @@ export const useInterviewStreaming = (userId) => {
             setIsRecording(true);
             setMessages([]);
 
+            // 🔥 CRITICAL: Reset the hard stop flag
+            hardStopRef.current = false;
+
             // Clean up any previous audio resources
             await cleanupAudio();
 

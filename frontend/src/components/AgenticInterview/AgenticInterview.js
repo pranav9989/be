@@ -16,14 +16,15 @@ const AgenticInterview = ({ user, onLogout }) => {
         messages,
         currentTurn,
         isInterviewerSpeaking,
-        interviewDone,        // Add this
-        analysis,             // Add this
-        finalTranscript,      // Add this
-        metrics              // Add this
+        interviewDone,
+        analysis,
+        finalTranscript,
+        metrics
     } = useInterviewStreaming(user.id);
 
     const [started, setStarted] = useState(false);
-    const [showMetrics, setShowMetrics] = useState(false); // Add this
+    const [showMetrics, setShowMetrics] = useState(false);
+    const [expandedQA, setExpandedQA] = useState({}); // Track which Q&A pairs are expanded
     const chatBoxRef = useRef(null);
 
     // Auto-scroll to bottom when new messages arrive
@@ -42,13 +43,13 @@ const AgenticInterview = ({ user, onLogout }) => {
 
     const startAgenticInterview = async () => {
         setStarted(true);
-        setShowMetrics(false); // Reset metrics display
+        setShowMetrics(false);
         startRecording();
     };
 
     const handleEndInterview = () => {
         stopRecording();
-        setShowMetrics(true); // Show metrics immediately
+        setShowMetrics(true);
     };
 
     const formatTime = (seconds) => {
@@ -57,7 +58,14 @@ const AgenticInterview = ({ user, onLogout }) => {
         return `${mins}:${secs.toString().padStart(2, "0")}`;
     };
 
-    // Format metrics for display
+    // Toggle expanded view for a Q&A pair
+    const toggleQAExpanded = (index) => {
+        setExpandedQA(prev => ({
+            ...prev,
+            [index]: !prev[index]
+        }));
+    };
+
     // Format metrics for display
     const renderMetrics = () => {
         if (!analysis && !metrics) return null;
@@ -65,16 +73,33 @@ const AgenticInterview = ({ user, onLogout }) => {
         const data = analysis || {};
         const metricsData = metrics || data.metrics || {};
 
+        // Get conversation from analysis or build from messages
+        const conversation = data.conversation ||
+            (messages && messages.length > 0 ?
+                messages.map(m => `${m.role === 'interviewer' ? 'Interviewer' : 'You'}: ${m.text}`).join('\n\n') :
+                finalTranscript || "No transcript available");
+
+        // Get Q&A pairs if available
+        const qaPairs = data.qa_pairs || [];
+
         return (
             <div className="metrics-panel">
                 <h3>📊 Interview Analysis</h3>
 
                 <div className="metrics-grid">
-                    {/* Transcript Section */}
-                    <div className="metric-section">
-                        <h4>📝 Transcript</h4>
-                        <div className="transcript-box">
-                            {finalTranscript || data.transcript || "No transcript available"}
+                    {/* Transcript Section - Now shows FULL conversation */}
+                    <div className="metric-section full-width">
+                        <h4>📝 Complete Interview Transcript</h4>
+                        <div className="transcript-box full-conversation">
+                            {conversation.split('\n\n').map((line, i) => {
+                                if (line.startsWith('Interviewer:')) {
+                                    return <div key={i} className="transcript-line interviewer-line">{line}</div>;
+                                } else if (line.startsWith('User:')) {
+                                    return <div key={i} className="transcript-line user-line">{line}</div>;
+                                } else {
+                                    return <div key={i} className="transcript-line">{line}</div>;
+                                }
+                            })}
                         </div>
                     </div>
 
@@ -106,39 +131,6 @@ const AgenticInterview = ({ user, onLogout }) => {
                                     {metricsData.long_pause_count || 0}
                                 </span>
                             </div>
-
-                            {/* 🔥 NEW: Q&A Metrics Section */}
-                            <div className="metric-item" style={{ borderTop: '2px solid #3498db', marginTop: '10px', paddingTop: '10px' }}>
-                                <span className="metric-label" style={{ fontWeight: 'bold', color: '#3498db' }}>📋 Q&A Performance:</span>
-                                <span className="metric-value"></span>
-                            </div>
-
-                            <div className="metric-item">
-                                <span className="metric-label">Questions Answered:</span>
-                                <span className="metric-value">
-                                    {metricsData.questions_answered || 0}
-                                </span>
-                            </div>
-                            <div className="metric-item">
-                                <span className="metric-label">Avg Semantic Similarity:</span>
-                                <span className="metric-value">
-                                    {metricsData.avg_semantic_similarity ? `${(metricsData.avg_semantic_similarity * 100).toFixed(1)}%` : 'N/A'}
-                                </span>
-                            </div>
-                            <div className="metric-item">
-                                <span className="metric-label">Avg Keyword Coverage:</span>
-                                <span className="metric-value">
-                                    {metricsData.avg_keyword_coverage ? `${(metricsData.avg_keyword_coverage * 100).toFixed(1)}%` : 'N/A'}
-                                </span>
-                            </div>
-                            <div className="metric-item" style={{ backgroundColor: '#e8f4f8', borderRadius: '4px', padding: '8px' }}>
-                                <span className="metric-label" style={{ fontWeight: 'bold' }}>Overall Relevance:</span>
-                                <span className="metric-value" style={{ fontWeight: 'bold', color: '#2980b9' }}>
-                                    {metricsData.overall_relevance ? `${(metricsData.overall_relevance * 100).toFixed(1)}%` : 'N/A'}
-                                </span>
-                            </div>
-
-                            {/* Original metrics continue */}
                             <div className="metric-item">
                                 <span className="metric-label">Total Duration:</span>
                                 <span className="metric-value">
@@ -146,6 +138,76 @@ const AgenticInterview = ({ user, onLogout }) => {
                                 </span>
                             </div>
                         </div>
+                    </div>
+
+                    {/* Q&A Performance Section */}
+                    <div className="metric-section">
+                        <h4>📋 Q&A Performance</h4>
+                        <div className="metrics-list">
+                            <div className="metric-item">
+                                <span className="metric-label">Questions Answered:</span>
+                                <span className="metric-value">
+                                    {metricsData.questions_answered || data.question_count || 0}
+                                </span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">Avg Semantic Similarity:</span>
+                                <span className="metric-value">
+                                    {metricsData.avg_semantic_similarity ? `${(metricsData.avg_semantic_similarity * 100).toFixed(1)}%` :
+                                        data.avg_semantic_similarity ? `${(data.avg_semantic_similarity * 100).toFixed(1)}%` : 'N/A'}
+                                </span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">Avg Keyword Coverage:</span>
+                                <span className="metric-value">
+                                    {metricsData.avg_keyword_coverage ? `${(metricsData.avg_keyword_coverage * 100).toFixed(1)}%` :
+                                        data.avg_keyword_coverage ? `${(data.avg_keyword_coverage * 100).toFixed(1)}%` : 'N/A'}
+                                </span>
+                            </div>
+                            <div className="metric-item highlight">
+                                <span className="metric-label">Overall Relevance:</span>
+                                <span className="metric-value highlight-value">
+                                    {metricsData.overall_relevance ? `${(metricsData.overall_relevance * 100).toFixed(1)}%` :
+                                        data.combined_relevance_score ? `${(data.combined_relevance_score * 100).toFixed(1)}%` : 'N/A'}
+                                </span>
+                            </div>
+                        </div>
+
+                        {/* Detailed Q&A Pairs (Collapsible) */}
+                        {qaPairs.length > 0 && (
+                            <div className="qa-details">
+                                <h5 onClick={() => toggleQAExpanded('all')} className="qa-toggle">
+                                    {expandedQA.all ? '▼' : '▶'} View Detailed Q&A Analysis
+                                </h5>
+                                {expandedQA.all && (
+                                    <div className="qa-list">
+                                        {qaPairs.map((pair, idx) => (
+                                            <div key={idx} className="qa-pair">
+                                                <div className="qa-question">
+                                                    <strong>Q{idx + 1}:</strong> {pair.question}
+                                                </div>
+                                                <div className="qa-answer">
+                                                    <strong>Your Answer:</strong> {pair.answer}
+                                                </div>
+                                                {pair.expected_answer && (
+                                                    <div className="qa-expected">
+                                                        <strong>Expected:</strong> {pair.expected_answer}
+                                                    </div>
+                                                )}
+                                                <div className="qa-scores">
+                                                    <span className="qa-score semantic">
+                                                        Semantic: {(pair.similarity * 100).toFixed(1)}%
+                                                    </span>
+                                                    <span className="qa-score keyword">
+                                                        Keyword: {(pair.keyword_coverage * 100).toFixed(1)}%
+                                                    </span>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        )}
                     </div>
 
                     {/* Processing Info */}

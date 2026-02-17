@@ -78,19 +78,22 @@ def get_relevant_chunks_filtered(query, index, metas, model, topic=None, k=5):
 
 def generate_rag_response(query, context):
     prompt = f"""
-You are an expert Computer Science interviewer.
-Use the context as grounding reference.
-You may expand using standard CS knowledge.
-Do NOT contradict the context.
-Explain clearly for interview preparation.
+You are an expert Computer Science interviewer providing a MODEL ANSWER.
+The user has just answered this question. Provide a CONCISE, HUMAN-LIKE expected answer.
 
-Context:
+RULES:
+- Keep it brief - 2-3 sentences maximum
+- Sound like a knowledgeable person, not a textbook
+- Include key technical terms naturally
+- DO NOT use markdown or formatting
+- DO NOT explain concepts in depth - just state the core answer
+
+Context for reference:
 {context}
 
-Question:
-{query}
+Question: {query}
 
-Answer:
+Expected answer (concise, 2-3 sentences):
 """
 
     try:
@@ -111,8 +114,6 @@ Answer:
 
     except Exception as e:
         return f"❌ Ollama connection error: {str(e)}"
-
-
 
 # ================== MAIN ==================
 def main(user_query):

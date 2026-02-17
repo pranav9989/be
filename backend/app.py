@@ -129,6 +129,15 @@ def finalize_user_answer(session_key):
         )
 
         next_question = agent_response.get("next_question")
+        
+        # 🔥 Get expected answer for this question from RAG
+        expected_answer = None
+        try:
+            from rag import main as rag_main
+            expected_answer, _ = rag_main(question)
+        except Exception as e:
+            print(f"⚠️ Could not get expected answer: {e}")
+            expected_answer = question  # Simple fallback
 
         # 4. Update Frontend
         socketio.emit(
@@ -141,16 +150,16 @@ def finalize_user_answer(session_key):
             room=room
         )
 
-        # 🔥 NEW: Calculate and store Q&A scores
+        # 🔥 Calculate and store Q&A scores WITH expected answer
         if "stats" in session:
             from interview_analyzer import calculate_semantic_similarity, calculate_keyword_coverage
             
-            # Calculate scores
-            semantic_score = calculate_semantic_similarity(final_answer, question)
-            keyword_score = calculate_keyword_coverage(final_answer, question)
+            # Calculate scores (compare with expected answer)
+            semantic_score = calculate_semantic_similarity(final_answer, expected_answer)
+            keyword_score = calculate_keyword_coverage(final_answer, question)  # Still use question for keywords
             
-            # Record in stats
-            session["stats"].record_qa_pair(question, final_answer, semantic_score, keyword_score)
+            # Record in stats with expected answer
+            session["stats"].record_qa_pair(question, final_answer, expected_answer, semantic_score, keyword_score)
             
             print(f"📊 Q&A Scores - Semantic: {semantic_score:.3f}, Keyword: {keyword_score:.3f}")
 
@@ -160,6 +169,11 @@ def finalize_user_answer(session_key):
                 return
 
             session["current_question"] = next_question
+            
+            # Record the next question before emitting
+            if "stats" in session:
+                session["stats"].record_question(next_question)
+            
             socketio.emit(
                 "agent_next_question",
                 {"question": next_question},
@@ -884,12 +898,15 @@ def stop_interview(data):
             'success': True,
             'processing_method': 'incremental_fast',
             'transcript': full_transcript,
+            'conversation': final_stats.get('conversation', full_transcript),
             'metrics': results.get('metrics', {}),
             'semantic_similarity': results.get('semantic_similarity', 0),
             'analysis_valid': results.get('analysis_valid', False),
             'total_duration': final_stats.get('total_duration', 0),
             'speaking_time': final_stats.get('speaking_time', 0),
-            'total_words': final_stats.get('total_words', 0)
+            'total_words': final_stats.get('total_words', 0),
+            # 🔥 ADD THIS - Pass the Q&A pairs to frontend
+            'qa_pairs': final_stats.get('qa_pairs', [])
         }
 
         emit('interview_complete', analysis_results, room=room)
