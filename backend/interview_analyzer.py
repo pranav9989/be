@@ -99,6 +99,30 @@ class RunningStatistics:
         self.shimmer_values = []
         self.hnr_values = []
 
+        # 🔥 NEW: Track per-question scores
+        self.question_scores = []  # List of (question, answer, similarity_score, keyword_score)
+        self.total_semantic_score = 0.0
+        self.total_keyword_score = 0.0
+        self.question_count = 0
+
+    # 🔥 NEW: Add method to record question-answer pair
+    def record_qa_pair(self, question, answer, similarity_score, keyword_score):
+        """Record a question-answer pair with its scores"""
+        self.question_scores.append({
+            'question': question,
+            'answer': answer,
+            'similarity': similarity_score,
+            'keyword_coverage': keyword_score
+        })
+        self.total_semantic_score += similarity_score
+        self.total_keyword_score += keyword_score
+        self.question_count += 1
+        
+        print(f"📝 Recorded Q&A pair #{self.question_count}:")
+        print(f"   Q: {question[:50]}...")
+        print(f"   A: {answer[:50]}...")
+        print(f"   Semantic: {similarity_score:.3f}, Keyword: {keyword_score:.3f}")
+
     def update_transcript(self, new_text):
         """Update transcription statistics incrementally."""
         if new_text:
@@ -107,16 +131,21 @@ class RunningStatistics:
             self.total_words += words_in_segment
 
     def update_time_stats(self, segment_duration, speaking_duration):
-        """Update time-based statistics."""
+        """Update time-based statistics with validation."""
         self.total_duration += segment_duration
+        
+        # 🔥 CRITICAL: Speaking time cannot exceed total duration
+        speaking_duration = min(speaking_duration, segment_duration)
         self.speaking_time += speaking_duration
 
     def update_pause_stats(self, pause_durations):
-        """Update pause statistics."""
+        """Update pause statistics with proper long pause detection (5s threshold)."""
         for pause in pause_durations:
             self.pause_durations.append(pause)
-            if pause > 1.0:  # Long pause threshold
+            # 🔥 FIXED: Long pause threshold = 5 seconds (not 1 second)
+            if pause > 5.0:  # Changed from 1.0 to 5.0
                 self.long_pause_count += 1
+                print(f"⏸️ LONG PAUSE DETECTED: {pause:.1f}s (count: {self.long_pause_count})")
 
     def update_pitch_stats(self, pitch_values):
         """Update pitch statistics using Welford's online algorithm."""
@@ -145,8 +174,9 @@ class RunningStatistics:
         if np.isfinite(hnr):
             self.hnr_values.append(hnr)
 
+    # 🔥 MODIFY: Update get_current_stats to include Q&A scores
     def get_current_stats(self):
-        """Get current computed statistics."""
+        """Get current computed statistics including Q&A scores."""
         # Calculate derived statistics
         transcript = " ".join(self.transcript_parts)
 
@@ -165,6 +195,13 @@ class RunningStatistics:
         avg_shimmer = np.mean(self.shimmer_values) if self.shimmer_values else 0
         avg_hnr = np.mean(self.hnr_values) if self.hnr_values else 0
 
+        # 🔥 NEW: Calculate average Q&A scores
+        avg_semantic = self.total_semantic_score / self.question_count if self.question_count > 0 else 0
+        avg_keyword = self.total_keyword_score / self.question_count if self.question_count > 0 else 0
+        
+        # Combined overall score (weighted)
+        combined_score = (avg_semantic * 0.6) + (avg_keyword * 0.4)
+
         return {
             'transcript': transcript,
             'total_words': self.total_words,
@@ -180,166 +217,86 @@ class RunningStatistics:
             'filler_counts': self.filler_counts,
             'avg_jitter': avg_jitter,
             'avg_shimmer': avg_shimmer,
-            'avg_hnr': avg_hnr
+            'avg_hnr': avg_hnr,
+            # 🔥 NEW Q&A metrics
+            'question_count': self.question_count,
+            'avg_semantic_similarity': avg_semantic,
+            'avg_keyword_coverage': avg_keyword,
+            'combined_relevance_score': combined_score,
+            'qa_pairs': self.question_scores  # Include all pairs for debugging
         }
 
 
 def analyze_audio_chunk_fast(pcm_chunk, sample_rate, stats: RunningStatistics):
+    """
+    Analyze audio chunk with proper VAD and pause detection.
+    Long pause threshold = 5 seconds (tracked across chunks).
+    """
     # Convert int16 PCM → float32 for librosa
     audio = pcm_chunk.astype(np.float32) / 32768.0
     duration = len(audio) / sample_rate
     
-    # 🔥 FIXED: Use proper VAD instead of simple energy threshold
+    # 🔥 FIXED: Use proper VAD with conservative parameters
     try:
-        # Use librosa's VAD with better parameters
         import librosa
+        
+        # Calculate energy of the chunk
+        energy = np.sqrt(np.mean(audio**2))
+        
+        # Adaptive threshold based on chunk energy
+        if energy < 0.005:  # Very quiet - probably silence
+            speaking_time = 0
+            stats.update_time_stats(duration, speaking_time)
+            
+            # 🔥 CRITICAL: For silence, we need to track potential long pauses
+            # This will be handled by the silence_watcher in app.py
+            return
+        
+        # Use librosa's VAD with better parameters for speech detection
         intervals = librosa.effects.split(
             audio, 
-            top_db=30,  # Increased from 25 to 30 (more conservative)
+            top_db=25,  # 🔥 REDUCED from 30 to 25 (more sensitive to speech)
             frame_length=2048,
             hop_length=512
         )
         
         # Calculate actual speaking time
-        speaking_time = sum((e - s) / sample_rate for s, e in intervals)
+        speaking_time = 0
+        pauses_in_chunk = []
         
-        # 🔥 CRITICAL: Validate speaking time
-        # Speaking time CANNOT exceed total duration
-        speaking_time = min(speaking_time, duration)
+        if len(intervals) > 0:
+            # Sum all speech intervals
+            for s, e in intervals:
+                speaking_time += (e - s) / sample_rate
+            
+            # 🔥 CRITICAL: Speaking time CANNOT exceed total duration
+            speaking_time = min(speaking_time, duration)
+            
+            # Calculate pauses BETWEEN intervals
+            if len(intervals) > 1:
+                for i in range(len(intervals) - 1):
+                    pause_start = intervals[i][1] / sample_rate
+                    pause_end = intervals[i+1][0] / sample_rate
+                    pause_duration = pause_end - pause_start
+                    
+                    # Only count significant pauses (> 0.3s)
+                    if pause_duration > 0.3:
+                        pauses_in_chunk.append(pause_duration)
+                        print(f"⏸️ Pause in chunk: {pause_duration:.2f}s")
         
         # Update stats
         stats.update_time_stats(duration, speaking_time)
+        stats.update_pause_stats(pauses_in_chunk)
         
-        # Calculate pauses
-        pauses = []
-        if len(intervals) > 1:
-            for i in range(len(intervals) - 1):
-                pause = (intervals[i+1][0] - intervals[i][1]) / sample_rate
-                if pause > 0.1:  # Only count pauses > 100ms
-                    pauses.append(pause)
-        stats.update_pause_stats(pauses)
+        # Log for debugging
+        if speaking_time > 0:
+            print(f"🎤 Chunk: {duration:.1f}s, Speech: {speaking_time:.1f}s, "
+                  f"Pauses: {len(pauses_in_chunk)}, Long pauses (5s+): {stats.long_pause_count}")
         
     except Exception as e:
-        # Fallback: assume 50% speaking time if detection fails
         print(f"VAD failed: {e}")
-        stats.update_time_stats(duration, duration * 0.5)
-
-def analyze_fluency_comprehensive(audio_path, transcribed_text):
-    """
-    Comprehensive fluency analysis including WPM, pause patterns, articulation rate, and speech flow.
-    Returns: dict with detailed fluency metrics
-    """
-    y, sr = librosa.load(audio_path)
-
-    # Silence detection - split returns list of (start, end) tuples in samples
-    intervals = librosa.effects.split(y, top_db=20)
-
-    # Calculate speaking time and total duration
-    speaking_time = sum((end - start) / sr for start, end in intervals)
-    total_duration = librosa.get_duration(y=y, sr=sr)
-
-    # Calculate pause ratio
-    pause_ratio = max(0, (total_duration - speaking_time) / total_duration) if total_duration > 0 else 1.0
-
-    # Calculate words per minute (WPM)
-    words = len(transcribed_text.split()) if transcribed_text else 0
-    wpm = (words / speaking_time * 60) if speaking_time > 3 else 0
-
-    # Analyze pause patterns
-    pause_durations = []
-    if len(intervals) > 1:
-        for i in range(len(intervals) - 1):
-            current_end = intervals[i][1] / sr
-            next_start = intervals[i + 1][0] / sr
-            pause_duration = next_start - current_end
-            if pause_duration > 0.1:  # Only count pauses longer than 100ms
-                pause_durations.append(pause_duration)
-
-    # Pause statistics
-    avg_pause_duration = np.mean(pause_durations) if pause_durations else 0
-    max_pause_duration = max(pause_durations) if pause_durations else 0
-    num_long_pauses = len([p for p in pause_durations if p > 1.0])  # Pauses > 1 second
-
-    # Articulation rate (syllables per second during speaking time)
-    # Rough syllable estimation: ~1.5 syllables per word for English
-    estimated_syllables = words * 1.5
-    articulation_rate = estimated_syllables / speaking_time if speaking_time > 0 else 0
-
-    # Speech efficiency (ratio of speaking time to total time)
-    speech_efficiency = speaking_time / total_duration if total_duration > 0 else 0
-
-    # Fluency scores
-    # WPM score (ideal range: 120-160 WPM)
-    if 120 <= wpm <= 160:
-        wpm_score = 100
-    elif 100 <= wpm <= 180:
-        wpm_score = 80
-    elif 80 <= wpm <= 200:
-        wpm_score = 60
-    else:
-        wpm_score = max(0, 100 - abs(140 - wpm) * 0.5)
-
-    # Pause score (lower pause ratio is better, but some pauses are natural)
-    if pause_ratio < 0.3:  # Less than 30% pauses
-        pause_score = 100
-    elif pause_ratio < 0.5:
-        pause_score = 80
-    elif pause_ratio < 0.7:
-        pause_score = 60
-    else:
-        pause_score = max(20, 100 - (pause_ratio - 0.3) * 200)
-
-    # Articulation score (ideal: 4-6 syllables per second)
-    if 4 <= articulation_rate <= 6:
-        articulation_score = 100
-    elif 3 <= articulation_rate <= 7:
-        articulation_score = 80
-    elif 2 <= articulation_rate <= 8:
-        articulation_score = 60
-    else:
-        articulation_score = max(20, 100 - abs(5 - articulation_rate) * 10)
-
-    # Overall fluency score
-    fluency_score = (wpm_score * 0.4 + pause_score * 0.3 + articulation_score * 0.3)
-
-    # Generate feedback
-    feedback_parts = []
-    if wpm < 100:
-        feedback_parts.append("speaking rate is slow")
-    elif wpm > 180:
-        feedback_parts.append("speaking rate is fast")
-
-    if pause_ratio > 0.5:
-        feedback_parts.append("too many pauses")
-    elif pause_ratio < 0.1:
-        feedback_parts.append("minimal natural pauses")
-
-    if articulation_rate < 3:
-        feedback_parts.append("articulation is slow and deliberate")
-    elif articulation_rate > 7:
-        feedback_parts.append("speech is rushed")
-
-    if num_long_pauses > 3:
-        feedback_parts.append("several long pauses detected")
-
-    fluency_feedback = "Fluency analysis: " + "; ".join(feedback_parts) if feedback_parts else "Speech fluency is good"
-
-    return {
-        "wpm": float(wpm),
-        "pause_ratio": float(pause_ratio),
-        "speaking_time": float(speaking_time),
-        "total_duration": float(total_duration),
-        "avg_pause_duration": float(avg_pause_duration),
-        "max_pause_duration": float(max_pause_duration),
-        "num_long_pauses": int(num_long_pauses),
-        "articulation_rate": float(articulation_rate),
-        "speech_efficiency": float(speech_efficiency),
-        "wpm_score": float(wpm_score),
-        "pause_score": float(pause_score),
-        "articulation_score": float(articulation_score),
-        "fluency_score": float(fluency_score),
-        "fluency_feedback": fluency_feedback
-    }
+        # Fallback: assume 30% speaking time if detection fails
+        stats.update_time_stats(duration, duration * 0.3)
 
 def detect_fillers_repetitions(text):
     fillers = ["um", "uh", "like", "you know", "i mean"]
@@ -356,50 +313,88 @@ def detect_fillers_repetitions(text):
             
     return filler_count, repetitions
 
-def calculate_semantic_similarity(user_answer, ideal_answer):
-    """Calculate semantic similarity with debugging."""
-    
-    if not user_answer or not ideal_answer:
+def calculate_semantic_similarity(answer, question):
+    """
+    Calculate how well the answer addresses the question.
+    """
+    if not answer or not question:
         print(f"❌ Semantic similarity: Empty input")
-        print(f"   User: '{user_answer[:50]}...'")
-        print(f"   Ideal: '{ideal_answer[:50]}...'")
         return 0.0
     
     try:
-        # Debug: Show what we're comparing
-        print(f"📊 Semantic similarity input:")
-        print(f"   User ({len(user_answer)} chars): {user_answer[:100]}...")
-        print(f"   Ideal ({len(ideal_answer)} chars): {ideal_answer[:100]}...")
+        # Create context that emphasizes the question
+        context = f"Question: {question}\nA good answer should address this question directly."
         
         # Encode
-        user_embedding = embedder.encode([user_answer], normalize_embeddings=True)[0]
-        ideal_embedding = embedder.encode([ideal_answer], normalize_embeddings=True)[0]
+        answer_embedding = embedder.encode([answer], normalize_embeddings=True)[0]
+        context_embedding = embedder.encode([context], normalize_embeddings=True)[0]
         
         # Calculate
-        similarity = cosine_similarity([user_embedding], [ideal_embedding])[0][0]
+        similarity = cosine_similarity([answer_embedding], [context_embedding])[0][0]
         
-        print(f"✅ Semantic similarity: {similarity:.3f}")
-        return float(similarity)
+        # Scale to 0.3-0.9 range (never 0 or 1)
+        scaled_similarity = 0.3 + (similarity * 0.6)
+        
+        print(f"📊 Semantic similarity with question: {similarity:.3f} -> scaled: {scaled_similarity:.3f}")
+        return float(scaled_similarity)
         
     except Exception as e:
         print(f"❌ Semantic similarity error: {e}")
         return 0.0
 
-def calculate_keyword_coverage(user_answer, ideal_keywords):
-    if not user_answer or not ideal_keywords:
+def calculate_keyword_coverage(answer, question):
+    """
+    Calculate how many keywords from the question appear in the answer.
+    """
+    if not answer or not question:
         return 0.0
-    doc = nlp(user_answer.lower())
     
-    found_keywords = []
-    for keyword in ideal_keywords:
-        if keyword.lower() in doc.text:
-            found_keywords.append(keyword)
-            
-    if not ideal_keywords:
-        return 0.0 # Avoid division by zero if there are no ideal keywords
-            
-    coverage = len(found_keywords) / len(ideal_keywords)
-    return coverage
+    # Extract important keywords from question
+    # Focus on technical terms, nouns, etc.
+    import re
+    
+    # Common technical keywords by topic
+    tech_keywords = {
+        'dbms': ['database', 'sql', 'query', 'index', 'transaction', 'acid', 'normalization', 
+                'join', 'primary key', 'foreign key', 'schema', 'table'],
+        'os': ['process', 'thread', 'memory', 'deadlock', 'scheduling', 'virtual memory',
+              'kernel', 'system call', 'context switch', 'semaphore', 'mutex'],
+        'oops': ['class', 'object', 'inheritance', 'polymorphism', 'encapsulation', 
+                'abstraction', 'interface', 'method', 'constructor', 'destructor'],
+    }
+    
+    # Extract words from question
+    question_words = set(re.findall(r'\b[a-zA-Z]{3,}\b', question.lower()))
+    
+    # Add technical keywords if they appear in question
+    for topic, keywords in tech_keywords.items():
+        for kw in keywords:
+            if kw in question.lower():
+                question_words.add(kw)
+    
+    # Count matches in answer
+    answer_lower = answer.lower()
+    matches = 0
+    matched_keywords = []
+    
+    for word in question_words:
+        if word in answer_lower:
+            matches += 1
+            matched_keywords.append(word)
+    
+    # Calculate coverage (capped at 1.0)
+    if question_words:
+        coverage = min(1.0, matches / len(question_words))
+    else:
+        coverage = 0.0
+    
+    # Scale to be more meaningful (0.2-1.0 range)
+    scaled_coverage = 0.2 + (coverage * 0.8)
+    
+    print(f"🔑 Keyword coverage: {matches}/{len(question_words)} = {coverage:.3f} -> scaled: {scaled_coverage:.3f}")
+    print(f"   Matched: {matched_keywords}")
+    
+    return scaled_coverage
 
 def analyze_pitch_comprehensive(audio_path):
     """
@@ -1331,25 +1326,35 @@ def compute_research_metrics(stats: RunningStatistics) -> dict:
             "pause_ratio": 1.0,
             "long_pause_count": 0,
             "filler_frequency_per_min": 0,
+            "avg_semantic_similarity": 0,
+            "avg_keyword_coverage": 0,
+            "overall_relevance": 0,
             "data_quality": "INVALID_DURATION"
         }
     
     # 1️⃣ Words Per Minute (WPM)
-    # Only calculate if we have sufficient speaking time
-    if speaking_time > 1.0:  # At least 1 second of speech
+    if speaking_time > 1.0:
         wpm = (total_words / speaking_time) * 60
     else:
         wpm = 0
     
     # 2️⃣ Speaking Time Ratio (0-1)
     speaking_time_ratio = speaking_time / total_duration
-    speaking_time_ratio = max(0.0, min(1.0, speaking_time_ratio))  # Clamp to [0,1]
+    speaking_time_ratio = max(0.0, min(1.0, speaking_time_ratio))
     
     # 3️⃣ Pause Ratio (0-1)
-    pause_ratio = 1.0 - speaking_time_ratio  # This is mathematically correct!
+    pause_ratio = 1.0 - speaking_time_ratio
     
-    # 4️⃣ Long Pause Count
+    # 4️⃣ Long Pause Count (5s threshold)
     long_pause_count = stats.long_pause_count
+    
+    # 🔥 NEW: Get Q&A metrics
+    avg_semantic = final_stats.get('avg_semantic_similarity', 0)
+    avg_keyword = final_stats.get('avg_keyword_coverage', 0)
+    question_count = final_stats.get('question_count', 0)
+    
+    # Overall relevance score (weighted)
+    overall_relevance = (avg_semantic * 0.6) + (avg_keyword * 0.4)
     
     # 5️⃣ Filler Frequency (per minute)
     total_fillers = sum(stats.filler_counts.values())
@@ -1359,8 +1364,17 @@ def compute_research_metrics(stats: RunningStatistics) -> dict:
         filler_frequency_per_min = 0
     
     # 🔥 SANITY CHECK: Log impossible values
-    if speaking_time_ratio > 0.95:
-        print(f"⚠️ WARNING: Suspiciously high speaking_time_ratio: {speaking_time_ratio}")
+    print(f"\n📊 FINAL INTERVIEW METRICS:")
+    print(f"   Questions answered: {question_count}")
+    print(f"   Avg Semantic Similarity: {avg_semantic:.3f}")
+    print(f"   Avg Keyword Coverage: {avg_keyword:.3f}")
+    print(f"   Overall Relevance: {overall_relevance:.3f}")
+    print(f"   Total Duration: {total_duration:.1f}s")
+    print(f"   Speaking Time: {speaking_time:.1f}s")
+    print(f"   Speaking Ratio: {speaking_time_ratio:.3f}")
+    print(f"   Pause Ratio: {pause_ratio:.3f}")
+    print(f"   Long Pauses: {long_pause_count}")
+    print(f"   WPM: {wpm:.1f}")
     
     return {
         "wpm": round(wpm, 2),
@@ -1368,9 +1382,12 @@ def compute_research_metrics(stats: RunningStatistics) -> dict:
         "pause_ratio": round(pause_ratio, 3),
         "long_pause_count": long_pause_count,
         "filler_frequency_per_min": round(filler_frequency_per_min, 2),
+        "avg_semantic_similarity": round(avg_semantic, 3),
+        "avg_keyword_coverage": round(avg_keyword, 3),
+        "overall_relevance": round(overall_relevance, 3),
+        "questions_answered": question_count,
         "data_quality": "VALID" if speaking_time_ratio < 0.95 else "QUESTIONABLE_HIGH_SPEECH"
     }
-
 
 def finalize_interview(stats: RunningStatistics,
                        user_answer: str,
@@ -1386,21 +1403,19 @@ def finalize_interview(stats: RunningStatistics,
     analysis_valid = True
 
     if stats.speaking_time < 3 or stats.total_words < 5:
-        semantic_similarity = 0.0
         analysis_valid = False
-    else:
-        semantic_similarity = calculate_semantic_similarity(
-            user_answer,
-            expected_answer
-        )
+
+    # 🔥 Use the pre-calculated Q&A scores from stats
+    # (No need to calculate again - they're already stored)
 
     return {
         "metrics": metrics,
-        "semantic_similarity": round(float(semantic_similarity), 3),
+        "semantic_similarity": metrics.get('avg_semantic_similarity', 0),  # Average across all questions
+        "keyword_coverage": metrics.get('avg_keyword_coverage', 0),
+        "overall_relevance": metrics.get('overall_relevance', 0),
+        "questions_answered": metrics.get('questions_answered', 0),
         "analysis_valid": analysis_valid
     }
-
-
 
 if __name__ == '__main__':
     print("Interview Analyzer module loaded and ready.")

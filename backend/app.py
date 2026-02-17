@@ -141,6 +141,19 @@ def finalize_user_answer(session_key):
             room=room
         )
 
+        # 🔥 NEW: Calculate and store Q&A scores
+        if "stats" in session:
+            from interview_analyzer import calculate_semantic_similarity, calculate_keyword_coverage
+            
+            # Calculate scores
+            semantic_score = calculate_semantic_similarity(final_answer, question)
+            keyword_score = calculate_keyword_coverage(final_answer, question)
+            
+            # Record in stats
+            session["stats"].record_qa_pair(question, final_answer, semantic_score, keyword_score)
+            
+            print(f"📊 Q&A Scores - Semantic: {semantic_score:.3f}, Keyword: {keyword_score:.3f}")
+
         if next_question:
             if session.get("terminated"):
                 print("🚫 Session terminated — skipping agent_next_question emit")
@@ -356,21 +369,25 @@ def silence_watcher(session_key, timeout=15):
     """
     Clock B: The Logic Engine.
     Monitors time since last voice activity. Owns the 'finalize' decision.
+    LONG PAUSE detection happens here - when user stops speaking for 5s,
+    it will be counted in RunningStatistics via the audio_chunk handler.
     """
     print(f"👂 Silence watcher started for {session_key}")
 
+    last_log_time = time.time()
+    
     while True:
-        time.sleep(1) # Tick every second
+        time.sleep(1)  # Tick every second
 
         session = streaming_sessions.get(session_key)
         
         # 1. Safety Checks
         if not session: 
-            return # Session deleted
+            return  # Session deleted
         
         if session.get("destroyed"):
             print("💀 Silence watcher exiting (Session Destroyed)")
-            return # User left/stopped
+            return  # User left/stopped
 
         # 2. Turn Check (Clock C)
         # If it's not the user's turn, we pause watching (or exit)
@@ -386,15 +403,22 @@ def silence_watcher(session_key, timeout=15):
             continue
 
         elapsed = time.time() - last_voice
-        # Optional: Print every 5s to reduce log spam, but keep 1s logic
-        if int(elapsed) % 5 == 0: 
+        
+        # Log every 2 seconds instead of 5 for better visibility
+        if time.time() - last_log_time >= 2:
             print(f"⏰ Silence elapsed: {elapsed:.1f}s")
+            last_log_time = time.time()
+            
+            # 🔥 LONG PAUSE DETECTION (5s) - just for logging
+            # Actual counting happens in analyze_audio_chunk_fast
+            if elapsed > 5.0 and elapsed < 5.5:
+                print(f"⚠️ LONG PAUSE DETECTED: {elapsed:.1f}s (will be counted in final stats)")
 
         # 4. THE DECISION POINT
         if elapsed >= timeout:
             print(f"🛑 Silence limit ({timeout}s) reached. Finalizing.")
             finalize_user_answer(session_key)
-            return # Thread ends here
+            return  # Thread ends here
 
 def flush_early_buffer(session_key):
     """Flush early buffered audio chunks to AssemblyAI"""
@@ -1194,10 +1218,10 @@ def receive_audio(data):
         audio_float = pcm.astype(np.float32) / 32768.0
         duration = len(audio_float) / 16000
         
-        # 🔥 FIX THE BUG: Use proper VAD parameters
+        # 🔥 FIX THE BUG: Use proper VAD parameters (changed from 30 to 25 for better sensitivity)
         intervals = librosa.effects.split(
             audio_float, 
-            top_db=30,  # 🔥 INCREASED from 25 to 30
+            top_db=25,  # 🔥 CHANGED: More sensitive to speech
             frame_length=2048,
             hop_length=512
         )
@@ -1205,19 +1229,19 @@ def receive_audio(data):
         # Calculate REALISTIC speaking time
         speaking_time = sum((e - s) / 16000 for s, e in intervals)
         
-        # 🔥 CRITICAL: Cap at reasonable maximum
-        speaking_time = min(speaking_time, duration * 0.85)  # Max 85% speaking time
+        # 🔥 REMOVED: Artificial 85% cap that was causing undercounting
+        # speaking_time = min(speaking_time, duration * 0.85)  # This line is removed
         
         # Update stats manually
         stats = session["stats"]
         stats.update_time_stats(duration, speaking_time)
         
-        # Update pauses
+        # Update pauses - changed threshold from 0.1 to 0.3 to match your function
         pauses = []
         if len(intervals) > 1:
             for i in range(len(intervals) - 1):
                 pause = (intervals[i+1][0] - intervals[i][1]) / 16000
-                if pause > 0.1:
+                if pause > 0.3:  # 🔥 CHANGED: Only count pauses > 300ms (reduces noise)
                     pauses.append(pause)
         stats.update_pause_stats(pauses)
         

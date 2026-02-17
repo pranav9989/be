@@ -58,6 +58,7 @@ const AgenticInterview = ({ user, onLogout }) => {
     };
 
     // Format metrics for display
+    // Format metrics for display
     const renderMetrics = () => {
         if (!analysis && !metrics) return null;
 
@@ -100,17 +101,44 @@ const AgenticInterview = ({ user, onLogout }) => {
                                 </span>
                             </div>
                             <div className="metric-item">
-                                <span className="metric-label">Semantic Similarity:</span>
-                                <span className="metric-value">
-                                    {data.semantic_similarity ? `${(data.semantic_similarity * 100).toFixed(1)}%` : 'N/A'}
-                                </span>
-                            </div>
-                            <div className="metric-item">
-                                <span className="metric-label">Long Pauses:</span>
+                                <span className="metric-label">Long Pauses (&gt;5s):</span>
                                 <span className="metric-value">
                                     {metricsData.long_pause_count || 0}
                                 </span>
                             </div>
+
+                            {/* 🔥 NEW: Q&A Metrics Section */}
+                            <div className="metric-item" style={{ borderTop: '2px solid #3498db', marginTop: '10px', paddingTop: '10px' }}>
+                                <span className="metric-label" style={{ fontWeight: 'bold', color: '#3498db' }}>📋 Q&A Performance:</span>
+                                <span className="metric-value"></span>
+                            </div>
+
+                            <div className="metric-item">
+                                <span className="metric-label">Questions Answered:</span>
+                                <span className="metric-value">
+                                    {metricsData.questions_answered || 0}
+                                </span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">Avg Semantic Similarity:</span>
+                                <span className="metric-value">
+                                    {metricsData.avg_semantic_similarity ? `${(metricsData.avg_semantic_similarity * 100).toFixed(1)}%` : 'N/A'}
+                                </span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">Avg Keyword Coverage:</span>
+                                <span className="metric-value">
+                                    {metricsData.avg_keyword_coverage ? `${(metricsData.avg_keyword_coverage * 100).toFixed(1)}%` : 'N/A'}
+                                </span>
+                            </div>
+                            <div className="metric-item" style={{ backgroundColor: '#e8f4f8', borderRadius: '4px', padding: '8px' }}>
+                                <span className="metric-label" style={{ fontWeight: 'bold' }}>Overall Relevance:</span>
+                                <span className="metric-value" style={{ fontWeight: 'bold', color: '#2980b9' }}>
+                                    {metricsData.overall_relevance ? `${(metricsData.overall_relevance * 100).toFixed(1)}%` : 'N/A'}
+                                </span>
+                            </div>
+
+                            {/* Original metrics continue */}
                             <div className="metric-item">
                                 <span className="metric-label">Total Duration:</span>
                                 <span className="metric-value">
