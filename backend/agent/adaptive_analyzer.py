@@ -1,0 +1,203 @@
+# backend/agent/adaptive_analyzer.py
+
+import re
+from typing import List, Set, Dict
+import numpy as np
+
+class AdaptiveAnalyzer:
+    """Enhanced analyzer with adaptive learning signals"""
+    
+    # Technical keywords by topic for concept extraction
+    TECH_KEYWORDS = {
+        'DBMS': [
+            'database', 'sql', 'query', 'index', 'transaction', 'acid', 
+            'normalization', 'join', 'primary key', 'foreign key', 'schema', 
+            'table', 'bcnf', '3nf', 'redundancy', 'anomaly', 'lock',
+            'deadlock', 'concurrency', 'rollback', 'commit', 'logging'
+        ],
+        'OS': [
+            'process', 'thread', 'memory', 'deadlock', 'scheduling', 
+            'virtual memory', 'kernel', 'system call', 'context switch', 
+            'semaphore', 'mutex', 'paging', 'segmentation', 'fifo', 'lru',
+            'race condition', 'critical section', 'monitor', 'dining philosophers'
+        ],
+        'OOPS': [
+            'class', 'object', 'inheritance', 'polymorphism', 'encapsulation', 
+            'abstraction', 'interface', 'method', 'constructor', 'destructor',
+            'overloading', 'overriding', 'virtual function', 'abstract class',
+            'multiple inheritance', 'diamond problem', 'composition', 'aggregation'
+        ]
+    }
+    
+    # Difficulty indicators
+    DEPTH_INDICATORS = [
+        'because', 'therefore', 'thus', 'hence', 'consequently',
+        'for example', 'for instance', 'specifically', 'in particular',
+        'first', 'second', 'third', 'finally', 'additionally',
+        'furthermore', 'moreover', 'consequently', 'as a result'
+    ]
+    
+    # Confidence indicators
+    CONFIDENT_INDICATORS = [
+        'definitely', 'certainly', 'absolutely', 'clearly',
+        'without doubt', 'undoubtedly', 'i know', 'i understand',
+        'obviously', 'of course', 'certainly'
+    ]
+    
+    HESITANT_INDICATORS = [
+        'i think', 'maybe', 'perhaps', 'probably', 'i guess',
+        'not sure', 'could be', 'might be', 'possibly',
+        'sort of', 'kind of', 'approximately'
+    ]
+    
+    @classmethod
+    def extract_keywords(cls, text: str, topic: str = None) -> Set[str]:
+        """Extract important keywords, optionally filtered by topic"""
+        words = set(re.findall(r'\b[a-zA-Z]{3,}\b', text.lower()))
+        
+        # Multi-word terms
+        multi_word_terms = []
+        for term in ['primary key', 'foreign key', 'virtual memory', 
+                     'system call', 'context switch', 'race condition',
+                     'critical section', 'dining philosophers', 'deadlock']:
+            if term in text.lower():
+                multi_word_terms.append(term)
+        
+        if topic and topic in cls.TECH_KEYWORDS:
+            # Filter by topic-specific keywords
+            topic_keywords = set(cls.TECH_KEYWORDS[topic])
+            return words.intersection(topic_keywords).union(multi_word_terms)
+        
+        # Return all technical keywords from any topic
+        all_keywords = set()
+        for kw_list in cls.TECH_KEYWORDS.values():
+            all_keywords.update(kw_list)
+        
+        return words.intersection(all_keywords).union(multi_word_terms)
+    
+    @classmethod
+    def calculate_coverage(cls, answer: str, expected_keywords: Set[str]) -> float:
+        """Calculate what percentage of expected keywords were covered"""
+        if not expected_keywords:
+            return 0.5
+        
+        answer_lower = answer.lower()
+        covered = 0
+        
+        for keyword in expected_keywords:
+            if keyword in answer_lower:
+                covered += 1
+        
+        # Normalize and scale to 0.2-1.0 range
+        coverage = covered / len(expected_keywords) if expected_keywords else 0
+        return 0.2 + (coverage * 0.8)
+    
+    @classmethod
+    def assess_depth(cls, answer: str) -> str:
+        """Assess depth of answer: shallow, medium, deep"""
+        word_count = len(answer.split())
+        
+        # Count depth indicators
+        indicator_count = sum(1 for ind in cls.DEPTH_INDICATORS if ind in answer.lower())
+        
+        # Check for examples
+        has_example = 'example' in answer.lower() or 'instance' in answer.lower()
+        
+        if word_count > 100 and indicator_count >= 3 and has_example:
+            return "deep"
+        elif word_count > 50 or indicator_count >= 2:
+            return "medium"
+        else:
+            return "shallow"
+    
+    @classmethod
+    def assess_confidence(cls, answer: str) -> str:
+        """Assess confidence: low, medium, high"""
+        answer_lower = answer.lower()
+        
+        confident_count = sum(1 for ind in cls.CONFIDENT_INDICATORS if ind in answer_lower)
+        hesitant_count = sum(1 for ind in cls.HESITANT_INDICATORS if ind in answer_lower)
+        
+        if confident_count > hesitant_count + 1:
+            return "high"
+        elif hesitant_count > confident_count + 1:
+            return "low"
+        else:
+            return "medium"
+    
+    @classmethod
+    def identify_missing_concepts(cls, answer: str, expected_concepts: Set[str]) -> List[str]:
+        """Identify which expected concepts are missing"""
+        if not expected_concepts:
+            return []
+        
+        answer_lower = answer.lower()
+        missing = []
+        
+        for concept in expected_concepts:
+            if concept not in answer_lower:
+                missing.append(concept)
+        
+        return missing[:5]  # Return top 5 missing concepts
+    
+    @classmethod
+    def analyze(cls, question: str, answer: str, topic: str = None) -> dict:
+        """
+        Comprehensive analysis with adaptive learning signals
+        """
+        if not answer or len(answer.strip()) < 5:
+            return {
+                "coverage_score": 0.0,
+                "depth": "shallow",
+                "missing_concepts": [],
+                "covered_concepts": [],
+                "confidence": "low",
+                "key_terms_used": [],
+                "response_length": 0,
+                "grammatical_quality": 0.0,
+                "has_example": False,
+                "estimated_difficulty": "easy"
+            }
+        
+        # Extract keywords
+        key_terms = list(cls.extract_keywords(answer, topic))
+        expected_keywords = cls.extract_keywords(question, topic)
+        
+        # Calculate scores
+        coverage = cls.calculate_coverage(answer, expected_keywords)
+        depth = cls.assess_depth(answer)
+        confidence = cls.assess_confidence(answer)
+        
+        # Find missing concepts
+        missing = cls.identify_missing_concepts(answer, expected_keywords)
+        covered = [c for c in expected_keywords if c not in missing]
+        
+        # Check for examples
+        has_example = 'example' in answer.lower() or 'instance' in answer.lower()
+        
+        # Simple grammar check
+        sentences = re.split(r'[.!?]+', answer)
+        good_sentences = sum(1 for s in sentences if s and s[0].isupper())
+        grammatical_quality = good_sentences / len(sentences) if sentences else 0
+        
+        # Estimate answer difficulty based on vocabulary and structure
+        if depth == "deep" and confidence == "high" and has_example:
+            est_difficulty = "hard"
+        elif depth == "shallow" and confidence == "low":
+            est_difficulty = "easy"
+        else:
+            est_difficulty = "medium"
+        
+        return {
+            "coverage_score": round(coverage, 3),
+            "depth": depth,
+            "missing_concepts": missing,
+            "covered_concepts": covered,
+            "confidence": confidence,
+            "key_terms_used": key_terms[:10],
+            "response_length": len(answer.split()),
+            "grammatical_quality": round(grammatical_quality, 3),
+            "has_example": has_example,
+            "estimated_difficulty": est_difficulty,
+            "expected_keywords": list(expected_keywords)
+        }

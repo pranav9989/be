@@ -123,10 +123,26 @@ class RunningStatistics:
     # 🔥 MODIFIED: Update record_qa_pair to include expected_answer
     def record_qa_pair(self, question, answer, expected_answer, similarity_score, keyword_score):
         """Record a question-answer pair with its scores and the expected answer"""
+        
+        # FIX: Ensure question is recorded BEFORE answer
+        # Check if this question is already in conversation
+        question_exists = False
+        for msg in self.conversation:
+            if msg['role'] == 'interviewer' and msg['text'] == question:
+                question_exists = True
+                break
+        
+        if not question_exists:
+            self.conversation.append({
+                'role': 'interviewer',
+                'text': question
+            })
+            self.full_transcript.append(f"Interviewer: {question}")
+        
         self.question_scores.append({
             'question': question,
             'answer': answer,
-            'expected_answer': expected_answer,  # 🔥 NEW: Store expected answer
+            'expected_answer': expected_answer,
             'similarity': similarity_score,
             'keyword_coverage': keyword_score
         })
@@ -134,7 +150,7 @@ class RunningStatistics:
         self.total_keyword_score += keyword_score
         self.question_count += 1
         
-        # Record user answer in conversation
+        # Record user answer
         self.conversation.append({
             'role': 'user',
             'text': answer
@@ -144,7 +160,7 @@ class RunningStatistics:
         print(f"📝 Recorded Q&A pair #{self.question_count}:")
         print(f"   Q: {question[:50]}...")
         print(f"   A: {answer[:50]}...")
-        print(f"   Expected: {expected_answer[:50]}...")  # 🔥 NEW: Log expected answer
+        print(f"   Expected: {expected_answer[:50]}...")
         print(f"   Semantic: {similarity_score:.3f}, Keyword: {keyword_score:.3f}")
 
     def update_transcript(self, new_text):

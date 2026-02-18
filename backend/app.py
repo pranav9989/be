@@ -17,6 +17,8 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from io import BytesIO
 
+from models import User, InterviewSession
+
 def save_pcm_as_wav(pcm_bytes, path):
     """Save raw PCM bytes as proper WAV file (16-bit, 16kHz, mono)"""
     with wave.open(path, "wb") as wf:
@@ -57,6 +59,11 @@ import random
 
 from agent.analyzer import analyze_answer
 from agent.controller import InterviewAgentController
+# Add these imports
+from agent.adaptive_controller import AdaptiveInterviewController
+
+# Initialize adaptive controller
+adaptive_controller = AdaptiveInterviewController()
 
 import requests
 from flask import request, Response, jsonify
@@ -85,106 +92,6 @@ def ollama_generate(prompt, timeout=60):
         print("Ollama error:", e)
         return None
 
-
-def finalize_user_answer(session_key):
-    """
-    The Single Source of Truth for ending a turn.
-    Triggered ONLY by silence (Clock B).
-    """
-    session = streaming_sessions.get(session_key)
-    if not session:
-        return
-
-    # 🔒 ATOMIC LOCK: Prevent double-firing
-    if session.get("finalized"):
-        return
-    
-    # 🛑 IMMEDIATE STATE CHANGE (Clock C)
-    session["finalized"] = True
-    session["turn"] = "INTERVIEWER" 
-
-    # 1. Merge all buffered text (Clock A results)
-    final_answer = " ".join(session.get("final_text", [])).strip()
-    
-    # 2. If user said nothing but silence timed out, handle gracefully
-    if not final_answer:
-        final_answer = "[User remained silent]"
-
-    print(f"✅ FINAL USER ANSWER (Triggered by Silence): {final_answer}")
-
-    # 3. Call the AI Agent
-    try:
-        room = session["room"]
-        question = session.get("current_question")
-
-        analysis = analyze_answer(
-            question=question,
-            answer=final_answer
-        )
-
-        agent_response = InterviewAgentController.handle_answer(
-            session_id=str(session["user_id"]),
-            answer=final_answer,
-            analysis=analysis
-        )
-
-        next_question = agent_response.get("next_question")
-        
-        # 🔥 Get expected answer for this question from RAG
-        expected_answer = None
-        try:
-            from rag import main as rag_main
-            expected_answer, _ = rag_main(question)
-        except Exception as e:
-            print(f"⚠️ Could not get expected answer: {e}")
-            expected_answer = question  # Simple fallback
-
-        # 4. Update Frontend
-        socketio.emit(
-            "user_answer_complete",
-            {
-                "answer": final_answer,
-                "question": question,
-                "next_question": next_question
-            },
-            room=room
-        )
-
-        # 🔥 Calculate and store Q&A scores WITH expected answer
-        if "stats" in session:
-            from interview_analyzer import calculate_semantic_similarity, calculate_keyword_coverage
-            
-            # Calculate scores (compare with expected answer)
-            semantic_score = calculate_semantic_similarity(final_answer, expected_answer)
-            keyword_score = calculate_keyword_coverage(final_answer, question)  # Still use question for keywords
-            
-            # Record in stats with expected answer
-            session["stats"].record_qa_pair(question, final_answer, expected_answer, semantic_score, keyword_score)
-            
-            print(f"📊 Q&A Scores - Semantic: {semantic_score:.3f}, Keyword: {keyword_score:.3f}")
-
-        if next_question:
-            if session.get("terminated"):
-                print("🚫 Session terminated — skipping agent_next_question emit")
-                return
-
-            session["current_question"] = next_question
-            
-            # Record the next question before emitting
-            if "stats" in session:
-                session["stats"].record_question(next_question)
-            
-            socketio.emit(
-                "agent_next_question",
-                {"question": next_question},
-                room=room
-            )
-    except Exception as e:
-        print(f"❌ Error in agent loop: {e}")
-        traceback.print_exc()
-
-    # 5. Clean up thread flags
-    session["silence_thread_started"] = False
 
 
 class MockAssemblyAIStreamer:
@@ -265,8 +172,18 @@ os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs('backend/instance', exist_ok=True)
 
 # DB + auth
-db = SQLAlchemy(app)
+from models import db
+db.init_app(app)
 # Allow credentials so React (on different origin) can use cookie sessions
+# In app.py, after db = SQLAlchemy(app)
+
+# Import models to ensure they're registered
+from models import UserMastery, InterviewSession, QuestionHistory
+
+# Create tables
+with app.app_context():
+    db.create_all()
+
 CORS(app, supports_credentials=True)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -298,30 +215,6 @@ def datetime_diff_filter(dt):
         return datetime.now() - datetime.now()
     return datetime.now() - dt
 
-# -------------------- Models --------------------
-class User(UserMixin, db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    username = db.Column(db.String(80), unique=True, nullable=False)
-    email = db.Column(db.String(120), unique=True, nullable=False)
-    password_hash = db.Column(db.String(120), nullable=False)
-    full_name = db.Column(db.String(100), nullable=True)
-    phone = db.Column(db.String(20), nullable=True)
-    experience_years = db.Column(db.Integer, default=0)
-    skills = db.Column(db.Text, nullable=True)
-    resume_filename = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    interviews = db.relationship('InterviewSession', backref='user', lazy=True)
-
-class InterviewSession(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    session_type = db.Column(db.String(50), nullable=False)
-    questions = db.Column(db.Text, nullable=True)
-    score = db.Column(db.Float, nullable=True)
-    feedback = db.Column(db.Text, nullable=True)
-    duration = db.Column(db.Integer, nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    completed_at = db.Column(db.DateTime, nullable=True)
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -379,12 +272,127 @@ def notify_backend_ready(user_id, sid):
     except Exception as e:
         print(f"❌ Failed to emit backend_ready: {e}")
 
+def finalize_user_answer(session_key):
+    """
+    The Single Source of Truth for ending a turn.
+    Triggered ONLY by silence (Clock B).
+    """
+    session = streaming_sessions.get(session_key)
+    if not session:
+        return
+
+    # 🔒 ATOMIC LOCK: Prevent double-firing
+    if session.get("finalized"):
+        return
+    
+    # 🛑 IMMEDIATE STATE CHANGE (Clock C)
+    session["finalized"] = True
+    session["turn"] = "INTERVIEWER" 
+
+    # 1. Merge all buffered text (Clock A results)
+    final_answer = " ".join(session.get("final_text", [])).strip()
+    
+    # 2. If user said nothing but silence timed out, handle gracefully
+    if not final_answer:
+        final_answer = "[User remained silent]"
+
+    print(f"✅ FINAL USER ANSWER (Triggered by Silence): {final_answer}")
+
+    # 3. Call the AI Agent (USE ADAPTIVE CONTROLLER)
+    try:
+        room = session["room"]
+        question = session.get("current_question")
+        adaptive_session_id = session.get("adaptive_session_id")
+        
+        if not adaptive_session_id:
+            print(f"❌ No adaptive_session_id found for session {session_key}")
+            return
+        
+        with app.app_context():
+            agent_response = adaptive_controller.handle_answer(
+                session_id=adaptive_session_id,
+                answer=final_answer
+            )
+
+        
+        # Check if we got an error
+        if "error" in agent_response:
+            print(f"❌ Agent error: {agent_response['error']}")
+            return
+
+        # Get next question from response
+        next_question = None
+        if agent_response.get("action") in ["FOLLOW_UP", "SIMPLIFY", "DEEPEN", "MOVE_TOPIC"]:
+            next_question = agent_response.get("question")
+        
+        # 🔥 Get expected answer for this question from RAG
+        expected_answer = None
+        try:
+            from rag import main as rag_main
+            expected_answer, _ = rag_main(question)
+        except Exception as e:
+            print(f"⚠️ Could not get expected answer: {e}")
+            expected_answer = question  # Simple fallback
+
+        # 4. Update Frontend
+        socketio.emit(
+            "user_answer_complete",
+            {
+                "answer": final_answer,
+                "question": question,
+                "next_question": next_question
+            },
+            room=room
+        )
+
+        # 🔥 Calculate and store Q&A scores WITH expected answer
+        if "stats" in session:
+            from interview_analyzer import calculate_semantic_similarity, calculate_keyword_coverage
+            
+            # Calculate scores (compare with expected answer)
+            semantic_score = calculate_semantic_similarity(final_answer, expected_answer)
+            keyword_score = calculate_keyword_coverage(final_answer, question)  # Still use question for keywords
+            
+            # Record in stats with expected answer
+            session["stats"].record_qa_pair(question, final_answer, expected_answer, semantic_score, keyword_score)
+            
+            print(f"📊 Q&A Scores - Semantic: {semantic_score:.3f}, Keyword: {keyword_score:.3f}")
+
+        if next_question:
+            if session.get("terminated"):
+                print("🚫 Session terminated — skipping agent_next_question emit")
+                return
+
+            session["current_question"] = next_question
+            session["current_topic"] = agent_response.get("topic", session["current_topic"])
+            session["difficulty"] = agent_response.get("difficulty", session["difficulty"])
+            
+            # Record the next question before emitting
+            if "stats" in session:
+                session["stats"].record_question(next_question)
+            
+            socketio.emit(
+                "agent_next_question",
+                {"question": next_question},
+                room=room
+            )
+        elif agent_response.get("action") == "FINALIZE":
+            # Interview is complete
+            print("🎉 Interview complete - finalizing...")
+            # Let the stop_interview handler take over
+            stop_interview({"user_id": session_key[0]})
+            
+    except Exception as e:
+        print(f"❌ Error in agent loop: {e}")
+        traceback.print_exc()
+
+    # 5. Clean up thread flags
+    session["silence_thread_started"] = False
+
 def silence_watcher(session_key, timeout=15):
     """
     Clock B: The Logic Engine.
     Monitors time since last voice activity. Owns the 'finalize' decision.
-    LONG PAUSE detection happens here - when user stops speaking for 5s,
-    it will be counted in RunningStatistics via the audio_chunk handler.
     """
     print(f"👂 Silence watcher started for {session_key}")
 
@@ -424,14 +432,13 @@ def silence_watcher(session_key, timeout=15):
             last_log_time = time.time()
             
             # 🔥 LONG PAUSE DETECTION (5s) - just for logging
-            # Actual counting happens in analyze_audio_chunk_fast
             if elapsed > 5.0 and elapsed < 5.5:
                 print(f"⚠️ LONG PAUSE DETECTED: {elapsed:.1f}s (will be counted in final stats)")
 
         # 4. THE DECISION POINT
         if elapsed >= timeout:
             print(f"🛑 Silence limit ({timeout}s) reached. Finalizing.")
-            finalize_user_answer(session_key)
+            finalize_user_answer(session_key)  # ✅ Now this function exists!
             return  # Thread ends here
 
 def flush_early_buffer(session_key):
@@ -940,29 +947,47 @@ def stop_interview(data):
 @socketio.on('start_interview')
 def start_interview(data):
     """Start live interview with AssemblyAI streaming AND audio recording"""
-    user_id = data.get('user_id')
-    sid = request.sid
-    session_key = (user_id, sid)
+    with app.app_context():  # 🔥 ONE context block for the entire function
+        user_id = data.get('user_id')
+        sid = request.sid
+        session_key = (user_id, sid)
+        
+        # 🔥 CRITICAL: Check if session already exists
+        if session_key in streaming_sessions:
+            print(f"⚠️ Interview already in progress for user {user_id}, cleaning up old session")
+            try:
+                old_session = streaming_sessions[session_key]
+                if 'session' in old_session and old_session['session']:
+                    old_session['session'].stop()
+            except:
+                pass
+            del streaming_sessions[session_key]
+        
+        # Initialize session BEFORE any other operations
+        room = f"interview_{user_id}"
+        join_room(room)
+        
+        # Get user info for personalization from database
+        from models import User
+        user = db.session.get(User, user_id)  # ✅ Now safely inside context
+        user_name = user.full_name if user and user.full_name else ""
+        
+        # Start adaptive session
+        import uuid
+        session_id = str(uuid.uuid4())
+        adaptive_result = adaptive_controller.start_session(
+            session_id=session_id,
+            user_id=user_id,
+            user_name=user_name
+        )
+        
     
-    # 🔥 CRITICAL: Check if session already exists
-    if session_key in streaming_sessions:
-        print(f"⚠️ Interview already in progress for user {user_id}, cleaning up old session")
-        try:
-            old_session = streaming_sessions[session_key]
-            if 'session' in old_session and old_session['session']:
-                old_session['session'].stop()
-        except:
-            pass
-        del streaming_sessions[session_key]
-    
-    # Initialize session BEFORE any other operations
-    room = f"interview_{user_id}"
-    join_room(room)
-    
-    # Initialize fresh session
+    # Initialize fresh session with adaptive data
     streaming_sessions[session_key] = {
         "turn": "INTERVIEWER",  # Start with interviewer turn
-        "current_question": None,
+        "current_question": adaptive_result["question"],
+        "current_topic": adaptive_result["topic"],
+        "difficulty": adaptive_result["difficulty"],
         "session": None,
         "room": room,
         "early_buffer": [],
@@ -974,7 +999,8 @@ def start_interview(data):
         "chunk_count": 0,
         "ready": False,
         "primed": False,
-        "buffer_count": 0
+        "buffer_count": 0,
+        "adaptive_session_id": session_id  # Store for later use
     }
 
     # Get timestamp for audio file
@@ -1080,29 +1106,10 @@ def start_interview(data):
             "finalized": False,
         })
 
-        # --------------------------------
-        # START AGENT SESSION (INTRO)
-        # --------------------------------
-        print("🤖 Starting interview agent session...")
-        intro_question = InterviewAgentController.start_session(
-            session_id=str(user_id),
-            user_id=user_id
-        )
-        
-        if not intro_question:
-            intro_question = "Tell me briefly about yourself."
-
-        print(f"🤖 Agent intro question: {intro_question}")
-        
-        # Store question in session
-        streaming_sessions[session_key]["current_question"] = intro_question
-        streaming_sessions[session_key]["turn"] = "INTERVIEWER"
-        streaming_sessions[session_key]["agent_session_id"] = str(user_id)
-
-        # 🔥 CRITICAL: Emit intro question IMMEDIATELY
+        # 🔥 CRITICAL: Emit intro question from adaptive controller
         socketio.emit(
             "agent_intro_question",
-            {"question": intro_question},
+            {"question": adaptive_result["question"]},
             room=room
         )
 
@@ -1112,17 +1119,22 @@ def start_interview(data):
             'audio_filename': audio_filename,
             'priming_duration': 0,  # 🔥 NO DELAY
             'requires_buffering': False,  # 🔥 NO BUFFERING NEEDED
-            'intro_question': intro_question
+            'intro_question': adaptive_result["question"],
+            'topic': adaptive_result["topic"],
+            'difficulty': adaptive_result["difficulty"],
+            'masteries': adaptive_result.get('masteries', {})  # Include mastery data
         }, room=room)
         
-        print(f"✅ Live interview fully initialized for user {user_id}")
+        print(f"✅ Live interview fully initialized for user {user_id} with adaptive learning")
+        print(f"   Topic: {adaptive_result['topic']}, Difficulty: {adaptive_result['difficulty']}")
+        if 'masteries' in adaptive_result:
+            print(f"   Current masteries: {adaptive_result['masteries']}")
 
     except Exception as e:
         print(f"❌ Failed to start live interview: {e}")
         import traceback
         traceback.print_exc()
         emit('interview_error', {'error': str(e)}, room=room)
-
 
 @socketio.on("interviewer_done")
 def interviewer_done(data):
@@ -1542,6 +1554,132 @@ def upload_resume():
         else:
             return jsonify({'success': False, 'message': 'Could not extract text from resume'})
 
+
+@app.route('/api/user/progress', methods=['GET'])
+@jwt_required
+def get_user_progress():
+    """Get user's learning progress across topics"""
+    user_id = g.current_user.id
+    
+    masteries = UserMastery.query.filter_by(user_id=user_id).all()
+    
+    result = {
+        'topics': {},
+        'overall': {
+            'total_questions': 0,
+            'avg_mastery': 0,
+            'weakest_topics': [],
+            'strongest_topics': []
+        }
+    }
+    
+    total_mastery = 0
+    topics_list = []
+    
+    for m in masteries:
+        data = m.to_dict()
+        result['topics'][m.topic] = data
+        total_mastery += m.mastery_level
+        topics_list.append((m.topic, m.mastery_level))
+    
+    if topics_list:
+        result['overall']['avg_mastery'] = total_mastery / len(topics_list)
+        topics_list.sort(key=lambda x: x[1])
+        result['overall']['weakest_topics'] = [t[0] for t in topics_list[:3]]
+        result['overall']['strongest_topics'] = [t[0] for t in topics_list[-3:]]
+    
+    return jsonify({'success': True, 'data': result})
+
+
+@app.route('/api/user/sessions', methods=['GET'])
+@jwt_required
+def get_user_sessions():
+    """Get user's interview session history"""
+    user_id = g.current_user.id
+    
+    sessions = InterviewSession.query.filter_by(user_id=user_id)\
+                .order_by(InterviewSession.start_time.desc())\
+                .limit(20).all()
+    
+    return jsonify({
+        'success': True,
+        'sessions': [s.to_dict() for s in sessions]
+    })
+
+
+@app.route('/api/user/topics/<topic>/details', methods=['GET'])
+@jwt_required
+def get_topic_details(topic):
+    """Get detailed information about a specific topic"""
+    user_id = g.current_user.id
+    
+    mastery = UserMastery.query.filter_by(user_id=user_id, topic=topic).first()
+    
+    if not mastery:
+        return jsonify({'success': False, 'error': 'Topic not found'})
+    
+    # Get recent questions for this topic
+    recent = QuestionHistory.query.filter_by(
+        user_id=user_id, 
+        topic=topic
+    ).order_by(QuestionHistory.timestamp.desc()).limit(10).all()
+    
+    return jsonify({
+        'success': True,
+        'data': {
+            'mastery': mastery.to_dict(),
+            'recent_questions': [
+                {
+                    'question': q.question[:100] + '...' if len(q.question) > 100 else q.question,
+                    'semantic_score': q.semantic_score,
+                    'keyword_score': q.keyword_score,
+                    'coverage_score': q.coverage_score,
+                    'timestamp': q.timestamp.isoformat()
+                } for q in recent
+            ]
+        }
+    })
+
+@app.route('/api/user/masteries', methods=['GET'])
+@jwt_required
+def get_user_masteries():
+    """Get user's topic masteries for adaptive learning display"""
+    user_id = g.current_user.id
+    
+    masteries = UserMastery.query.filter_by(user_id=user_id).all()
+    
+    result = {
+        'masteries': {},
+        'overall': {
+            'avg_mastery': 0,
+            'weakest_topics': [],
+            'strongest_topics': [],
+            'total_questions': 0
+        }
+    }
+    
+    if not masteries:
+        return jsonify({'success': True, 'data': result})
+    
+    total_mastery = 0
+    topics_list = []
+    total_questions = 0
+    
+    for m in masteries:
+        data = m.to_dict()
+        result['masteries'][m.topic] = data
+        total_mastery += m.mastery_level
+        topics_list.append((m.topic, m.mastery_level))
+        total_questions += m.questions_attempted
+    
+    if topics_list:
+        result['overall']['avg_mastery'] = total_mastery / len(topics_list)
+        topics_list.sort(key=lambda x: x[1])
+        result['overall']['weakest_topics'] = [t[0] for t in topics_list[:3]]
+        result['overall']['strongest_topics'] = [t[0] for t in topics_list[-3:]]
+        result['overall']['total_questions'] = total_questions
+    
+    return jsonify({'success': True, 'data': result})
 
 @app.route('/api/query', methods=['POST'])
 @jwt_required

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../Layout/Header';
 import SkillsManager from './SkillsManager';
-import { profileAPI, statsAPI } from '../../services/api';
+import { profileAPI, statsAPI, progressAPI } from '../../services/api';
 import './Profile.css';
 
 const Profile = ({ user, onLogout }) => {
@@ -9,10 +9,14 @@ const Profile = ({ user, onLogout }) => {
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [stats, setStats] = useState({ sessions: 0 });
+  const [progress, setProgress] = useState(null);
+  const [selectedTopic, setSelectedTopic] = useState(null);
+  const [topicDetails, setTopicDetails] = useState(null);
   const [message, setMessage] = useState({ type: '', text: '' });
 
   useEffect(() => {
     loadStats();
+    loadProgress();
   }, []);
 
   const loadStats = async () => {
@@ -24,10 +28,33 @@ const Profile = ({ user, onLogout }) => {
     }
   };
 
+  const loadProgress = async () => {
+    try {
+      const response = await progressAPI.getUserProgress();
+      if (response.data?.success) {
+        setProgress(response.data.data);
+      }
+    } catch (error) {
+      console.error('Failed to load progress:', error);
+    }
+  };
+
+  const loadTopicDetails = async (topic) => {
+    try {
+      const response = await progressAPI.getTopicDetails(topic);
+      if (response.data?.success) {
+        setTopicDetails(response.data.data);
+        setSelectedTopic(topic);
+      }
+    } catch (error) {
+      console.error(`Failed to load ${topic} details:`, error);
+    }
+  };
+
   const handleSave = async (formData) => {
     setLoading(true);
     try {
-      await profileAPI.update(formData); // Removed unused 'response' variable
+      await profileAPI.update(formData);
       setProfile(prev => ({ ...prev, ...formData }));
       setEditing(false);
       showMessage('success', 'Profile updated successfully!');
@@ -43,12 +70,22 @@ const Profile = ({ user, onLogout }) => {
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
   };
 
+  const getMasteryColor = (level) => {
+    if (level >= 0.7) return '#10B981';
+    if (level >= 0.4) return '#F59E0B';
+    return '#EF4444';
+  };
+
+  const formatMastery = (level) => {
+    return `${(level * 100).toFixed(1)}%`;
+  };
+
   return (
     <div className="profile-container">
-      <Header 
-        user={user} 
-        onLogout={onLogout} 
-        title="Profile Management" 
+      <Header
+        user={user}
+        onLogout={onLogout}
+        title="Profile Management"
         showBack={true}
       />
 
@@ -68,11 +105,11 @@ const Profile = ({ user, onLogout }) => {
         </section>
 
         <div className="profile-content">
-          {/* Personal Information Card - CHANGED TO profile-info-card */}
+          {/* Personal Information Card */}
           <div className="profile-info-card">
             <div className="card-header">
               <h3><i className="fas fa-user"></i> Personal Information</h3>
-              <button 
+              <button
                 onClick={() => setEditing(!editing)}
                 className="edit-btn"
               >
@@ -100,7 +137,7 @@ const Profile = ({ user, onLogout }) => {
                 </div>
               </div>
             ) : (
-              <ProfileForm 
+              <ProfileForm
                 profile={profile}
                 onSave={handleSave}
                 onCancel={() => setEditing(false)}
@@ -110,7 +147,7 @@ const Profile = ({ user, onLogout }) => {
           </div>
 
           {/* Skills Card */}
-          <SkillsManager 
+          <SkillsManager
             skills={profile.skills || []}
             onSkillsUpdate={(newSkills) => {
               setProfile(prev => ({ ...prev, skills: newSkills }));
@@ -118,6 +155,168 @@ const Profile = ({ user, onLogout }) => {
             }}
           />
         </div>
+
+        {/* Learning Progress Section - ADAPTIVE LEARNING */}
+        {progress && (
+          <div className="progress-section">
+            <div className="progress-header">
+              <h3><i className="fas fa-chart-line"></i> Learning Progress</h3>
+              <div className="progress-summary">
+                <span className="avg-mastery">
+                  Avg Mastery: <strong style={{ color: getMasteryColor(progress.overall.avg_mastery) }}>
+                    {formatMastery(progress.overall.avg_mastery)}
+                  </strong>
+                </span>
+              </div>
+            </div>
+
+            {/* Strengths & Weaknesses */}
+            <div className="strength-weakness-grid">
+              <div className="strength-card">
+                <h4><i className="fas fa-trophy"></i> Your Strengths</h4>
+                {progress.overall.strongest_topics.length > 0 ? (
+                  progress.overall.strongest_topics.map(topic => {
+                    const mastery = progress.topics[topic]?.mastery_level || 0;
+                    return (
+                      <div key={topic} className="topic-chip strong">
+                        <span>{topic}</span>
+                        <span className="chip-value">{formatMastery(mastery)}</span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="no-data">No strong topics identified yet</p>
+                )}
+              </div>
+              <div className="weakness-card">
+                <h4><i className="fas fa-exclamation-triangle"></i> Areas to Improve</h4>
+                {progress.overall.weakest_topics.length > 0 ? (
+                  progress.overall.weakest_topics.map(topic => {
+                    const mastery = progress.topics[topic]?.mastery_level || 0;
+                    return (
+                      <div key={topic} className="topic-chip weak">
+                        <span>{topic}</span>
+                        <span className="chip-value">{formatMastery(mastery)}</span>
+                      </div>
+                    );
+                  })
+                ) : (
+                  <p className="no-data">No weak topics identified yet</p>
+                )}
+              </div>
+            </div>
+
+            {/* Topic Mastery Grid */}
+            <h4 className="topics-title">Topic Mastery</h4>
+            <div className="topics-grid">
+              {Object.entries(progress.topics).map(([topic, data]) => (
+                <div
+                  key={topic}
+                  className="topic-card"
+                  onClick={() => loadTopicDetails(topic)}
+                >
+                  <div className="topic-header">
+                    <span className="topic-name">{topic}</span>
+                    <span className={`topic-difficulty ${data.current_difficulty}`}>
+                      {data.current_difficulty}
+                    </span>
+                  </div>
+
+                  <div className="mastery-bar">
+                    <div
+                      className="mastery-fill"
+                      style={{
+                        width: `${data.mastery_level * 100}%`,
+                        backgroundColor: getMasteryColor(data.mastery_level)
+                      }}
+                    />
+                  </div>
+
+                  <div className="topic-stats">
+                    <span><i className="fas fa-question-circle"></i> {data.questions_attempted}</span>
+                    <span className="mastery-value">{formatMastery(data.mastery_level)}</span>
+                  </div>
+
+                  {data.learning_velocity !== 0 && (
+                    <div className="velocity-badge"
+                      style={{ color: data.learning_velocity > 0 ? '#10B981' : '#EF4444' }}>
+                      <i className={`fas fa-arrow-${data.learning_velocity > 0 ? 'up' : 'down'}`}></i>
+                      {Math.abs(data.learning_velocity * 100).toFixed(1)}%
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Topic Details Modal */}
+        {selectedTopic && topicDetails && (
+          <div className="topic-details-modal" onClick={() => setSelectedTopic(null)}>
+            <div className="modal-content" onClick={e => e.stopPropagation()}>
+              <button className="close-btn" onClick={() => setSelectedTopic(null)}>×</button>
+
+              <h3>{selectedTopic} - Detailed Analysis</h3>
+
+              <div className="mastery-details">
+                <div className="detail-item">
+                  <span>Mastery Level</span>
+                  <strong style={{ color: getMasteryColor(topicDetails.mastery.mastery_level) }}>
+                    {formatMastery(topicDetails.mastery.mastery_level)}
+                  </strong>
+                </div>
+                <div className="detail-item">
+                  <span>Current Difficulty</span>
+                  <strong className={`difficulty-${topicDetails.mastery.current_difficulty}`}>
+                    {topicDetails.mastery.current_difficulty}
+                  </strong>
+                </div>
+                <div className="detail-item">
+                  <span>Questions Attempted</span>
+                  <strong>{topicDetails.mastery.questions_attempted}</strong>
+                </div>
+                <div className="detail-item">
+                  <span>Learning Velocity</span>
+                  <strong style={{ color: topicDetails.mastery.learning_velocity > 0 ? '#10B981' : '#EF4444' }}>
+                    {(topicDetails.mastery.learning_velocity * 100).toFixed(1)}%
+                  </strong>
+                </div>
+              </div>
+
+              {topicDetails.mastery.missing_concepts?.length > 0 && (
+                <div className="missing-section">
+                  <h4>📝 Concepts to Focus On</h4>
+                  <div className="concept-list">
+                    {topicDetails.mastery.missing_concepts.map(concept => (
+                      <span key={concept} className="concept-tag">{concept}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {topicDetails.recent_questions?.length > 0 && (
+                <div className="recent-questions">
+                  <h4>Recent Questions</h4>
+                  {topicDetails.recent_questions.map((q, idx) => (
+                    <div key={idx} className="recent-question">
+                      <p className="question-text">{q.question}</p>
+                      {q.expected_answer && (
+                        <div className="expected-answer">
+                          <strong>Expected:</strong> {q.expected_answer}
+                        </div>
+                      )}
+                      <div className="question-scores">
+                        <span className="score semantic">S: {(q.semantic_score * 100).toFixed(1)}%</span>
+                        <span className="score keyword">K: {(q.keyword_score * 100).toFixed(1)}%</span>
+                        <span className="score coverage">C: {(q.coverage_score * 100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Statistics */}
         <div className="stats-grid">
@@ -134,8 +333,8 @@ const Profile = ({ user, onLogout }) => {
             <div className="stat-label">Skills Listed</div>
           </div>
           <div className="stat-card">
-            <div className="stat-number">1</div>
-            <div className="stat-label">Days Active</div>
+            <div className="stat-number">{progress?.overall?.total_questions || 0}</div>
+            <div className="stat-label">Questions Answered</div>
           </div>
         </div>
       </main>

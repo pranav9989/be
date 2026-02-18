@@ -1,7 +1,7 @@
 import axios from 'axios';
 
-const API_BASE_URL = process.env.NODE_ENV === 'production' 
-  ? '' 
+const API_BASE_URL = process.env.NODE_ENV === 'production'
+  ? ''
   : 'http://localhost:5000/api';
 
 const api = axios.create({
@@ -73,6 +73,12 @@ export const audioAPI = {
   uploadAudio: (formData) => api.post('/process_audio', formData, {
     headers: { 'Content-Type': 'multipart/form-data' }
   }),
+};
+
+// ✅ ADD THIS - Progress tracking API
+export const progressAPI = {
+  getUserProgress: () => api.get('/user/progress'),
+  getTopicDetails: (topic) => api.get(`/user/topics/${topic}/details`)
 };
 
 export default api;
