@@ -3,6 +3,9 @@
 import re
 from typing import List, Set, Dict
 import numpy as np
+# 🔥 ADD THESE IMPORTS
+from interview_analyzer import calculate_semantic_similarity
+from rag import agentic_expected_answer
 
 class AdaptiveAnalyzer:
     """Enhanced analyzer with adaptive learning signals"""
@@ -188,6 +191,14 @@ class AdaptiveAnalyzer:
         else:
             est_difficulty = "medium"
         
+        # Calculate REAL semantic similarity
+        try:
+            expected_answer, _ = agentic_expected_answer(question)
+            semantic_similarity = calculate_semantic_similarity(answer, expected_answer)
+        except Exception as e:
+            print(f"⚠️ Could not calculate semantic similarity: {e}")
+            semantic_similarity = 0.0
+
         return {
             "coverage_score": round(coverage, 3),
             "depth": depth,
@@ -199,5 +210,6 @@ class AdaptiveAnalyzer:
             "grammatical_quality": round(grammatical_quality, 3),
             "has_example": has_example,
             "estimated_difficulty": est_difficulty,
-            "expected_keywords": list(expected_keywords)
+            "expected_keywords": list(expected_keywords),
+            "semantic_similarity": semantic_similarity  # 🔥 ADD THIS
         }

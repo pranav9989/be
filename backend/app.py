@@ -57,8 +57,6 @@ import PyPDF2
 import docx
 import random
 
-from agent.analyzer import analyze_answer
-from agent.controller import InterviewAgentController
 # Add these imports
 from agent.adaptive_controller import AdaptiveInterviewController
 
@@ -380,7 +378,7 @@ def finalize_user_answer(session_key):
             # Interview is complete
             print("🎉 Interview complete - finalizing...")
             # Let the stop_interview handler take over
-            stop_interview({"user_id": session_key[0]})
+            stop_interview({"user_id": session_key[0]}, sid=session_key[1])
             
     except Exception as e:
         print(f"❌ Error in agent loop: {e}")
@@ -388,6 +386,7 @@ def finalize_user_answer(session_key):
 
     # 5. Clean up thread flags
     session["silence_thread_started"] = False
+
 
 def silence_watcher(session_key, timeout=15):
     """
@@ -845,14 +844,31 @@ def handle_trigger_backend_ready(data):
             print(f"⚠️ No room found for session {session_key}")
 
 @socketio.on("stop_interview")
-def stop_interview(data):
+def stop_interview(data, sid=None):
     """Stop the live interview and perform final analysis using pre-aggregated stats"""
     user_id = data.get('user_id')
-    sid = request.sid
-    session_key = (user_id, sid)
-
-    if session_key not in streaming_sessions:
-        print(f"⚠️ Session {session_key} not found in streaming sessions")
+    
+    # If sid is provided, use it; otherwise try to get from request
+    if sid is None:
+        try:
+            sid = request.sid
+        except RuntimeError:
+            sid = None
+    
+    # Try to find session by user_id and sid
+    session_key = None
+    if sid:
+        session_key = (user_id, sid)
+    
+    # If not found, try to find any session with this user_id
+    if not session_key or session_key not in streaming_sessions:
+        for key in streaming_sessions.keys():
+            if key[0] == user_id:
+                session_key = key
+                break
+    
+    if not session_key or session_key not in streaming_sessions:
+        print(f"⚠️ Session for user {user_id} not found in streaming sessions")
         return
 
     session_data = streaming_sessions[session_key]
@@ -867,20 +883,9 @@ def stop_interview(data):
         if 'session' in session_data and session_data['session']:
             session_data['session'].stop()
 
-        # 3️⃣ Combine final transcripts - FIXED: Ensure all text is captured
+        # 3️⃣ Combine final transcripts
         full_transcript = " ".join(session_data.get('final_text', []))
         
-        # If transcript is empty, try to get from AssemblyAI session
-        if not full_transcript and 'session' in session_data:
-            # Try to get any pending transcription
-            try:
-                if hasattr(session_data['session'], 'get_final_transcript'):
-                    pending_text = session_data['session'].get_final_transcript()
-                    if pending_text:
-                        full_transcript = pending_text
-            except:
-                pass
-
         # 4️⃣ Get incremental statistics
         stats = session_data.get('stats', RunningStatistics())
         final_stats = stats.get_current_stats()
@@ -900,7 +905,7 @@ def stop_interview(data):
             expected_answer=expected_answer
         )
 
-        # 6️⃣ Emit FINAL result BEFORE cleanup
+        # 6️⃣ Emit FINAL result
         analysis_results = {
             'success': True,
             'processing_method': 'incremental_fast',
@@ -912,26 +917,21 @@ def stop_interview(data):
             'total_duration': final_stats.get('total_duration', 0),
             'speaking_time': final_stats.get('speaking_time', 0),
             'total_words': final_stats.get('total_words', 0),
-            # 🔥 ADD THIS - Pass the Q&A pairs to frontend
             'qa_pairs': final_stats.get('qa_pairs', [])
         }
 
-        emit('interview_complete', analysis_results, room=room)
+        socketio.emit('interview_complete', analysis_results, room=room)
         print(f"🛑 Interview stopped for user {user_id} — FINAL metrics delivered")
 
-        # 7️⃣ Cleanup session AFTER emitting results
-        # Remove any pending audio chunks
+        # 7️⃣ Cleanup
         session_data["user_audio_chunks"] = []
         session_data["interviewer_audio_chunks"] = []
         session_data["early_buffer"] = []
-        
-        # Mark as destroyed
         session_data["destroyed"] = True
         
-        # Small delay before removing to ensure all events are processed
         import threading
         def delayed_cleanup():
-            time.sleep(2)  # Wait 2 seconds
+            time.sleep(2)
             if session_key in streaming_sessions:
                 del streaming_sessions[session_key]
                 print(f"🧹 Cleaned up session {session_key}")
@@ -942,7 +942,7 @@ def stop_interview(data):
         print(f"❌ Error stopping interview for user {user_id}: {e}")
         import traceback
         traceback.print_exc()
-        emit('interview_error', {'error': str(e)}, room=room)
+        socketio.emit('interview_error', {'error': str(e)}, room=room)
 
 @socketio.on('start_interview')
 def start_interview(data):
@@ -1684,15 +1684,19 @@ def get_user_masteries():
 @app.route('/api/query', methods=['POST'])
 @jwt_required
 def rag_query():
+    """
+    Technical Interview Chatbot endpoint
+    Returns DETAILED educational explanations for learning
+    """
     try:
         data = request.get_json()
         user_query = data.get('query', '').strip()
         if not user_query:
             return jsonify({'error': 'Query cannot be empty'}), 400
 
-        # Use the exact same RAG system as rag_query.py
-        from rag import main as rag_main
-        answer, retrieved = rag_main(user_query)
+        # Use the DETAILED version for learning
+        from rag import technical_interview_query
+        answer, retrieved = technical_interview_query(user_query)
 
         # Extract topic info from first retrieved item
         topic = retrieved[0]["topic"] if retrieved else None
@@ -1704,11 +1708,12 @@ def rag_query():
             'answer': answer,
             'detected_topic': topic,
             'detected_subtopic': subtopic,
-            'source_count': len(retrieved)
+            'source_count': len(retrieved),
+            'type': 'detailed_explanation'
         }
         return jsonify(response_data)
     except Exception as e:
-        print(f"❌ RAG Query Error: {str(e)}")
+        print(f"❌ Technical Query Error: {str(e)}")
         import traceback
         traceback.print_exc()
         return jsonify({'error': f'Server error: {str(e)}'}), 500

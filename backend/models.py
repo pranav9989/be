@@ -60,6 +60,8 @@ class UserMastery(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     topic = db.Column(db.String(50), nullable=False)
+    sessions_attempted = db.Column(db.Integer, default=0)  # 🔥 NEW
+    last_session_date = db.Column(db.DateTime, nullable=True)  # 🔥 NEW
     
     # Mastery scores (0-1)
     mastery_level = db.Column(db.Float, default=0.0)
@@ -85,6 +87,9 @@ class UserMastery(db.Model):
     missing_concepts = db.Column(db.Text, default='[]')
     weak_concepts = db.Column(db.Text, default='[]')
     strong_concepts = db.Column(db.Text, default='[]')
+    
+    # 🔥 NEW: Concept stagnation tracking
+    concept_stagnation = db.Column(db.Text, default='{}')
     
     # Timestamps
     first_attempt = db.Column(db.DateTime, default=datetime.utcnow)
@@ -116,8 +121,14 @@ class UserMastery(db.Model):
     def set_strong_concepts(self, concepts):
         self.strong_concepts = json.dumps(concepts[:10])
     
+    def get_concept_stagnation(self):
+        return json.loads(self.concept_stagnation) if self.concept_stagnation else {}
+    
+    def set_concept_stagnation(self, stagnation_dict):
+        self.concept_stagnation = json.dumps(stagnation_dict)
+    
     def update_mastery(self, semantic_score, keyword_score, coverage_score, response_time, missing=None):
-        """Update mastery using exponential moving average"""
+        """Update mastery using exponential moving average - REBALANCED"""
         # 🔥 SAFETY FIX: Ensure no None values before math operations
         self.semantic_avg = self.semantic_avg or 0.0
         self.keyword_avg = self.keyword_avg or 0.0
@@ -148,14 +159,14 @@ class UserMastery(db.Model):
         # Store old mastery for velocity calculation
         old_mastery = self.mastery_level or 0.0
         
-        # Calculate new mastery
+        # 🔥 NEW FORMULA: Semantic dominant (70%), coverage (20%), keyword (10%)
         self.mastery_level = (
-            (self.semantic_avg or 0.0) * 0.4 +
-            (self.keyword_avg or 0.0) * 0.3 +
-            (self.coverage_avg or 0.0) * 0.3
+            (self.semantic_avg or 0.0) * 0.7 +
+            (self.coverage_avg or 0.0) * 0.2 +
+            (self.keyword_avg or 0.0) * 0.1
         )
         
-        # Update learning velocity
+        # Update learning velocity (delta)
         self.mastery_velocity = self.mastery_level - old_mastery
         self.last_mastery = old_mastery
         
@@ -167,8 +178,8 @@ class UserMastery(db.Model):
         if coverage_score > 0.6:
             self.correct_count += 1
         
-        # Update consecutive patterns
-        combined_score = (semantic_score * 0.4 + keyword_score * 0.3 + coverage_score * 0.3)
+        # 🔥 Update consecutive patterns using rebalanced weights for consistency
+        combined_score = (semantic_score * 0.7 + keyword_score * 0.1 + coverage_score * 0.2)
         if combined_score > 0.7:
             self.consecutive_good += 1
             self.consecutive_poor = 0
@@ -187,13 +198,20 @@ class UserMastery(db.Model):
         else:
             self.current_difficulty = "medium"
         
-        # Update missing concepts
+        # Update missing concepts and stagnation
         if missing:
             current_missing = self.get_missing_concepts()
+            stagnation = self.get_concept_stagnation()
+            
             for concept in missing:
                 if concept not in current_missing:
                     current_missing.append(concept)
+                
+                # Increment stagnation count for this concept
+                stagnation[concept] = stagnation.get(concept, 0) + 1
+            
             self.set_missing_concepts(current_missing)
+            self.set_concept_stagnation(stagnation)
         
         self.last_attempt = datetime.utcnow()
     
@@ -206,7 +224,8 @@ class UserMastery(db.Model):
             'missing_concepts': self.get_missing_concepts(),
             'weak_concepts': self.get_weak_concepts(),
             'strong_concepts': self.get_strong_concepts(),
-            'learning_velocity': round(self.mastery_velocity, 3)
+            'learning_velocity': round(self.mastery_velocity, 3),
+            'stagnant_concepts': self.get_concept_stagnation()
         }
 
 

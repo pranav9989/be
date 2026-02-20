@@ -19,7 +19,8 @@ const AgenticInterview = ({ user, onLogout }) => {
         interviewDone,
         analysis,
         finalTranscript,
-        metrics
+        metrics,
+        sessionPlan
     } = useInterviewStreaming(user.id);
 
     const [started, setStarted] = useState(false);
@@ -67,6 +68,7 @@ const AgenticInterview = ({ user, onLogout }) => {
     };
 
     // Format metrics for display
+    // Format metrics for display - NO SCALING, TRUE VALUES ONLY
     const renderMetrics = () => {
         if (!analysis && !metrics) return null;
 
@@ -86,8 +88,18 @@ const AgenticInterview = ({ user, onLogout }) => {
             <div className="metrics-panel">
                 <h3>📊 Interview Analysis</h3>
 
+                {/* 🔥 NEW: Explanation of metrics */}
+                <div className="metrics-explanation">
+                    <p><strong>All scores are raw, unaltered values (0.00 to 1.00):</strong></p>
+                    <ul>
+                        <li><strong>Semantic Similarity</strong> = True cosine similarity between your answer and expected answer</li>
+                        <li><strong>Keyword Coverage</strong> = Percentage of technical terms you used (stop words filtered)</li>
+                        <li><strong>Overall Relevance</strong> = 80% semantic + 20% keyword (weighted average)</li>
+                    </ul>
+                </div>
+
                 <div className="metrics-grid">
-                    {/* Transcript Section - Now shows FULL conversation */}
+                    {/* Transcript Section - Shows FULL conversation */}
                     <div className="metric-section full-width">
                         <h4>📝 Complete Interview Transcript</h4>
                         <div className="transcript-box full-conversation">
@@ -150,30 +162,40 @@ const AgenticInterview = ({ user, onLogout }) => {
                                     {metricsData.questions_answered || data.question_count || 0}
                                 </span>
                             </div>
+
+                            {/* 🔥 TRUE values - NO SCALING */}
                             <div className="metric-item">
                                 <span className="metric-label">Avg Semantic Similarity:</span>
-                                <span className="metric-value">
-                                    {metricsData.avg_semantic_similarity ? `${(metricsData.avg_semantic_similarity * 100).toFixed(1)}%` :
-                                        data.avg_semantic_similarity ? `${(data.avg_semantic_similarity * 100).toFixed(1)}%` : 'N/A'}
+                                <span className="metric-value true-value">
+                                    {(metricsData.avg_semantic_similarity !== undefined ?
+                                        (metricsData.avg_semantic_similarity * 100).toFixed(1) :
+                                        data.avg_semantic_similarity ? (data.avg_semantic_similarity * 100).toFixed(1) : 'N/A')}%
+                                    <span className="value-note"> (raw cosine)</span>
                                 </span>
                             </div>
+
                             <div className="metric-item">
                                 <span className="metric-label">Avg Keyword Coverage:</span>
-                                <span className="metric-value">
-                                    {metricsData.avg_keyword_coverage ? `${(metricsData.avg_keyword_coverage * 100).toFixed(1)}%` :
-                                        data.avg_keyword_coverage ? `${(data.avg_keyword_coverage * 100).toFixed(1)}%` : 'N/A'}
+                                <span className="metric-value true-value">
+                                    {(metricsData.avg_keyword_coverage !== undefined ?
+                                        (metricsData.avg_keyword_coverage * 100).toFixed(1) :
+                                        data.avg_keyword_coverage ? (data.avg_keyword_coverage * 100).toFixed(1) : 'N/A')}%
+                                    <span className="value-note"> (stop words filtered)</span>
                                 </span>
                             </div>
+
                             <div className="metric-item highlight">
                                 <span className="metric-label">Overall Relevance:</span>
                                 <span className="metric-value highlight-value">
-                                    {metricsData.overall_relevance ? `${(metricsData.overall_relevance * 100).toFixed(1)}%` :
-                                        data.combined_relevance_score ? `${(data.combined_relevance_score * 100).toFixed(1)}%` : 'N/A'}
+                                    {(metricsData.overall_relevance !== undefined ?
+                                        (metricsData.overall_relevance * 100).toFixed(1) :
+                                        data.combined_relevance_score ? (data.combined_relevance_score * 100).toFixed(1) : 'N/A')}%
+                                    <span className="value-note"> (80/20 weighted)</span>
                                 </span>
                             </div>
                         </div>
 
-                        {/* Detailed Q&A Pairs (Collapsible) */}
+                        {/* Detailed Q&A Pairs (Collapsible) - Show TRUE per-question values */}
                         {qaPairs.length > 0 && (
                             <div className="qa-details">
                                 <h5 onClick={() => toggleQAExpanded('all')} className="qa-toggle">
@@ -194,12 +216,16 @@ const AgenticInterview = ({ user, onLogout }) => {
                                                         <strong>Expected:</strong> {pair.expected_answer}
                                                     </div>
                                                 )}
+
+                                                {/* 🔥 TRUE per-question scores - NO SCALING */}
                                                 <div className="qa-scores">
                                                     <span className="qa-score semantic">
                                                         Semantic: {(pair.similarity * 100).toFixed(1)}%
+                                                        <span className="score-note"> raw cosine</span>
                                                     </span>
                                                     <span className="qa-score keyword">
                                                         Keyword: {(pair.keyword_coverage * 100).toFixed(1)}%
+                                                        <span className="score-note"> filtered</span>
                                                     </span>
                                                 </div>
                                             </div>
@@ -294,6 +320,32 @@ const AgenticInterview = ({ user, onLogout }) => {
                                 </>
                             )}
                         </div>
+
+                        {/* Strategic Plan Display */}
+                        {sessionPlan && started && (
+                            <div className="strategic-plan">
+                                <h4>🎯 Session Strategy</h4>
+                                <div className="plan-badges">
+                                    <span className="plan-badge primary">
+                                        Focus: {sessionPlan.primary_focus}
+                                    </span>
+                                    <span className="plan-badge strategy">
+                                        Strategy: {sessionPlan.strategy}
+                                    </span>
+                                    <span className="plan-badge target">
+                                        Target: +{(sessionPlan.target_mastery_improvement * 100).toFixed(0)}%
+                                    </span>
+                                </div>
+                                <div className="plan-details">
+                                    {Object.entries(sessionPlan.estimated_questions || {}).map(([topic, count]) => (
+                                        <div key={topic} className="plan-topic">
+                                            <span>{topic}</span>
+                                            <span>{count} questions</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
 
                         {/* Control Buttons */}
                         <div className="agentic-controls">

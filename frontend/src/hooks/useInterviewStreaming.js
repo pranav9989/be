@@ -19,6 +19,7 @@ export const useInterviewStreaming = (userId) => {
     const [messages, setMessages] = useState([]);
     const [currentTurn, setCurrentTurn] = useState('INTERVIEWER');
     const [metrics, setMetrics] = useState(null);
+    const [sessionPlan, setSessionPlan] = useState(null);
 
     const socketRef = useRef(null);
     const audioContextRef = useRef(null);
@@ -233,6 +234,9 @@ export const useInterviewStreaming = (userId) => {
         // Listen for interview started
         socketRef.current.on('interview_started', async (data) => {
             console.log('🎤 Interview started', data);
+            if (data.session_plan) {
+                setSessionPlan(data.session_plan);
+            }
 
             setIsRecording(true);
             setInterviewDone(false);
@@ -581,6 +585,7 @@ export const useInterviewStreaming = (userId) => {
         timeRemaining: formatTime(timeRemaining),
         currentTurn,
         messages,
+        sessionPlan: sessionPlan,
 
         // Actions
         startRecording,

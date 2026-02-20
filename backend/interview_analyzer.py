@@ -241,9 +241,9 @@ class RunningStatistics:
         # Calculate average Q&A scores
         avg_semantic = self.total_semantic_score / self.question_count if self.question_count > 0 else 0
         avg_keyword = self.total_keyword_score / self.question_count if self.question_count > 0 else 0
-        
-        # Combined overall score (weighted)
-        combined_score = (avg_semantic * 0.6) + (avg_keyword * 0.4)
+
+        # 🔥 NEW: Reduce keyword weight to 20% of overall
+        combined_score = (avg_semantic * 0.8) + (avg_keyword * 0.2)
 
         return {
             'transcript': transcript,
@@ -354,30 +354,26 @@ def detect_fillers_repetitions(text):
             
     return filler_count, repetitions
 
-def calculate_semantic_similarity(answer, question):
+def calculate_semantic_similarity(answer, expected_answer):
     """
-    Calculate how well the answer addresses the question.
+    Calculate TRUE semantic similarity between answer and expected answer.
+    Returns raw cosine similarity (0.0 to 1.0) - NO ARTIFICIAL SCALING.
     """
-    if not answer or not question:
+    if not answer or not expected_answer:
         print(f"❌ Semantic similarity: Empty input")
         return 0.0
     
     try:
-        # Create context that emphasizes the question
-        context = f"Question: {question}\nA good answer should address this question directly."
+        # Encode both texts
+        answer_emb = embedder.encode([answer], normalize_embeddings=True)[0]
+        expected_emb = embedder.encode([expected_answer], normalize_embeddings=True)[0]
         
-        # Encode
-        answer_embedding = embedder.encode([answer], normalize_embeddings=True)[0]
-        context_embedding = embedder.encode([context], normalize_embeddings=True)[0]
+        # Calculate raw cosine similarity
+        similarity = cosine_similarity([answer_emb], [expected_emb])[0][0]
         
-        # Calculate
-        similarity = cosine_similarity([answer_embedding], [context_embedding])[0][0]
-        
-        # Scale to 0.3-0.9 range (never 0 or 1)
-        scaled_similarity = 0.3 + (similarity * 0.6)
-        
-        print(f"📊 Semantic similarity with question: {similarity:.3f} -> scaled: {scaled_similarity:.3f}")
-        return float(scaled_similarity)
+        # 🔥 NO SCALING - return the REAL value
+        print(f"📊 TRUE Semantic similarity: {similarity:.3f}")
+        return float(similarity)
         
     except Exception as e:
         print(f"❌ Semantic similarity error: {e}")
@@ -386,32 +382,48 @@ def calculate_semantic_similarity(answer, question):
 def calculate_keyword_coverage(answer, question):
     """
     Calculate how many keywords from the question appear in the answer.
+    Now with stop word filtering.
     """
     if not answer or not question:
         return 0.0
     
-    # Extract important keywords from question
-    # Focus on technical terms, nouns, etc.
     import re
     
-    # Common technical keywords by topic
+    # 🔥 NEW: Stop words to ignore
+    STOP_WORDS = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
+                  'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'be',
+                  'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
+                  'would', 'should', 'could', 'may', 'might', 'must', 'can', 'this',
+                  'that', 'these', 'those', 'there', 'here', 'what', 'which', 'who',
+                  'whom', 'whose', 'why', 'how', 'between', 'difference'}
+    
+    # Technical keywords by topic
     tech_keywords = {
         'dbms': ['database', 'sql', 'query', 'index', 'transaction', 'acid', 'normalization', 
-                'join', 'primary key', 'foreign key', 'schema', 'table'],
+                'join', 'primary key', 'foreign key', 'schema', 'table', 'bcnf', '3nf'],
         'os': ['process', 'thread', 'memory', 'deadlock', 'scheduling', 'virtual memory',
-              'kernel', 'system call', 'context switch', 'semaphore', 'mutex'],
+              'kernel', 'system call', 'context switch', 'semaphore', 'mutex', 'paging',
+              'segmentation', 'fifo', 'lru', 'race condition', 'critical section'],
         'oops': ['class', 'object', 'inheritance', 'polymorphism', 'encapsulation', 
-                'abstraction', 'interface', 'method', 'constructor', 'destructor'],
+                'abstraction', 'interface', 'method', 'constructor', 'destructor',
+                'virtual function', 'abstract class', 'multiple inheritance', 'composition']
     }
     
     # Extract words from question
     question_words = set(re.findall(r'\b[a-zA-Z]{3,}\b', question.lower()))
     
+    # 🔥 NEW: Remove stop words
+    question_words = {w for w in question_words if w not in STOP_WORDS}
+    
     # Add technical keywords if they appear in question
     for topic, keywords in tech_keywords.items():
         for kw in keywords:
             if kw in question.lower():
-                question_words.add(kw)
+                # Handle multi-word keywords
+                if ' ' in kw:
+                    question_words.add(kw)
+                else:
+                    question_words.add(kw)
     
     # Count matches in answer
     answer_lower = answer.lower()
@@ -419,21 +431,29 @@ def calculate_keyword_coverage(answer, question):
     matched_keywords = []
     
     for word in question_words:
-        if word in answer_lower:
-            matches += 1
-            matched_keywords.append(word)
+        # For multi-word terms, check if the exact phrase exists
+        if ' ' in word:
+            if word in answer_lower:
+                matches += 1
+                matched_keywords.append(word)
+        else:
+            # For single words, check with word boundaries
+            if re.search(r'\b' + re.escape(word) + r'\b', answer_lower):
+                matches += 1
+                matched_keywords.append(word)
     
-    # Calculate coverage (capped at 1.0)
+    # Calculate coverage
     if question_words:
         coverage = min(1.0, matches / len(question_words))
     else:
         coverage = 0.0
     
-    # Scale to be more meaningful (0.2-1.0 range)
-    scaled_coverage = 0.2 + (coverage * 0.8)
+    # 🔥 NEW: Lower scaling (0.1-0.7 instead of 0.2-1.0)
+    scaled_coverage = 0.1 + (coverage * 0.6)
     
     print(f"🔑 Keyword coverage: {matches}/{len(question_words)} = {coverage:.3f} -> scaled: {scaled_coverage:.3f}")
     print(f"   Matched: {matched_keywords}")
+    print(f"   Stop words filtered: {len(question_words)} keywords considered")
     
     return scaled_coverage
 
@@ -1394,8 +1414,8 @@ def compute_research_metrics(stats: RunningStatistics) -> dict:
     avg_keyword = final_stats.get('avg_keyword_coverage', 0)
     question_count = final_stats.get('question_count', 0)
     
-    # Overall relevance score (weighted)
-    overall_relevance = (avg_semantic * 0.6) + (avg_keyword * 0.4)
+   # 🔥 NEW: Reduce keyword weight to 20% of overall
+    overall_relevance = (avg_semantic * 0.8) + (avg_keyword * 0.2)
     
     # 5️⃣ Filler Frequency (per minute)
     total_fillers = sum(stats.filler_counts.values())

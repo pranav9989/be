@@ -860,3 +860,170 @@
     flex-direction: column;
   }
 }
+
+/* Score Explanation */
+.score-explanation {
+  background: #f8f9fa;
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  font-size: 0.9rem;
+}
+
+.score-explanation ul {
+  margin: 8px 0 0 20px;
+  list-style: none;
+}
+
+.score-explanation li {
+  margin: 4px 0;
+  display: flex;
+  align-items: center;
+}
+
+.color-dot {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  margin-right: 8px;
+}
+
+.color-dot.strong {
+  background: #10B981;
+}
+
+.color-dot.weak {
+  background: #EF4444;
+}
+
+.color-dot.medium {
+  background: #F59E0B;
+}
+
+/* Topic Status Badges */
+.topic-status-badge {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 500;
+  margin-bottom: 16px;
+}
+
+.topic-status-badge.strong {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.topic-status-badge.weak {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.topic-status-badge.medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Topic Card Status */
+.topic-card.status-strong {
+  border-left: 4px solid #10B981;
+}
+
+.topic-card.status-weak {
+  border-left: 4px solid #EF4444;
+}
+
+.topic-card.status-medium {
+  border-left: 4px solid #F59E0B;
+}
+
+.topic-status {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+  border-radius: 12px;
+}
+
+.topic-status.status-strong {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.topic-status.status-weak {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.topic-status.status-medium {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+/* Concept Tags */
+.concept-tag.weak {
+  background: #fee2e2;
+  color: #991b1b;
+  border-color: #fecaca;
+}
+
+.concept-tag.strong {
+  background: #d1fae5;
+  color: #065f46;
+  border-color: #a7f3d0;
+}
+
+/* Missing Sections */
+.missing-section.weak h4 {
+  color: #991b1b;
+}
+
+.missing-section.strong h4 {
+  color: #065f46;
+}
+
+/* Topic Badges */
+.topic-badges {
+  display: flex;
+  gap: 8px;
+  margin: 8px 0;
+  flex-wrap: wrap;
+}
+
+.topic-stability {
+  font-size: 0.75rem;
+  background: #f1f5f9;
+  padding: 2px 8px;
+  border-radius: 12px;
+  color: #475569;
+}
+
+/* Weak/Strong Concepts in Cards */
+.weak-concepts,
+.strong-concepts {
+  margin-top: 8px;
+  font-size: 0.8rem;
+}
+
+.weak-concepts small {
+  color: #991b1b;
+  background: #fee2e2;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+.strong-concepts small {
+  color: #065f46;
+  background: #d1fae5;
+  padding: 2px 8px;
+  border-radius: 12px;
+}
+
+/* Chip Stability */
+.chip-stability {
+  font-size: 0.7rem;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 10px;
+  margin-left: 4px;
+}

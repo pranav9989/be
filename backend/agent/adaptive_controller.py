@@ -3,17 +3,24 @@
 import time
 import json
 import numpy as np
-from typing import Dict, Any, Set
+import random
+from typing import Dict, Any, Set, List, Optional
 from datetime import datetime
 
-from .adaptive_state import AdaptiveInterviewState, AdaptiveQARecord
+from .adaptive_state import AdaptiveInterviewState, AdaptiveQARecord, TopicSessionState
 from .adaptive_analyzer import AdaptiveAnalyzer
 from .adaptive_decision import AdaptiveDecisionEngine
 from .adaptive_question_bank import AdaptiveQuestionBank
-from models import db, UserMastery, InterviewSession, QuestionHistory, AdaptiveInterviewSession
+from .adaptive_planner import adaptive_planner
+from .semantic_dedup import semantic_dedup
+from models import db, UserMastery, QuestionHistory, AdaptiveInterviewSession
 
 class AdaptiveInterviewController:
-    """Main controller for adaptive interviews"""
+    """
+    Longitudinal Adaptive Interview Controller
+    No session-level goals - only time/user limits
+    Tracks mastery across sessions for reinforcement
+    """
     
     # Available topics
     TOPICS = ["DBMS", "OS", "OOPS"]
@@ -22,11 +29,9 @@ class AdaptiveInterviewController:
         self.sessions: Dict[str, AdaptiveInterviewState] = {}
         self.question_bank = AdaptiveQuestionBank()
         self.decision_engine = AdaptiveDecisionEngine()
-        # Track asked questions per session to prevent repeats
-        self.asked_questions: Dict[str, Set[str]] = {}
     
     def start_session(self, session_id: str, user_id: int, user_name: str = "") -> dict:
-        """Start a new adaptive session, loading user history from DB"""
+        """Start a new adaptive session"""
         
         # Load user's mastery from database
         masteries = UserMastery.query.filter_by(user_id=user_id).all()
@@ -38,9 +43,6 @@ class AdaptiveInterviewController:
             user_name=user_name
         )
         
-        # Initialize asked questions set for this session
-        self.asked_questions[session_id] = set()
-        
         # Load masteries into state
         for m in masteries:
             mastery = state.ensure_topic_mastery(m.topic)
@@ -48,28 +50,32 @@ class AdaptiveInterviewController:
             mastery.semantic_avg = m.semantic_avg
             mastery.keyword_avg = m.keyword_avg
             mastery.coverage_avg = m.coverage_avg
-            mastery.questions_attempted = m.questions_attempted
-            mastery.correct_count = m.correct_count
-            mastery.avg_response_time = m.avg_response_time
+            mastery.total_questions = m.questions_attempted
+            mastery.sessions_attempted = getattr(m, 'sessions_attempted', 1)
             mastery.current_difficulty = m.current_difficulty
             mastery.consecutive_good = m.consecutive_good
             mastery.consecutive_poor = m.consecutive_poor
             mastery.missing_concepts = set(m.get_missing_concepts())
             mastery.weak_concepts = set(m.get_weak_concepts())
             mastery.strong_concepts = set(m.get_strong_concepts())
+            
+            # Load concept stagnation
+            if hasattr(m, 'concept_stagnation') and m.concept_stagnation:
+                try:
+                    mastery.concept_stagnation = json.loads(m.concept_stagnation)
+                except:
+                    mastery.concept_stagnation = {}
         
-        # Determine first topic based on weaknesses
-        if state.get_weakest_topics(1):
-            first_topic = state.get_weakest_topics(1)[0]
-        else:
-            first_topic = "DBMS"  # Default
+        # 🔥 NEW: Select first topic based on priority (weakest first)
+        sorted_topics = state.get_sorted_topics_by_priority()
+        first_topic = sorted_topics[0] if sorted_topics else random.choice(self.TOPICS)
         
         # Get personalized first question
         mastery_for_topic = state.ensure_topic_mastery(first_topic)
         difficulty = mastery_for_topic.get_recommended_difficulty()
         
-        # Generate question and ensure it's not a repeat (first question won't be)
-        first_question = self._generate_unique_question(
+        # Generate unique question
+        first_question, subtopic = self._generate_question(
             session_id=session_id,
             topic=first_topic,
             difficulty=difficulty,
@@ -78,12 +84,13 @@ class AdaptiveInterviewController:
         
         # Update state
         state.current_topic = first_topic
+        state.current_subtopic = subtopic
         state.current_question = first_question
         state.current_difficulty = difficulty
         state.question_start_time = time.time()
         
-        # Add to asked questions
-        self.asked_questions[session_id].add(first_question)
+        # Initialize topic session
+        state.get_topic_session(first_topic)
         
         # Store session
         self.sessions[session_id] = state
@@ -102,116 +109,142 @@ class AdaptiveInterviewController:
             "action": "START",
             "question": first_question,
             "topic": first_topic,
+            "subtopic": subtopic,
             "difficulty": difficulty,
             "time_remaining": state.time_remaining_sec(),
             "masteries": {
-                t: round(m.mastery_level, 3) 
+                t: {
+                    'level': round(m.mastery_level, 3),
+                    'total_questions': m.total_questions
+                }
                 for t, m in state.topic_mastery.items()
-            }
+            },
+            "topic_priority": state.get_sorted_topics_by_priority()
         }
     
-    def _generate_unique_question(self, session_id: str, topic: str, difficulty: str, user_name: str = "", max_attempts: int = 10) -> str:
-        """Generate a unique question that hasn't been asked in this session"""
+    def _generate_question(self, session_id: str, topic: str, difficulty: str, 
+                           user_name: str = "", max_attempts: int = 5) -> tuple:
+        """
+        Generate a question and return (question_text, subtopic)
+        """
+        # Get all previously asked questions
+        asked_questions = []
+        subtopic = None
         
-        if session_id not in self.asked_questions:
-            self.asked_questions[session_id] = set()
-        
-        # Get all previously asked questions for this topic
-        topic_questions = []
-        for q in self.asked_questions[session_id]:
-            if topic in q or any(keyword in q.lower() for keyword in self.question_bank.fallback_questions[topic]["medium"]):
-                topic_questions.append(q)
+        if session_id in self.sessions:
+            state = self.sessions[session_id]
+            asked_questions = [record.question for record in state.history]
         
         for attempt in range(max_attempts):
-            question = self.question_bank.generate_first_question(
-                topic=topic,
-                difficulty=difficulty,
-                user_name=user_name
-            )
-            
-            # Better duplicate detection
-            question_lower = question.lower()
-            is_duplicate = False
-            
-            for asked in topic_questions:
-                # Check for 70% similarity
-                asked_words = set(asked.lower().split())
-                question_words = set(question_lower.split())
-                if asked_words and question_words:
-                    similarity = len(asked_words.intersection(question_words)) / len(asked_words.union(question_words))
-                    if similarity > 0.7:
-                        is_duplicate = True
-                        break
+            # Check for stagnant concepts first
+            if session_id in self.sessions:
+                state = self.sessions[session_id]
+                stagnant = state.get_stagnant_concepts(topic, threshold=2)
+                if stagnant:
+                    question = self.question_bank.generate_gap_followup(
+                        topic=topic,
+                        missing_concepts=[stagnant[0]],
+                        difficulty=difficulty
+                    )
+                    subtopic = stagnant[0]
+                else:
+                    # Get a random subtopic from taxonomy
+                    if topic in self.question_bank.subtopics_by_topic:
+                        subtopics = self.question_bank.subtopics_by_topic[topic]
+                        subtopic = random.choice(subtopics)
+                    
+                    question = self.question_bank.generate_first_question(
+                        topic=topic,
+                        difficulty=difficulty,
+                        user_name=user_name
+                    )
+            else:
+                # First question - get random subtopic
+                if topic in self.question_bank.subtopics_by_topic:
+                    subtopics = self.question_bank.subtopics_by_topic[topic]
+                    subtopic = random.choice(subtopics)
                 
-                # Check if asking same concept
-                if "debug" in question_lower and "debug" in asked.lower():
-                    is_duplicate = True
-                    break
+                question = self.question_bank.generate_first_question(
+                    topic=topic,
+                    difficulty=difficulty,
+                    user_name=user_name
+                )
             
-            if not is_duplicate:
-                return question
+            # Check semantic uniqueness
+            if not semantic_dedup.is_duplicate(session_id, question, asked_questions):
+                return question, subtopic
             
-            # If we've tried too many times, use a completely different fallback
-            if attempt == max_attempts - 1:
-                import random
-                # Choose a different difficulty level
-                alt_difficulty = "easy" if difficulty == "hard" else "hard" if difficulty == "easy" else "medium"
-                return random.choice(self.question_bank.fallback_questions[topic][alt_difficulty])
+            print(f"🔄 Attempt {attempt + 1}: Question was semantically similar, retrying...")
         
-        return f"Can you explain a different concept in {topic}?"
+        # Fallback
+        alt_difficulty = random.choice([d for d in ["easy", "medium", "hard"] if d != difficulty])
+        fallback = random.choice(self.question_bank.fallback_questions[topic][alt_difficulty])
+        return fallback, None
     
     def handle_answer(self, session_id: str, answer: str) -> dict:
-        """Process user answer and generate next action"""
-    
+        """Process user answer"""
+        
         state = self.sessions.get(session_id)
         if not state:
             return {"error": "Session not found"}
         
+        # Calculate response time
         response_time = time.time() - (state.question_start_time or time.time())
+        
+        # Get current context
         question = state.current_question
         topic = state.current_topic
+        subtopic = state.current_subtopic
         
-        # Analyze answer using adaptive analyzer
+        # Analyze answer
         analysis = AdaptiveAnalyzer.analyze(question, answer, topic)
         
-        # IMPROVED SCORING
+        # Extract scores
         coverage_score = analysis.get("coverage_score", 0.5)
-        
-        # Calculate semantic score based on answer quality and length
         word_count = len(answer.split())
         depth_score = 0.3 if analysis.get("depth") == "shallow" else 0.6 if analysis.get("depth") == "medium" else 0.9
+        missing = analysis.get("missing_concepts", [])
         
-        # Base score from coverage
-        semantic_score = 0.4 + (coverage_score * 0.4)
+        # 🔥 NEW: Extract concepts from answer (for concept-level tracking)
+        concepts_mentioned = analysis.get("key_terms_used", [])
         
-        # Add depth bonus
-        semantic_score += depth_score * 0.2
+        # Calculate semantic score (reduced influence of coverage)
+        semantic_score = analysis.get("semantic_similarity", 0.5)
         
-        # Length penalty for very short answers
+        # Length penalty
         if word_count < 10:
             semantic_score *= 0.7
         elif word_count < 20:
             semantic_score *= 0.85
         
-        # Cap at 0.95
         semantic_score = min(0.95, semantic_score)
+        keyword_score = coverage_score  # Still track, but weight reduced in mastery
         
-        keyword_score = coverage_score
-        
-        # Update topic mastery
+        # 🔥 Update long-term topic mastery
         mastery = state.ensure_topic_mastery(topic)
         mastery.update(
             semantic=semantic_score,
             keyword=keyword_score,
             coverage=coverage_score,
             response_time=response_time,
-            missing=analysis["missing_concepts"]
+            missing=missing,
+            concepts=concepts_mentioned
+        )
+        
+        # 🔥 Update session-level topic tracking
+        topic_session = state.get_topic_session(topic)
+        topic_session.add_answer(
+            semantic=semantic_score,
+            coverage=coverage_score,
+            keyword=keyword_score,
+            depth=analysis.get("depth", "medium")
         )
         
         # Create QA record
         record = AdaptiveQARecord(
             question=question,
             topic=topic,
+            subtopic=subtopic,
             difficulty=state.current_difficulty,
             answer=answer,
             analysis=analysis,
@@ -219,27 +252,30 @@ class AdaptiveInterviewController:
             keyword_score=keyword_score,
             coverage_score=coverage_score,
             response_time=response_time,
-            missing_concepts=analysis["missing_concepts"]
+            missing_concepts=missing
         )
         
         # Add to history
         state.add_to_history(record)
         
         # Save to database
-        self._save_to_db(state.user_id, session_id, record)
+        self._save_to_db(state.user_id, session_id, record, mastery)
         
         # Decide next action
         action = self.decision_engine.decide(state, analysis)
         
         # Execute action
         if action == "FINALIZE":
-            # Clean up asked questions
-            if session_id in self.asked_questions:
-                del self.asked_questions[session_id]
-            return self._finalize_session(state, session_id)
+            self._finalize_session(state, session_id)
+            return {
+                "action": "FINALIZE",
+                "next_question": None,
+                "time_remaining": 0,
+                "feedback": self._generate_feedback(state)
+            }
         
         if action == "MOVE_TOPIC":
-            return self._move_to_new_topic(state, session_id)
+            return self._move_to_next_topic(state, session_id)
         
         if action == "SIMPLIFY":
             return self._simplify_question(state, session_id)
@@ -259,60 +295,61 @@ class AdaptiveInterviewController:
         mastery = state.ensure_topic_mastery(topic)
         difficulty = mastery.get_recommended_difficulty()
         
-        # Generate unique follow-up question
+        # Target specific missing concepts
+        target_concept = None
         if missing:
-            # Generate question targeting missing concepts
-            question = self._generate_unique_question(
+            target_concept = missing[0]
+        else:
+            stagnant = state.get_stagnant_concepts(topic, threshold=2)
+            if stagnant:
+                target_concept = stagnant[0]
+        
+        if target_concept:
+            question = self.question_bank.generate_gap_followup(
+                topic=topic,
+                missing_concepts=[target_concept],
+                difficulty=difficulty
+            )
+            subtopic = target_concept
+        else:
+            question, subtopic = self._generate_question(
                 session_id=session_id,
                 topic=topic,
                 difficulty=difficulty,
                 user_name=state.user_name
             )
-        else:
-            # Use gap followup
-            question = self.question_bank.generate_gap_followup(
-                topic=topic,
-                missing_concepts=missing,
-                difficulty=difficulty
-            )
         
-        # Ensure question is unique
-        if question in self.asked_questions.get(session_id, set()):
-            # If duplicate, use a fallback
-            import random
-            question = random.choice(self.question_bank.fallback_questions[topic][difficulty])
-        
-        self.asked_questions[session_id].add(question)
         state.current_question = question
+        state.current_subtopic = subtopic
         state.question_start_time = time.time()
         
         return {
             "action": "FOLLOW_UP",
             "question": question,
             "topic": topic,
+            "subtopic": subtopic,
             "difficulty": difficulty,
             "time_remaining": state.time_remaining_sec(),
             "focus_areas": missing[:3]
         }
     
     def _simplify_question(self, state, session_id) -> dict:
-        """Generate simpler question for struggling user"""
+        """Generate simpler question"""
         state.followup_count += 1
         
         mastery = state.ensure_topic_mastery(state.current_topic)
         missing = list(mastery.missing_concepts)[:3]
         
-        # Generate simplified question
         question = self.question_bank.generate_simplified_question(
             topic=state.current_topic,
             missing_concepts=missing
         )
         
         # Ensure uniqueness
-        if question in self.asked_questions.get(session_id, set()):
+        if semantic_dedup.is_duplicate(session_id, question, 
+                                        [r.question for r in state.history]):
             question = f"Let's try a simpler approach: {question}"
         
-        self.asked_questions[session_id].add(question)
         state.current_question = question
         state.current_difficulty = "easy"
         state.question_start_time = time.time()
@@ -327,21 +364,19 @@ class AdaptiveInterviewController:
         }
     
     def _deepen_question(self, state, session_id) -> dict:
-        """Generate deeper question for strong performer"""
+        """Generate deeper question"""
         state.followup_count += 1
         
-        # Generate deeper question
         question = self.question_bank.generate_deeper_dive(
             topic=state.current_topic,
             difficulty="hard"
         )
         
         # Ensure uniqueness
-        if question in self.asked_questions.get(session_id, set()):
-            import random
+        if semantic_dedup.is_duplicate(session_id, question,
+                                        [r.question for r in state.history]):
             question = random.choice(self.question_bank.fallback_questions[state.current_topic]["hard"])
         
-        self.asked_questions[session_id].add(question)
         state.current_question = question
         state.current_difficulty = "hard"
         state.question_start_time = time.time()
@@ -355,120 +390,102 @@ class AdaptiveInterviewController:
             "message": "Great answer! Here's a more challenging question."
         }
     
-    def _move_to_new_topic(self, state, session_id) -> dict:
-        """Move to next topic based on weaknesses"""
-        # Get topics not yet covered in this session
-        covered = {q.topic for q in state.history if q.topic}
-        available = [t for t in self.TOPICS if t not in covered] or self.TOPICS
+    def _move_to_next_topic(self, state, session_id) -> dict:
+        """Move to next topic based on priority"""
+        # Get next topic (weakest first)
+        new_topic = state.get_next_topic()
         
-        # Choose next topic
-        new_topic = state.get_next_topic(available)
+        # If same as current, force different topic
+        if new_topic == state.current_topic and len(self.TOPICS) > 1:  # 🔥 FIX: Use self.TOPICS
+            for topic in state.get_sorted_topics_by_priority():
+                if topic != state.current_topic:
+                    new_topic = topic
+                    break
         
         state.reset_for_new_topic(new_topic)
         
         mastery = state.ensure_topic_mastery(new_topic)
         difficulty = mastery.get_recommended_difficulty()
         
-        # Generate unique first question for new topic
-        question = self._generate_unique_question(
+        question, subtopic = self._generate_question(
             session_id=session_id,
             topic=new_topic,
             difficulty=difficulty,
             user_name=state.user_name
         )
         
-        self.asked_questions[session_id].add(question)
         state.current_question = question
+        state.current_subtopic = subtopic
         state.question_start_time = time.time()
-        
-        # Update session topics in DB
-        db_session = AdaptiveInterviewSession.query.filter_by(session_id=state.session_id).first()
-        if db_session:
-            topics = db_session.get_topics_covered()
-            if new_topic not in topics:
-                topics.append(new_topic)
-                db_session.set_topics_covered(topics)
-                db.session.commit()
         
         return {
             "action": "MOVE_TOPIC",
             "question": question,
             "topic": new_topic,
+            "subtopic": subtopic,
             "difficulty": difficulty,
             "time_remaining": state.time_remaining_sec(),
-            "mastery": round(mastery.mastery_level, 3)
+            "mastery": round(mastery.mastery_level, 3),
+            "topic_progress": {
+                t: state.topic_sessions.get(t, TopicSessionState(t)).questions_asked
+                for t in self.TOPICS  # 🔥 FIX: Use self.TOPICS
+            }
         }
     
-    def _finalize_session(self, state, session_id) -> dict:
-        """Finalize interview and save final stats"""
-        # Calculate session stats
-        questions = len(state.history)
-        avg_semantic = np.mean([r.semantic_score for r in state.history]) if questions > 0 else 0
-        avg_keyword = np.mean([r.keyword_score for r in state.history]) if questions > 0 else 0
-        
-        overall = (avg_semantic * 0.6 + avg_keyword * 0.4)
-        
+    def _finalize_session(self, state, session_id):
+        """Finalize interview - only called when limits reached"""
         # Update session in DB
         db_session = AdaptiveInterviewSession.query.filter_by(session_id=session_id).first()
         if db_session:
             db_session.end_time = datetime.utcnow()
             db_session.duration = int(time.time() - state.start_time)
-            db_session.questions_asked = questions
-            db_session.avg_semantic = avg_semantic
-            db_session.avg_keyword = avg_keyword
-            db_session.overall_score = overall
+            db_session.questions_asked = len(state.history)
             db.session.commit()
         
-        # Clean up asked questions
-        if session_id in self.asked_questions:
-            del self.asked_questions[session_id]
-        
-        # Generate feedback
-        feedback = {
-            "questions_answered": questions,
-            "overall_score": round(overall, 3),
-            "strengths": state.get_strongest_topics(2),
-            "areas_for_improvement": state.get_weakest_topics(2),
-            "learning_velocity": round(state.learning_velocity, 3)
-        }
-        
-        if state.get_weakest_topics(1):
-            feedback["recommended_focus"] = state.get_weakest_topics(1)[0]
-        
-        # Remove from active sessions
+        # Clean up
+        semantic_dedup.clear_session(session_id)
         if session_id in self.sessions:
             del self.sessions[session_id]
-        
+    
+    def _generate_feedback(self, state) -> dict:
+        """Generate end-of-session feedback"""
         return {
-            "action": "FINALIZE",
-            "next_question": None,
-            "time_remaining": 0,
-            "feedback": feedback
+            "questions_answered": len(state.history),
+            "duration_minutes": int((time.time() - state.start_time) / 60),
+            "topics_covered": list(state.topic_sessions.keys()),
+            "weakest_topics": state.get_sorted_topics_by_priority()[:2],
+            "next_session_focus": state.get_sorted_topics_by_priority()[0] if state.get_sorted_topics_by_priority() else "DBMS"
         }
     
-    def _save_to_db(self, user_id: int, session_id: str, record: AdaptiveQARecord):
+    def _save_to_db(self, user_id: int, session_id: str, record: AdaptiveQARecord, mastery):
         """Save QA record and update user mastery in database"""
         try:
             # Update UserMastery
-            mastery = UserMastery.query.filter_by(
+            db_mastery = UserMastery.query.filter_by(
                 user_id=user_id, 
                 topic=record.topic
             ).first()
             
-            if not mastery:
-                mastery = UserMastery(
+            if not db_mastery:
+                db_mastery = UserMastery(
                     user_id=user_id,
                     topic=record.topic
                 )
-                db.session.add(mastery)
+                db.session.add(db_mastery)
             
-            mastery.update_mastery(
+            # Update mastery using the already-calculated values
+            db_mastery.update_mastery(
                 semantic_score=record.semantic_score,
                 keyword_score=record.keyword_score,
                 coverage_score=record.coverage_score,
                 response_time=record.response_time,
                 missing=record.missing_concepts
             )
+            
+            # Save concept stagnation
+            db_mastery.concept_stagnation = json.dumps(mastery.concept_stagnation)
+            db_mastery.weak_concepts = json.dumps(list(mastery.weak_concepts))
+            db_mastery.strong_concepts = json.dumps(list(mastery.strong_concepts))
             
             # Save question history
             history = QuestionHistory(
