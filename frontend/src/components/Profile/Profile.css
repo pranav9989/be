@@ -1027,3 +1027,76 @@
   border-radius: 10px;
   margin-left: 4px;
 }
+
+/* Subtopic styles */
+.subtopic-section {
+  margin-bottom: 10px;
+}
+
+.subtopic-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 10px;
+  border-radius: 6px;
+  margin-bottom: 6px;
+  font-size: 0.85rem;
+}
+
+.subtopic-chip.strong {
+  background: #f0f9f0;
+  border-left: 3px solid #10B981;
+}
+
+.subtopic-chip.weak {
+  background: #fff0f0;
+  border-left: 3px solid #EF4444;
+}
+
+.subtopic-chip.medium {
+  background: #fff4e5;
+  border-left: 3px solid #F59E0B;
+}
+
+.subtopic-chip .topic-name {
+  font-weight: 500;
+}
+
+.subtopic-chip .chip-value {
+  font-weight: 600;
+}
+
+.subtopic-chip .chip-count {
+  font-size: 0.7rem;
+  color: #666;
+  margin-left: 4px;
+}
+
+.subtopic-breakdown {
+  border-top: 1px solid #eee;
+  margin-top: 8px;
+  padding-top: 8px;
+}
+
+.subtopic-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 0;
+  border-radius: 4px;
+}
+
+.subtopic-name {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: #555;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subtopic-value {
+  font-size: 0.75rem;
+  font-weight: 600;
+}

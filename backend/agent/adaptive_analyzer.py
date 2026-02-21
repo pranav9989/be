@@ -78,22 +78,6 @@ class AdaptiveAnalyzer:
         
         return words.intersection(all_keywords).union(multi_word_terms)
     
-    @classmethod
-    def calculate_coverage(cls, answer: str, expected_keywords: Set[str]) -> float:
-        """Calculate what percentage of expected keywords were covered"""
-        if not expected_keywords:
-            return 0.5
-        
-        answer_lower = answer.lower()
-        covered = 0
-        
-        for keyword in expected_keywords:
-            if keyword in answer_lower:
-                covered += 1
-        
-        # Normalize and scale to 0.2-1.0 range
-        coverage = covered / len(expected_keywords) if expected_keywords else 0
-        return 0.2 + (coverage * 0.8)
     
     @classmethod
     def assess_depth(cls, answer: str) -> str:
@@ -143,14 +127,16 @@ class AdaptiveAnalyzer:
         
         return missing[:5]  # Return top 5 missing concepts
     
+
     @classmethod
-    def analyze(cls, question: str, answer: str, topic: str = None) -> dict:
+    def analyze(cls, question: str, answer: str, topic: str = None, expected_answer: str = None) -> dict:
         """
         Comprehensive analysis with adaptive learning signals
+        ALL metrics are RAW values (0.0 to 1.0) - NO SCALING
         """
         if not answer or len(answer.strip()) < 5:
             return {
-                "coverage_score": 0.0,
+                "coverage_score": 0.0,  # RAW value
                 "depth": "shallow",
                 "missing_concepts": [],
                 "covered_concepts": [],
@@ -159,15 +145,19 @@ class AdaptiveAnalyzer:
                 "response_length": 0,
                 "grammatical_quality": 0.0,
                 "has_example": False,
-                "estimated_difficulty": "easy"
+                "estimated_difficulty": "easy",
+                "semantic_similarity": 0.0,  # RAW value
+                "expected_answer": ""
             }
         
         # Extract keywords
         key_terms = list(cls.extract_keywords(answer, topic))
         expected_keywords = cls.extract_keywords(question, topic)
         
-        # Calculate scores
-        coverage = cls.calculate_coverage(answer, expected_keywords)
+        # 🔥 Calculate RAW coverage using interview_analyzer function
+        from interview_analyzer import calculate_keyword_coverage
+        coverage = calculate_keyword_coverage(answer, question)  # ← RAW value (0.0-1.0)
+        
         depth = cls.assess_depth(answer)
         confidence = cls.assess_confidence(answer)
         
@@ -191,16 +181,25 @@ class AdaptiveAnalyzer:
         else:
             est_difficulty = "medium"
         
-        # Calculate REAL semantic similarity
+        # Use provided expected_answer if available, otherwise generate
+        if expected_answer is None:
+            try:
+                from rag import agentic_expected_answer
+                expected_answer, _ = agentic_expected_answer(question)
+            except Exception as e:
+                print(f"⚠️ Could not generate expected answer: {e}")
+                expected_answer = ""
+        
+        # Calculate semantic similarity (RAW value)
         try:
-            expected_answer, _ = agentic_expected_answer(question)
-            semantic_similarity = calculate_semantic_similarity(answer, expected_answer)
+            from interview_analyzer import calculate_semantic_similarity
+            semantic_similarity = calculate_semantic_similarity(answer, expected_answer)  # ← RAW value
         except Exception as e:
             print(f"⚠️ Could not calculate semantic similarity: {e}")
             semantic_similarity = 0.0
 
         return {
-            "coverage_score": round(coverage, 3),
+            "coverage_score": round(coverage, 3),  # 🔥 RAW value
             "depth": depth,
             "missing_concepts": missing,
             "covered_concepts": covered,
@@ -211,5 +210,6 @@ class AdaptiveAnalyzer:
             "has_example": has_example,
             "estimated_difficulty": est_difficulty,
             "expected_keywords": list(expected_keywords),
-            "semantic_similarity": semantic_similarity  # 🔥 ADD THIS
+            "semantic_similarity": round(semantic_similarity, 3),  # 🔥 RAW value
+            "expected_answer": expected_answer
         }

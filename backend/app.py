@@ -176,7 +176,7 @@ db.init_app(app)
 # In app.py, after db = SQLAlchemy(app)
 
 # Import models to ensure they're registered
-from models import UserMastery, InterviewSession, QuestionHistory
+from models import UserMastery, InterviewSession, QuestionHistory, SubtopicMastery
 
 # Create tables
 with app.app_context():
@@ -326,8 +326,8 @@ def finalize_user_answer(session_key):
         # 🔥 Get expected answer for this question from RAG
         expected_answer = None
         try:
-            from rag import main as rag_main
-            expected_answer, _ = rag_main(question)
+            from rag import agentic_expected_answer  # ✅ Import the concise version
+            expected_answer, _ = agentic_expected_answer(question)  # ✅ This gives human-like answer
         except Exception as e:
             print(f"⚠️ Could not get expected answer: {e}")
             expected_answer = question  # Simple fallback
@@ -1558,38 +1558,114 @@ def upload_resume():
 @app.route('/api/user/progress', methods=['GET'])
 @jwt_required
 def get_user_progress():
-    """Get user's learning progress across topics"""
+    """Get user's learning progress across topics with subtopic-level tracking"""
     user_id = g.current_user.id
     
+    # Get topic-level masteries
     masteries = UserMastery.query.filter_by(user_id=user_id).all()
+    
+    # 🔥 NEW: Get subtopic-level masteries
+    subtopic_masteries = SubtopicMastery.query.filter_by(user_id=user_id).all()
     
     result = {
         'topics': {},
+        'subtopics': {},  # Organized by subject then subtopic
         'overall': {
             'total_questions': 0,
             'avg_mastery': 0,
             'weakest_topics': [],
-            'strongest_topics': []
+            'strongest_topics': [],
+            'weakest_subtopics': [],
+            'strongest_subtopics': []
         }
     }
     
     total_mastery = 0
     topics_list = []
+    all_subtopics = []  # For collecting all subtopics across subjects
     
+    # Process topic-level masteries
     for m in masteries:
         data = m.to_dict()
         result['topics'][m.topic] = data
         total_mastery += m.mastery_level
         topics_list.append((m.topic, m.mastery_level))
     
+    # 🔥 NEW: Process subtopic-level masteries
+    subtopics_by_topic = {}
+    for sm in subtopic_masteries:
+        if sm.topic not in subtopics_by_topic:
+            subtopics_by_topic[sm.topic] = {}
+        
+        subtopic_data = {
+            'mastery_level': sm.mastery_level,
+            'attempts': sm.attempts,
+            'last_asked': sm.last_asked.isoformat() if sm.last_asked else None,
+            'status': sm.status
+        }
+        subtopics_by_topic[sm.topic][sm.subtopic] = subtopic_data
+        
+        # Add to all_subtopics for weakest/strongest calculation
+        all_subtopics.append({
+            'topic': sm.topic,
+            'subtopic': sm.subtopic,
+            'mastery_level': sm.mastery_level,
+            'attempts': sm.attempts,
+            'status': sm.status
+        })
+    
+    result['subtopics'] = subtopics_by_topic
+    
+    # Calculate overall stats for topics
     if topics_list:
         result['overall']['avg_mastery'] = total_mastery / len(topics_list)
         topics_list.sort(key=lambda x: x[1])
         result['overall']['weakest_topics'] = [t[0] for t in topics_list[:3]]
         result['overall']['strongest_topics'] = [t[0] for t in topics_list[-3:]]
     
+    # 🔥 NEW: Calculate strongest/weakest subtopics
+    if all_subtopics:
+        # Sort by mastery level
+        all_subtopics.sort(key=lambda x: x['mastery_level'])
+        
+        # Get weakest subtopics (lowest mastery)
+        weakest = all_subtopics[:5]  # Bottom 5
+        result['overall']['weakest_subtopics'] = [
+            {
+                'topic': w['topic'],
+                'subtopic': w['subtopic'],
+                'mastery_level': w['mastery_level'],
+                'attempts': w['attempts'],
+                'status': w['status']
+            }
+            for w in weakest
+        ]
+        
+        # Get strongest subtopics (highest mastery)
+        strongest = all_subtopics[-5:]  # Top 5
+        strongest.reverse()  # Show highest first
+        result['overall']['strongest_subtopics'] = [
+            {
+                'topic': s['topic'],
+                'subtopic': s['subtopic'],
+                'mastery_level': s['mastery_level'],
+                'attempts': s['attempts'],
+                'status': s['status']
+            }
+            for s in strongest
+        ]
+    
+    # Also calculate total questions from QuestionHistory
+    total_questions = QuestionHistory.query.filter_by(user_id=user_id).count()
+    result['overall']['total_questions'] = total_questions
+    
+    print(f"📊 Progress data loaded: {len(subtopic_masteries)} subtopics tracked")
+    if result['overall']['weakest_subtopics']:
+        print(f"   Weakest: {[f'{w["topic"]} - {w["subtopic"]}: {w["mastery_level"]:.2f}' for w in result['overall']['weakest_subtopics']]}")
+    if result['overall']['strongest_subtopics']:
+        print(f"   Strongest: {[f'{s["topic"]} - {s["subtopic"]}: {s["mastery_level"]:.2f}' for s in result['overall']['strongest_subtopics']]}")
+    
     return jsonify({'success': True, 'data': result})
-
 
 @app.route('/api/user/sessions', methods=['GET'])
 @jwt_required
@@ -1768,6 +1844,96 @@ Format:
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)})
 
+@app.route('/api/user/reset_mastery', methods=['POST'])
+@jwt_required
+def reset_user_mastery():
+    """Reset all subtopic mastery for the user (start over)"""
+    try:
+        data = request.get_json() or {}
+        topic = data.get('topic')  # Optional: reset only specific topic
+        
+        result = adaptive_controller.reset_user_mastery(g.current_user.id, topic)
+        
+        return jsonify({
+            'success': True,
+            'message': f"Reset {'all' if not topic else topic} mastery successfully"
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/user/subtopic_stats', methods=['GET'])
+@jwt_required
+def get_subtopic_stats():
+    """Get subtopic mastery statistics"""
+    try:
+        stats = adaptive_controller.get_subtopic_stats(g.current_user.id)
+        return jsonify({
+            'success': True,
+            'data': stats
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/user/subtopics/<topic>', methods=['GET'])
+@jwt_required
+def get_topic_subtopics(topic):
+    """Get all subtopics for a topic with their mastery status"""
+    try:
+        from agent.subtopic_tracker import SubtopicTracker
+        tracker = SubtopicTracker(g.current_user.id)
+        
+        all_subtopics = tracker.SUBTOPICS_BY_TOPIC.get(topic, [])
+        attempted = tracker.get_all_attempted_subtopics(topic)
+        
+        result = []
+        for subtopic in all_subtopics:
+            data = {
+                'name': subtopic,
+                'status': 'new',
+                'mastery': 0,
+                'attempts': 0
+            }
+            if subtopic in attempted:
+                data['status'] = attempted[subtopic].get('status', 'medium') or 'medium'
+                data['mastery'] = round(attempted[subtopic].get('mastery_level', 0), 3)
+                data['attempts'] = attempted[subtopic].get('attempts', 0)
+            result.append(data)
+        
+        return jsonify({
+            'success': True,
+            'topic': topic,
+            'subtopics': result
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/user/subtopic/<topic>/<path:subtopic>/questions', methods=['GET'])
+@jwt_required
+def get_subtopic_questions(topic, subtopic):
+    """Get all questions for a specific subtopic"""
+    try:
+        user_id = g.current_user.id
+        
+        questions = QuestionHistory.query.filter_by(
+            user_id=user_id,
+            topic=topic,
+            subtopic=subtopic
+        ).order_by(QuestionHistory.timestamp.desc()).limit(10).all()
+        
+        return jsonify({
+            'success': True,
+            'questions': [{
+                'question': q.question,
+                'answer': q.answer,
+                'expected_answer': q.expected_answer,
+                'semantic_score': q.semantic_score,
+                'keyword_score': q.keyword_score,
+                'coverage_score': q.coverage_score,
+                'timestamp': q.timestamp.isoformat()
+            } for q in questions]
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/resume_based_questions', methods=['POST'])
 @jwt_required

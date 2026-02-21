@@ -15,10 +15,10 @@ class AdaptiveDecisionEngine:
     def decide(self, state: AdaptiveInterviewState, analysis: dict) -> str:
         """
         Make intelligent decision based on comprehensive signals
-        NO GOAL-BASED FINALIZATION - only time or user action ends session
+        EXACTLY 3 questions per topic, max 2 follow-ups within those 3
         """
         
-        # 🔥 Hard stops (only these cause FINALIZE)
+        # Hard stops (only these cause FINALIZE)
         if state.is_time_over():
             print("⏰ Time limit reached (30 minutes) - finalizing")
             return self.FINALIZE
@@ -27,61 +27,76 @@ class AdaptiveDecisionEngine:
             print("📊 Question limit reached (15 questions) - finalizing")
             return self.FINALIZE
         
-        # Get current topic mastery and session state
-        mastery = state.get_topic_mastery(state.current_topic)
-        topic_session = state.get_topic_session(state.current_topic)
+        # Get current topic and its session
+        topic = state.current_topic
+        topic_session = state.get_topic_session(topic)
+        mastery = state.get_topic_mastery(topic)
         
         # Extract signals
+        semantic_score = analysis.get("semantic_similarity", 0)
         coverage = analysis.get("coverage_score", 0)
-        depth = analysis.get("depth", "shallow")
         missing = analysis.get("missing_concepts", [])
         response_length = analysis.get("response_length", 0)
+        depth = analysis.get("depth", "shallow")
         has_example = analysis.get("has_example", False)
         
-        # 🔥 NEW: Check if we've covered this topic enough
-        if topic_session.should_move_on(
-            min_questions=state.coverage_min_questions,
-            threshold=state.coverage_threshold
-        ):
-            print(f"✅ Topic {state.current_topic} sufficiently covered - moving on")
+        # Track follow-ups for THIS topic
+        followups_on_this_topic = state.followup_count
+        MAX_FOLLOWUPS_PER_TOPIC = 2
+        
+        # Log decision factors
+        print(f"\n📊 DECISION FOR {topic}:")
+        print(f"   - Questions asked on this topic: {topic_session.questions_asked}/3")
+        print(f"   - Follow-ups on this topic: {followups_on_this_topic}/{MAX_FOLLOWUPS_PER_TOPIC}")
+        print(f"   - Current answer quality: {semantic_score:.2f}")
+        print(f"   - Missing concepts: {missing[:3] if missing else 'None'}")
+        
+        # Check if we've hit the 3-question limit for this topic
+        if topic_session.questions_asked >= 3:
+            print(f"   → DECISION: MOVE_TOPIC (completed 3 questions for {topic})")
             return self.MOVE_TOPIC
         
-        # 📊 IMPROVED DECISION TREE
-        
-        # 1️⃣ Very poor answer - SIMPLIFY
-        if coverage < 0.3:
-            print("📉 Very poor answer - simplifying")
-            return self.SIMPLIFY
-        
-        # 2️⃣ Poor answer but with some correct concepts - FOLLOW_UP on missing
-        if coverage < 0.5:
-            if missing and len(missing) > 0:
-                print("🔍 Poor answer - following up on missing concepts")
+        # 1️⃣ VERY POOR ANSWER - Try different subtopic first, then simplify
+        if semantic_score < 0.3:
+            if followups_on_this_topic < MAX_FOLLOWUPS_PER_TOPIC:
+                print(f"   → DECISION: FOLLOW_UP (try different subtopic, {followups_on_this_topic + 1}/{MAX_FOLLOWUPS_PER_TOPIC})")
                 return self.FOLLOW_UP
-            print("📉 Poor answer with no clear gaps - simplifying")
-            return self.SIMPLIFY
+            else:
+                print(f"   → DECISION: MOVE_TOPIC (max follow-ups reached, still struggling)")
+                return self.MOVE_TOPIC
         
-        # 3️⃣ Missing key concepts - FOLLOW_UP on specific gaps
-        if missing and len(missing) > 0:
-            print("🔍 Missing concepts detected - following up")
-            return self.FOLLOW_UP
+        # 2️⃣ POOR ANSWER with missing concepts - Try different subtopic
+        if semantic_score < 0.5 and missing:
+            if followups_on_this_topic < MAX_FOLLOWUPS_PER_TOPIC:
+                print(f"   → DECISION: FOLLOW_UP (try different subtopic for missing concepts, {followups_on_this_topic + 1}/{MAX_FOLLOWUPS_PER_TOPIC})")
+                return self.FOLLOW_UP
+            else:
+                print(f"   → DECISION: MOVE_TOPIC (max follow-ups reached)")
+                return self.MOVE_TOPIC
         
-        # 4️⃣ Good answer but shallow - ask for deeper explanation
-        if coverage > 0.6 and depth == "shallow" and response_length < 50:
-            print("📝 Good but shallow - asking for depth")
-            return self.FOLLOW_UP
+        # 3️⃣ GOOD ANSWER - Try different subtopic
+        if semantic_score > 0.6:
+            if followups_on_this_topic < MAX_FOLLOWUPS_PER_TOPIC:
+                print(f"   → DECISION: FOLLOW_UP (good answer, try different subtopic, {followups_on_this_topic + 1}/{MAX_FOLLOWUPS_PER_TOPIC})")
+                return self.FOLLOW_UP
+            else:
+                # If we've used both follow-ups and still have questions left, move to next topic
+                if topic_session.questions_asked < 3:
+                    print(f"   → DECISION: FOLLOW_UP (need more questions, but max follow-ups used)")
+                    return self.FOLLOW_UP
+                else:
+                    return self.MOVE_TOPIC
         
-        # 5️⃣ Excellent answer with depth and examples - DEEPEN
-        if coverage > 0.7 and depth == "deep" and has_example:
-            if mastery and mastery.consecutive_good >= 1:
-                print("🚀 Excellent answer - deepening")
-                return self.DEEPEN
+        # 4️⃣ DEFAULT: If we still need more questions on this topic
+        if topic_session.questions_asked < 3:
+            if followups_on_this_topic < MAX_FOLLOWUPS_PER_TOPIC:
+                print(f"   → DECISION: FOLLOW_UP (need {3 - topic_session.questions_asked} more questions)")
+                return self.FOLLOW_UP
+            else:
+                # We need another question but have used follow-ups, so it must be a new main question
+                print(f"   → DECISION: MOVE_TOPIC (max follow-ups, need new question)")
+                return self.MOVE_TOPIC
         
-        # 6️⃣ Default - ask follow-up if we haven't reached min questions
-        if topic_session.questions_asked < state.coverage_min_questions:
-            print("🔄 Still need more questions on this topic")
-            return self.FOLLOW_UP
-        
-        # 7️⃣ Finally, move to new topic
-        print("➡️ Moving to new topic")
+        # 5️⃣ Finally, move to next topic
+        print(f"   → DECISION: MOVE_TOPIC (default)")
         return self.MOVE_TOPIC

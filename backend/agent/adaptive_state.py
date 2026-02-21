@@ -20,6 +20,10 @@ class TopicSessionState:
     is_covered: bool = False
     is_weak: bool = False
     last_question_time: float = 0.0
+    silent_count: int = 0  # 🔥 Track silent answers
+    
+    # 🔥 NEW: Fixed limits - exactly 3 questions per topic per session
+    QUESTIONS_PER_TOPIC = 3
     
     def add_answer(self, semantic: float, coverage: float, keyword: float, depth: str):
         """Add an answer to this topic's session state"""
@@ -30,23 +34,23 @@ class TopicSessionState:
         self.depth_scores.append(depth)
         self.avg_score = self.cumulative_semantic / self.questions_asked
         self.last_question_time = time.time()
-    
-    def should_move_on(self, min_questions: int = 3, threshold: float = 0.65) -> bool:
-        """Determine if we should move to next topic"""
-        if self.questions_asked < min_questions:
-            return False
         
-        # Topic is well covered
-        if self.avg_score > threshold:
+        # Track silent answers (very short answers)
+        if len(self.depth_scores) > 0 and depth == "shallow" and semantic < 0.2:
+            self.silent_count += 1
+    
+    def should_move_on(self) -> bool:
+        """Determine if we should move to next topic - EXACTLY 3 questions"""
+        
+        # Case 1: Haven't reached 3 questions yet
+        if self.questions_asked < self.QUESTIONS_PER_TOPIC:
+            return False
+            
+        # Case 2: Reached exactly 3 questions - definitely move on
+        if self.questions_asked >= self.QUESTIONS_PER_TOPIC:
+            print(f"📊 Topic {self.topic}: Reached {self.QUESTIONS_PER_TOPIC} questions - moving on")
             self.is_covered = True
             return True
-        
-        # Topic is weak (needs more practice in future sessions)
-        if self.questions_asked >= min_questions and self.avg_score < 0.5:
-            self.is_weak = True
-            return True
-        
-        return False
 
 @dataclass
 class AdaptiveQARecord:
@@ -238,6 +242,16 @@ class AdaptiveInterviewState:
     user_id: int
     user_name: str = ""
     start_time: float = field(default_factory=time.time)
+
+    # 🔥 NEW: Topic order for this session (random permutation)
+    topic_order: List[str] = field(default_factory=list)
+    current_topic_index: int = 0
+    
+    # 🔥 NEW: Track weak topics from previous sessions
+    weak_topics_history: Dict[str, List[str]] = field(default_factory=dict)  # topic -> list of weak concepts
+    
+    # 🔥 NEW: Track topics covered in this session
+    topics_covered_this_session: List[str] = field(default_factory=list)
     
     # 🔥 NEW: Topic session tracking
     topic_sessions: Dict[str, TopicSessionState] = field(default_factory=dict)
@@ -270,6 +284,32 @@ class AdaptiveInterviewState:
     weak_threshold: float = 0.4
     coverage_min_questions: int = 3
     coverage_threshold: float = 0.65
+
+    def get_current_topic_from_order(self) -> str:
+        """Get current topic based on order index"""
+        if not self.topic_order or self.current_topic_index >= len(self.topic_order):
+            return None
+        return self.topic_order[self.current_topic_index]
+
+    def get_next_topic_from_order(self) -> str:
+        """Get next topic in the order"""
+        next_index = self.current_topic_index + 1
+        if next_index >= len(self.topic_order):
+            return None  # No more topics
+        return self.topic_order[next_index]
+
+    def advance_to_next_topic(self) -> bool:
+        """Advance to next topic, returns True if successful (always True now - cycles)"""
+        if self.current_topic_index + 1 < len(self.topic_order):
+            # Move to next topic in the order
+            self.current_topic_index += 1
+            self.current_topic = self.topic_order[self.current_topic_index]
+            self.followup_count = 0
+            return True
+        else:
+            # We've reached the end - signal to start a new cycle
+            # Return False to indicate we need to restart the cycle
+            return False
     
     def add_to_history(self, record: AdaptiveQARecord):
         """Add record to history"""

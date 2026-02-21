@@ -382,14 +382,14 @@ def calculate_semantic_similarity(answer, expected_answer):
 def calculate_keyword_coverage(answer, question):
     """
     Calculate how many keywords from the question appear in the answer.
-    Now with stop word filtering.
+    Returns RAW coverage (0.0 to 1.0) - NO SCALING.
     """
     if not answer or not question:
         return 0.0
     
     import re
     
-    # 🔥 NEW: Stop words to ignore
+    # 🔥 Stop words to ignore
     STOP_WORDS = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
                   'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'be',
                   'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
@@ -412,14 +412,13 @@ def calculate_keyword_coverage(answer, question):
     # Extract words from question
     question_words = set(re.findall(r'\b[a-zA-Z]{3,}\b', question.lower()))
     
-    # 🔥 NEW: Remove stop words
+    # Remove stop words
     question_words = {w for w in question_words if w not in STOP_WORDS}
     
     # Add technical keywords if they appear in question
     for topic, keywords in tech_keywords.items():
         for kw in keywords:
             if kw in question.lower():
-                # Handle multi-word keywords
                 if ' ' in kw:
                     question_words.add(kw)
                 else:
@@ -431,31 +430,26 @@ def calculate_keyword_coverage(answer, question):
     matched_keywords = []
     
     for word in question_words:
-        # For multi-word terms, check if the exact phrase exists
         if ' ' in word:
             if word in answer_lower:
                 matches += 1
                 matched_keywords.append(word)
         else:
-            # For single words, check with word boundaries
             if re.search(r'\b' + re.escape(word) + r'\b', answer_lower):
                 matches += 1
                 matched_keywords.append(word)
     
-    # Calculate coverage
+    # Calculate RAW coverage (0.0 to 1.0) - NO SCALING
     if question_words:
         coverage = min(1.0, matches / len(question_words))
     else:
         coverage = 0.0
     
-    # 🔥 NEW: Lower scaling (0.1-0.7 instead of 0.2-1.0)
-    scaled_coverage = 0.1 + (coverage * 0.6)
-    
-    print(f"🔑 Keyword coverage: {matches}/{len(question_words)} = {coverage:.3f} -> scaled: {scaled_coverage:.3f}")
+    print(f"🔑 RAW Keyword coverage: {matches}/{len(question_words)} = {coverage:.3f}")
     print(f"   Matched: {matched_keywords}")
     print(f"   Stop words filtered: {len(question_words)} keywords considered")
     
-    return scaled_coverage
+    return coverage  # 🔥 Return RAW value (0.0-1.0)
 
 def analyze_pitch_comprehensive(audio_path):
     """

@@ -21,10 +21,14 @@ class SemanticDeduplicator:
         return self.embedder.encode([text], normalize_embeddings=True)[0]
     
     def is_duplicate(self, session_id: str, new_question: str, 
-                     existing_questions: List[str]) -> bool:
+                 existing_questions: List[str], threshold: float = None) -> bool:
         """
         Check if a question is semantically similar to existing ones
+        threshold: optional override of default similarity_threshold
         """
+        if threshold is None:
+            threshold = self.similarity_threshold
+        
         if session_id not in self.question_cache:
             self.question_cache[session_id] = {
                 'questions': [],
@@ -59,8 +63,9 @@ class SemanticDeduplicator:
                 [existing_embedding]
             )[0][0]
             
-            if similarity > self.similarity_threshold:
-                print(f"🔍 Duplicate detected (similarity: {similarity:.3f}):")
+            # For questions from different subtopics, be more lenient
+            if similarity > threshold:
+                print(f"🔍 Duplicate detected (similarity: {similarity:.3f} > {threshold}):")
                 print(f"  New: {new_question[:50]}...")
                 print(f"  Old: {existing_question[:50]}...")
                 return True

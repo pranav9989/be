@@ -75,10 +75,20 @@ export const audioAPI = {
   }),
 };
 
-// ✅ ADD THIS - Progress tracking API
+// ✅ UPDATED - Progress tracking API with all subtopic methods
 export const progressAPI = {
+  // Basic progress
   getUserProgress: () => api.get('/user/progress'),
-  getTopicDetails: (topic) => api.get(`/user/topics/${topic}/details`)
+  getTopicDetails: (topic) => api.get(`/user/topics/${topic}/details`),
+
+  // 🔥 NEW: Subtopic mastery endpoints
+  getSubtopicStats: () => api.get('/user/subtopic_stats'),
+  getTopicSubtopics: (topic) => api.get(`/user/subtopics/${topic}`),
+  resetMastery: (topic = null) => api.post('/user/reset_mastery', { topic }),
+
+  // 🔥 NEW: Get questions for a specific subtopic
+  getSubtopicQuestions: (topic, subtopic) =>
+    api.get(`/user/subtopic/${topic}/${encodeURIComponent(subtopic)}/questions`),
 };
 
 export default api;
