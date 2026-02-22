@@ -279,9 +279,9 @@ const Profile = ({ user, onLogout }) => {
             <div className="score-explanation">
               <p><strong>📊 True Scores (No Inflation):</strong></p>
               <ul>
-                <li><span className="color-dot strong"></span> <strong>Strong Topics:</strong> Mastery ≥ 70% with stable performance</li>
-                <li><span className="color-dot weak"></span> <strong>Weak Topics:</strong> Mastery &lt; 40% OR unstable performance</li>
-                <li><span className="color-dot medium"></span> <strong>In Progress:</strong> Topics you're currently learning</li>
+                <li><span className="color-dot strong"></span> <strong>Strong Subtopics:</strong> Mastery ≥ 70%</li>
+                <li><span className="color-dot weak"></span> <strong>Weak Subtopics:</strong> Mastery &lt; 40%</li>
+                <li><span className="color-dot medium"></span> <strong>In Progress:</strong> 40% ≤ Mastery &lt; 70%</li>
               </ul>
             </div>
 
@@ -299,154 +299,173 @@ const Profile = ({ user, onLogout }) => {
               </button>
             </div>
 
-            {/* Subtopic Stats Summary */}
-            {subtopicStats && (
-              <div style={{ marginBottom: '2rem', background: '#F8FAFC', padding: '1.5rem', borderRadius: '12px' }}>
-                <h4 style={{ marginBottom: '1rem', color: '#1E3A8A' }}>
-                  <i className="fas fa-tasks"></i> Subtopic Mastery Overview
+            {/* 🔥 FIXED: Strengths, Weaknesses & In Progress - CONSISTENT STYLING */}
+            <div className="sections-grid">
+              {/* Strengths Section */}
+              <div className="strength-card">
+                <h4 className="section-header">
+                  <i className="fas fa-trophy" style={{ color: '#10B981' }}></i>
+                  Your Strengths
                 </h4>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem' }}>
-                  <div className="stat-card" style={{ padding: '1rem' }}>
-                    <div className="stat-number">{subtopicStats.attempted || 0}</div>
-                    <div className="stat-label">Subtopics Attempted</div>
+                {progress.strengths && progress.strengths.length > 0 ? (
+                  <div className="subtopic-section">
+                    {progress.strengths.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="topic-chip strong"
+                        onClick={() => handleSubtopicClick(item.topic, item.subtopic)}
+                      >
+                        <span>{item.topic} → <strong>{item.subtopic}</strong></span>
+                        <div>
+                          <span className="chip-value">{(item.mastery * 100).toFixed(1)}%</span>
+                          <span className="chip-count">{item.attempts} Q</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="stat-card" style={{ padding: '1rem' }}>
-                    <div className="stat-number" style={{ color: '#10B981' }}>{subtopicStats.strong || 0}</div>
-                    <div className="stat-label">Strong Subtopics</div>
+                ) : (
+                  <p className="no-data">No strong subtopics yet. Keep practicing!</p>
+                )}
+              </div>
+
+              {/* Weaknesses Section */}
+              <div className="weakness-card">
+                <h4 className="section-header">
+                  <i className="fas fa-exclamation-triangle" style={{ color: '#EF4444' }}></i>
+                  Areas to Improve
+                </h4>
+                {progress.weak_subtopics && progress.weak_subtopics.length > 0 ? (
+                  <div className="subtopic-section">
+                    {progress.weak_subtopics.map((item, idx) => (
+                      <div
+                        key={idx}
+                        className="topic-chip weak"
+                        onClick={() => handleSubtopicClick(item.topic, item.subtopic)}
+                      >
+                        <span>{item.topic} → <strong>{item.subtopic}</strong></span>
+                        <div>
+                          <span className="chip-value">{(item.mastery * 100).toFixed(1)}%</span>
+                          <span className="chip-count">{item.attempts} Q</span>
+                        </div>
+                      </div>
+                    ))}
                   </div>
-                  <div className="stat-card" style={{ padding: '1rem' }}>
-                    <div className="stat-number" style={{ color: '#EF4444' }}>{subtopicStats.weak || 0}</div>
-                    <div className="stat-label">Weak Subtopics</div>
-                  </div>
+                ) : (
+                  <p className="no-data">No weak subtopics! Great job!</p>
+                )}
+              </div>
+            </div>
+
+            {/* In Progress Section - Now matching the others */}
+            {progress.medium_subtopics && progress.medium_subtopics.length > 0 && (
+              <div className="inprogress-card" style={{ marginTop: '1.5rem' }}>
+                <h4 className="section-header">
+                  <i className="fas fa-spinner" style={{ color: '#F59E0B' }}></i>
+                  In Progress (40% - 70%)
+                </h4>
+                <div className="subtopic-section">
+                  {progress.medium_subtopics.map((item, idx) => (
+                    <div
+                      key={idx}
+                      className="topic-chip medium"
+                      onClick={() => handleSubtopicClick(item.topic, item.subtopic)}
+                    >
+                      <span>{item.topic} → <strong>{item.subtopic}</strong></span>
+                      <div>
+                        <span className="chip-value">{(item.mastery * 100).toFixed(1)}%</span>
+                        <span className="chip-count">{item.attempts} Q</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
-            {/* Strengths & Weaknesses - Now with SUBTOPICS! */}
-            <div className="strength-weakness-grid">
-              <div className="strength-card">
-                <h4><i className="fas fa-trophy"></i> Your Strengths</h4>
-
-                {/* Show strong subtopics */}
-                {progress.overall.strongest_subtopics?.length > 0 ? (
-                  <>
-                    <div className="subtopic-section">
-                      {progress.overall.strongest_subtopics.map(item => (
-                        <div
-                          key={`${item.topic}-${item.subtopic}`}
-                          className="topic-chip strong"
-                          onClick={() => handleSubtopicClick(item.topic, item.subtopic)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <span>{item.topic} → <strong>{item.subtopic}</strong></span>
-                          <span className="chip-value">{(item.mastery_level * 100).toFixed(1)}%</span>
-                          <span className="chip-count">
-                            {item.attempts} Q
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <hr style={{ margin: '12px 0', border: '0.5px solid #e0e0e0' }} />
-                  </>
-                ) : null}
-              </div>
-
-              <div className="weakness-card">
-                <h4><i className="fas fa-exclamation-triangle"></i> Areas to Improve</h4>
-
-                {/* Show weak subtopics */}
-                {progress.overall.weakest_subtopics?.length > 0 ? (
-                  <>
-                    <div className="subtopic-section">
-                      {progress.overall.weakest_subtopics.map(item => (
-                        <div
-                          key={`${item.topic}-${item.subtopic}`}
-                          className="topic-chip weak"
-                          onClick={() => handleSubtopicClick(item.topic, item.subtopic)}
-                          style={{ cursor: 'pointer' }}
-                        >
-                          <span>{item.topic} → <strong>{item.subtopic}</strong></span>
-                          <span className="chip-value">{(item.mastery_level * 100).toFixed(1)}%</span>
-                          <span className="chip-count">
-                            {item.attempts} Q
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                    <hr style={{ margin: '12px 0', border: '0.5px solid #e0e0e0' }} />
-                  </>
-                ) : null}
-              </div>
-            </div>
-
-            {/* Topic Mastery Grid - REMOVED THE BOTTOM TOPICS SECTION */}
-            <h4 className="topics-title">Topic Mastery</h4>
-            <div className="topics-grid">
-              {Object.entries(progress.topics).map(([topic, data]) => {
-                const status = getMasteryStatus(data.mastery_level, data.stability || 0);
-                return (
-                  <div
-                    key={topic}
-                    className={`topic-card status-${status}`}
-                    onClick={() => loadTopicDetails(topic)}
-                  >
-                    <div className="topic-header">
-                      <span className="topic-name">{topic}</span>
-                      <span className={`topic-status status-${status}`}>
-                        {status === 'strong' && '💪 Strong'}
-                        {status === 'weak' && '⚠️ Weak'}
-                        {status === 'medium' && '📚 In Progress'}
-                      </span>
-                    </div>
-
-                    <div className="topic-badges">
-                      <span className={`topic-difficulty ${data.current_difficulty}`}>
-                        {data.current_difficulty}
-                      </span>
-                      {data.stability > 0 && (
-                        <span className="topic-stability" title="Stability score">
-                          ⚡ {(data.stability * 100).toFixed(0)}% stable
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="mastery-bar">
+            {/* 🔥 NEW: All Attempted Subtopics Section */}
+            {progress.all_subtopics && progress.all_subtopics.length > 0 && (
+              <div className="all-subtopics-section">
+                <h4 style={{ marginTop: '2rem', color: '#1E3A8A' }}>
+                  <i className="fas fa-list"></i> All Attempted Subtopics
+                </h4>
+                <div className="subtopic-grid" style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
+                  gap: '0.75rem',
+                  marginTop: '1rem'
+                }}>
+                  {progress.all_subtopics.map((item, idx) => {
+                    const masteryColor = getMasteryColor(item.mastery);
+                    return (
                       <div
-                        className="mastery-fill"
+                        key={idx}
+                        className="subtopic-card"
+                        onClick={() => handleSubtopicClick(item.topic, item.subtopic)}
                         style={{
-                          width: `${data.mastery_level * 100}%`,
-                          backgroundColor: getMasteryColor(data.mastery_level)
+                          background: '#F8FAFC',
+                          padding: '0.75rem',
+                          borderRadius: '8px',
+                          border: '1px solid #E2E8F0',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease'
                         }}
-                      />
-                    </div>
-
-                    <div className="topic-stats">
-                      <span><i className="fas fa-question-circle"></i> {data.questions_attempted || 0} questions</span>
-                      <span className="mastery-value">{formatMastery(data.mastery_level)}</span>
-                    </div>
-
-                    {/* Show weak/strong concepts */}
-                    {data.weak_concepts?.length > 0 && (
-                      <div className="weak-concepts">
-                        <small>⚠️ {data.weak_concepts.slice(0, 2).join(', ')}</small>
+                      >
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontWeight: 500, color: '#1E3A8A' }}>
+                            {item.topic} → {item.subtopic}
+                          </span>
+                          <span style={{
+                            fontWeight: 600,
+                            color: masteryColor,
+                            background: '#FFFFFF',
+                            padding: '2px 8px',
+                            borderRadius: '12px',
+                            fontSize: '0.75rem'
+                          }}>
+                            {(item.mastery * 100).toFixed(1)}%
+                          </span>
+                        </div>
+                        <div style={{ fontSize: '0.7rem', color: '#64748B', marginTop: '4px' }}>
+                          {item.attempts} question{item.attempts !== 1 ? 's' : ''}
+                        </div>
                       </div>
-                    )}
-                    {data.strong_concepts?.length > 0 && (
-                      <div className="strong-concepts">
-                        <small>💪 {data.strong_concepts.slice(0, 2).join(', ')}</small>
-                      </div>
-                    )}
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
-                    {data.learning_velocity !== 0 && (
-                      <div className="velocity-badge"
-                        style={{ color: data.learning_velocity > 0 ? '#10B981' : '#EF4444' }}>
-                        <i className={`fas fa-arrow-${data.learning_velocity > 0 ? 'up' : 'down'}`}></i>
-                        {Math.abs(data.learning_velocity * 100).toFixed(1)}%
-                      </div>
-                    )}
+            {/* Topic Mastery Grid (Keep this for topic-level view) */}
+            <h4 className="topics-title">Topic Mastery (Overview)</h4>
+            <div className="topics-grid">
+              {Object.entries(progress.topics).map(([topic, data]) => (
+                <div
+                  key={topic}
+                  className="topic-card minimal"
+                >
+                  <div className="topic-name">
+                    {topic}
                   </div>
-                );
-              })}
+
+                  <div className="topic-simple-stats">
+                    <span className="topic-mastery">
+                      {formatMastery(data.mastery_level)}
+                    </span>
+                    <span className="topic-questions">
+                      {data.questions_attempted || 0} questions
+                    </span>
+                  </div>
+
+                  <button
+                    className="reset-btn"
+                    onClick={() => {
+                      setResetTopic(topic);
+                      setShowResetConfirm(true);
+                    }}
+                  >
+                    Reset
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
         )}

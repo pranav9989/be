@@ -251,8 +251,8 @@ class AdaptiveInterviewController:
         print(f"⚠️ Could not generate unique question for weak concepts, using regular generation")
         return self._generate_question(session_id, topic, difficulty, user_name)
     
-    def handle_answer(self, session_id: str, answer: str) -> dict:
-        """Process user answer"""
+    def handle_answer(self, session_id: str, answer: str, expected_answer: str = "") -> dict:
+        """Process user answer with expected answer from RAG"""
         
         state = self.sessions.get(session_id)
         if not state:
@@ -266,54 +266,51 @@ class AdaptiveInterviewController:
         topic = state.current_topic
         subtopic = state.current_subtopic
         
-        # 🔥 Generate expected answer ONCE before analysis
-        try:
-            from rag import agentic_expected_answer
-            expected_answer, _ = agentic_expected_answer(question)
-        except Exception as e:
-            print(f"⚠️ Could not generate expected answer: {e}")
-            expected_answer = ""
-
-        # Analyze answer with pre-generated expected answer
+        # 🔥 CRITICAL FIX: Use the expected_answer passed from app.py
+        # This comes from RAG and is used for semantic similarity calculation
         analysis = AdaptiveAnalyzer.analyze(
             question=question, 
             answer=answer, 
             topic=topic,
-            expected_answer=expected_answer  # 🔥 Pass it here to avoid duplicate generation
+            expected_answer=expected_answer  # ✅ Now properly passed from app.py
         )
-
-        # Extract the expected answer from analysis (it's now returned)
-        expected_answer_from_analysis = analysis.get("expected_answer", expected_answer)
         
-        # Extract scores
+        # Extract scores - semantic_similarity now properly calculated with expected_answer
+        semantic_score = analysis.get("semantic_similarity", 0.0)
         coverage_score = analysis.get("coverage_score", 0.5)
-        word_count = len(answer.split())
-        depth_score = 0.3 if analysis.get("depth") == "shallow" else 0.6 if analysis.get("depth") == "medium" else 0.9
         missing = analysis.get("missing_concepts", [])
         
-        # 🔥 Extract concepts from answer (for concept-level tracking)
+        # Extract concepts from answer (for concept-level tracking)
         concepts_mentioned = analysis.get("key_terms_used", [])
         
-        # Calculate semantic score (reduced influence of coverage)
-        semantic_score = analysis.get("semantic_similarity", 0.5)
-        
-        # Length penalty
-        if word_count < 10:
+        # Length penalty (but don't apply if we already have 0 from empty expected answer)
+        word_count = len(answer.split())
+        if word_count < 10 and semantic_score > 0:
             semantic_score *= 0.7
-        elif word_count < 20:
+            print(f"📏 Length penalty applied: {word_count} words → semantic score adjusted to {semantic_score:.3f}")
+        elif word_count < 20 and semantic_score > 0:
             semantic_score *= 0.85
+            print(f"📏 Length penalty applied: {word_count} words → semantic score adjusted to {semantic_score:.3f}")
         
         semantic_score = min(0.95, semantic_score)
         keyword_score = coverage_score  # Still track, but weight reduced in mastery
         
-        # 🔥 NEW: Update subtopic mastery
+        # Log the scores for debugging
+        print(f"\n📊 SCORES FOR ANSWER:")
+        print(f"   - Semantic similarity: {semantic_score:.3f}")
+        print(f"   - Keyword coverage: {keyword_score:.3f}")
+        print(f"   - Expected answer provided: {'Yes' if expected_answer else 'No'}")
+        if expected_answer:
+            print(f"   - Expected answer preview: {expected_answer[:100]}...")
+        
+        # Update subtopic mastery
         if state.user_id not in self.subtopic_trackers:
             self.subtopic_trackers[state.user_id] = SubtopicTracker(state.user_id)
         
         tracker = self.subtopic_trackers[state.user_id]
         tracker.update_subtopic_performance(topic, subtopic, semantic_score)
         
-        # 🔥 Update long-term topic mastery
+        # Update long-term topic mastery
         mastery = state.ensure_topic_mastery(topic)
         mastery.update(
             semantic=semantic_score,
@@ -324,7 +321,7 @@ class AdaptiveInterviewController:
             concepts=concepts_mentioned
         )
         
-        # 🔥 Update session-level topic tracking
+        # Update session-level topic tracking
         topic_session = state.get_topic_session(topic)
         topic_session.add_answer(
             semantic=semantic_score,
@@ -333,7 +330,7 @@ class AdaptiveInterviewController:
             depth=analysis.get("depth", "medium")
         )
         
-        # Create QA record
+        # Create QA record with expected_answer
         record = AdaptiveQARecord(
             question=question,
             topic=topic,
@@ -351,8 +348,8 @@ class AdaptiveInterviewController:
         # Add to history
         state.add_to_history(record)
         
-        # Save to database
-        self._save_to_db(state.user_id, session_id, record, mastery)
+        # Save to database (pass expected_answer to ensure it's stored)
+        self._save_to_db(state.user_id, session_id, record, mastery, expected_answer)
         
         # Decide next action
         action = self.decision_engine.decide(state, analysis)
@@ -668,7 +665,7 @@ class AdaptiveInterviewController:
             "subtopic_stats": subtopic_stats
         }
     
-    def _save_to_db(self, user_id: int, session_id: str, record: AdaptiveQARecord, mastery):
+    def _save_to_db(self, user_id: int, session_id: str, record: AdaptiveQARecord, mastery, expected_answer: str = ""):
         """Save QA record and update user mastery in database"""
         try:
             # Update UserMastery
@@ -698,15 +695,15 @@ class AdaptiveInterviewController:
             db_mastery.weak_concepts = json.dumps(list(mastery.weak_concepts))
             db_mastery.strong_concepts = json.dumps(list(mastery.strong_concepts))
             
-            # Save question history
+            # Save question history with expected_answer
             history = QuestionHistory(
                 user_id=user_id,
                 session_id=session_id,
                 topic=record.topic,
-                subtopic=record.subtopic,  # 🔥 Save subtopic!
+                subtopic=record.subtopic,
                 question=record.question,
                 answer=record.answer,
-                expected_answer=record.analysis.get("expected_answer", ""),  # 🔥 Save expected answer
+                expected_answer=expected_answer or record.analysis.get("expected_answer", ""),  # 🔥 Save expected answer
                 semantic_score=record.semantic_score,
                 keyword_score=record.keyword_score,
                 coverage_score=record.coverage_score,
@@ -717,6 +714,7 @@ class AdaptiveInterviewController:
             db.session.add(history)
             
             db.session.commit()
+            print(f"💾 Saved to DB: expected_answer length = {len(expected_answer or '')}")
             
         except Exception as e:
             print(f"Error saving to DB: {e}")
@@ -731,24 +729,37 @@ class AdaptiveInterviewController:
     
     # 🔥 NEW: Reset mastery methods
     def reset_user_mastery(self, user_id: int, topic: str = None) -> dict:
-        """Reset mastery for a user (all topics or specific topic)"""
+        """Reset mastery for a user - COMPLETE in-memory cleanup"""
         try:
+            # Clear in-memory tracker
             if user_id in self.subtopic_trackers:
-                tracker = self.subtopic_trackers[user_id]
+                # Reset the tracker (creates new empty one)
+                self.subtopic_trackers[user_id].reset_all_mastery()
+                # Optionally, delete it to force fresh creation
                 if topic:
-                    tracker.reset_topic_mastery(topic)
+                    # For topic-specific reset, we need to refresh
+                    self.subtopic_trackers[user_id].reset_topic_mastery(topic)
                 else:
-                    tracker.reset_all_mastery()
-                return {"success": True, "message": f"Reset {'all' if not topic else topic} mastery successfully"}
-            else:
-                # Create tracker and reset
-                tracker = SubtopicTracker(user_id)
-                if topic:
-                    tracker.reset_topic_mastery(topic)
-                else:
-                    tracker.reset_all_mastery()
-                self.subtopic_trackers[user_id] = tracker
-                return {"success": True, "message": f"Reset {'all' if not topic else topic} mastery successfully"}
+                    # For full reset, create fresh tracker
+                    self.subtopic_trackers[user_id] = SubtopicTracker(user_id)
+            
+            # Also clear any session data for this user
+            sessions_to_remove = []
+            for session_id, state in self.sessions.items():
+                if state.user_id == user_id:
+                    if topic:
+                        # Only remove if it's the specific topic session
+                        if state.current_topic == topic:
+                            sessions_to_remove.append(session_id)
+                    else:
+                        # Remove all sessions for this user
+                        sessions_to_remove.append(session_id)
+            
+            for session_id in sessions_to_remove:
+                semantic_dedup.clear_session(session_id)
+                del self.sessions[session_id]
+            
+            return {"success": True, "message": f"Reset {'all' if not topic else topic} mastery successfully"}
         except Exception as e:
             print(f"Error resetting mastery: {e}")
             return {"error": str(e)}

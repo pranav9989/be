@@ -306,13 +306,24 @@ def finalize_user_answer(session_key):
             print(f"❌ No adaptive_session_id found for session {session_key}")
             return
         
+        # 🔥 Get expected answer for this question from RAG FIRST
+        expected_answer = None
+        try:
+            from rag import agentic_expected_answer
+            expected_answer, _ = agentic_expected_answer(question)
+            print(f"📝 Generated expected answer: {expected_answer[:100]}...")
+        except Exception as e:
+            print(f"⚠️ Could not get expected answer: {e}")
+            expected_answer = question  # Simple fallback
+        
+        # 🔥 Call handle_answer with the expected_answer parameter
         with app.app_context():
             agent_response = adaptive_controller.handle_answer(
                 session_id=adaptive_session_id,
-                answer=final_answer
+                answer=final_answer,
+                expected_answer=expected_answer  # ✅ Pass it here!
             )
 
-        
         # Check if we got an error
         if "error" in agent_response:
             print(f"❌ Agent error: {agent_response['error']}")
@@ -323,15 +334,6 @@ def finalize_user_answer(session_key):
         if agent_response.get("action") in ["FOLLOW_UP", "SIMPLIFY", "DEEPEN", "MOVE_TOPIC"]:
             next_question = agent_response.get("question")
         
-        # 🔥 Get expected answer for this question from RAG
-        expected_answer = None
-        try:
-            from rag import agentic_expected_answer  # ✅ Import the concise version
-            expected_answer, _ = agentic_expected_answer(question)  # ✅ This gives human-like answer
-        except Exception as e:
-            print(f"⚠️ Could not get expected answer: {e}")
-            expected_answer = question  # Simple fallback
-
         # 4. Update Frontend
         socketio.emit(
             "user_answer_complete",
@@ -349,13 +351,14 @@ def finalize_user_answer(session_key):
             
             # Calculate scores (compare with expected answer)
             semantic_score = calculate_semantic_similarity(final_answer, expected_answer)
-            keyword_score = calculate_keyword_coverage(final_answer, question)  # Still use question for keywords
+            keyword_score = calculate_keyword_coverage(final_answer, question)
             
             # Record in stats with expected answer
             session["stats"].record_qa_pair(question, final_answer, expected_answer, semantic_score, keyword_score)
             
             print(f"📊 Q&A Scores - Semantic: {semantic_score:.3f}, Keyword: {keyword_score:.3f}")
-
+            print(f"   Expected answer used: {expected_answer[:100]}...")
+            
         if next_question:
             if session.get("terminated"):
                 print("🚫 Session terminated — skipping agent_next_question emit")
@@ -363,6 +366,7 @@ def finalize_user_answer(session_key):
 
             session["current_question"] = next_question
             session["current_topic"] = agent_response.get("topic", session["current_topic"])
+            session["current_subtopic"] = agent_response.get("subtopic", session.get("current_subtopic"))
             session["difficulty"] = agent_response.get("difficulty", session["difficulty"])
             
             # Record the next question before emitting
@@ -1558,112 +1562,115 @@ def upload_resume():
 @app.route('/api/user/progress', methods=['GET'])
 @jwt_required
 def get_user_progress():
-    """Get user's learning progress across topics with subtopic-level tracking"""
+    """Get user's learning progress - PURELY subtopic-based classification"""
     user_id = g.current_user.id
     
-    # Get topic-level masteries
+    # Get topic-level masteries (for topic cards only, NOT for strength/weak classification)
     masteries = UserMastery.query.filter_by(user_id=user_id).all()
     
-    # 🔥 NEW: Get subtopic-level masteries
+    # Get subtopic-level masteries (source of truth for strengths/weaknesses)
     subtopic_masteries = SubtopicMastery.query.filter_by(user_id=user_id).all()
     
     result = {
-        'topics': {},
-        'subtopics': {},  # Organized by subject then subtopic
+        'topics': {},  # Only for topic cards display
+        'strengths': [],  # ONLY strong subtopics
+        'weak_subtopics': [],  # ONLY weak subtopics
+        'medium_subtopics': [],  # Medium subtopics
+        'all_subtopics': [],  # All attempted subtopics
         'overall': {
             'total_questions': 0,
             'avg_mastery': 0,
-            'weakest_topics': [],
-            'strongest_topics': [],
-            'weakest_subtopics': [],
-            'strongest_subtopics': []
+            'weakest_topics': [],  # Keep for backward compatibility
+            'strongest_topics': []  # Keep for backward compatibility
         }
     }
     
     total_mastery = 0
     topics_list = []
-    all_subtopics = []  # For collecting all subtopics across subjects
     
-    # Process topic-level masteries
+    # Process topic-level masteries (for topic cards only)
     for m in masteries:
         data = m.to_dict()
         result['topics'][m.topic] = data
         total_mastery += m.mastery_level
         topics_list.append((m.topic, m.mastery_level))
     
-    # 🔥 NEW: Process subtopic-level masteries
-    subtopics_by_topic = {}
+    # 🔥 FIX: Process subtopic masteries - PURE CLASSIFICATION
+    strengths = []
+    weaknesses = []
+    medium = []
+    all_subtopics = []
+    
+    # First, aggregate by subtopic (in case of multiple records)
+    subtopic_aggregator = {}  # {(topic, subtopic): {'total_mastery': 0, 'count': 0, 'attempts': 0}}
+    
     for sm in subtopic_masteries:
-        if sm.topic not in subtopics_by_topic:
-            subtopics_by_topic[sm.topic] = {}
+        key = (sm.topic, sm.subtopic)
+        if key not in subtopic_aggregator:
+            subtopic_aggregator[key] = {
+                'total_mastery': 0,
+                'count': 0,
+                'attempts': sm.attempts
+            }
         
-        subtopic_data = {
-            'mastery_level': sm.mastery_level,
-            'attempts': sm.attempts,
-            'last_asked': sm.last_asked.isoformat() if sm.last_asked else None,
-            'status': sm.status
+        subtopic_aggregator[key]['total_mastery'] += sm.mastery_level
+        subtopic_aggregator[key]['count'] += 1
+    
+    # Now classify each subtopic based ONLY on its mastery
+    for (topic, subtopic), data in subtopic_aggregator.items():
+        # Calculate average mastery
+        avg_mastery = data['total_mastery'] / data['count']
+        
+        subtopic_entry = {
+            'topic': topic,
+            'subtopic': subtopic,
+            'mastery': round(avg_mastery, 3),
+            'attempts': data['attempts']
         }
-        subtopics_by_topic[sm.topic][sm.subtopic] = subtopic_data
         
-        # Add to all_subtopics for weakest/strongest calculation
-        all_subtopics.append({
-            'topic': sm.topic,
-            'subtopic': sm.subtopic,
-            'mastery_level': sm.mastery_level,
-            'attempts': sm.attempts,
-            'status': sm.status
-        })
+        # 🔥 CRITICAL: Classify based ONLY on subtopic mastery, NOT topic mastery
+        if avg_mastery >= 0.7:
+            strengths.append(subtopic_entry)
+        elif avg_mastery < 0.4:
+            weaknesses.append(subtopic_entry)
+        else:
+            medium.append(subtopic_entry)
+        
+        all_subtopics.append(subtopic_entry)
     
-    result['subtopics'] = subtopics_by_topic
+    # Sort strengths by mastery (highest first)
+    strengths.sort(key=lambda x: x['mastery'], reverse=True)
     
-    # Calculate overall stats for topics
+    # Sort weaknesses by mastery (lowest first)
+    weaknesses.sort(key=lambda x: x['mastery'])
+    
+    # Sort medium by mastery (highest first)
+    medium.sort(key=lambda x: x['mastery'], reverse=True)
+    
+    # Sort all_subtopics by mastery (highest first)
+    all_subtopics.sort(key=lambda x: x['mastery'], reverse=True)
+    
+    # Assign to result
+    result['strengths'] = strengths[:10]  # Top 10
+    result['weak_subtopics'] = weaknesses[:10]  # Top 10
+    result['medium_subtopics'] = medium[:10]  # Top 10
+    result['all_subtopics'] = all_subtopics
+    
+    # Calculate overall stats for topics (for backward compatibility)
     if topics_list:
         result['overall']['avg_mastery'] = total_mastery / len(topics_list)
         topics_list.sort(key=lambda x: x[1])
         result['overall']['weakest_topics'] = [t[0] for t in topics_list[:3]]
         result['overall']['strongest_topics'] = [t[0] for t in topics_list[-3:]]
     
-    # 🔥 NEW: Calculate strongest/weakest subtopics
-    if all_subtopics:
-        # Sort by mastery level
-        all_subtopics.sort(key=lambda x: x['mastery_level'])
-        
-        # Get weakest subtopics (lowest mastery)
-        weakest = all_subtopics[:5]  # Bottom 5
-        result['overall']['weakest_subtopics'] = [
-            {
-                'topic': w['topic'],
-                'subtopic': w['subtopic'],
-                'mastery_level': w['mastery_level'],
-                'attempts': w['attempts'],
-                'status': w['status']
-            }
-            for w in weakest
-        ]
-        
-        # Get strongest subtopics (highest mastery)
-        strongest = all_subtopics[-5:]  # Top 5
-        strongest.reverse()  # Show highest first
-        result['overall']['strongest_subtopics'] = [
-            {
-                'topic': s['topic'],
-                'subtopic': s['subtopic'],
-                'mastery_level': s['mastery_level'],
-                'attempts': s['attempts'],
-                'status': s['status']
-            }
-            for s in strongest
-        ]
-    
-    # Also calculate total questions from QuestionHistory
+    # Calculate total questions
     total_questions = QuestionHistory.query.filter_by(user_id=user_id).count()
     result['overall']['total_questions'] = total_questions
     
-    print(f"📊 Progress data loaded: {len(subtopic_masteries)} subtopics tracked")
-    if result['overall']['weakest_subtopics']:
-        print(f"   Weakest: {[f'{w["topic"]} - {w["subtopic"]}: {w["mastery_level"]:.2f}' for w in result['overall']['weakest_subtopics']]}")
-    if result['overall']['strongest_subtopics']:
-        print(f"   Strongest: {[f'{s["topic"]} - {s["subtopic"]}: {s["mastery_level"]:.2f}' for s in result['overall']['strongest_subtopics']]}")
+    print(f"📊 Progress data loaded: {len(all_subtopics)} subtopics")
+    print(f"   Strengths: {len(strengths)}")
+    print(f"   Weaknesses: {len(weaknesses)}")
+    print(f"   Medium: {len(medium)}")
     
     return jsonify({'success': True, 'data': result})
 
@@ -1847,17 +1854,66 @@ Format:
 @app.route('/api/user/reset_mastery', methods=['POST'])
 @jwt_required
 def reset_user_mastery():
-    """Reset all subtopic mastery for the user (start over)"""
+    """Reset mastery for the user - COMPLETE CLEANUP"""
     try:
         data = request.get_json() or {}
         topic = data.get('topic')  # Optional: reset only specific topic
         
-        result = adaptive_controller.reset_user_mastery(g.current_user.id, topic)
+        user_id = g.current_user.id
         
-        return jsonify({
-            'success': True,
-            'message': f"Reset {'all' if not topic else topic} mastery successfully"
-        })
+        # Start a transaction
+        try:
+            if topic:
+                # Reset only specific topic
+                # Delete subtopic masteries for this topic
+                deleted_subtopics = SubtopicMastery.query.filter_by(
+                    user_id=user_id, 
+                    topic=topic
+                ).delete()
+                
+                # Delete topic mastery
+                deleted_topic = UserMastery.query.filter_by(
+                    user_id=user_id, 
+                    topic=topic
+                ).delete()
+                
+                # Delete question history for this topic
+                deleted_questions = QuestionHistory.query.filter_by(
+                    user_id=user_id, 
+                    topic=topic
+                ).delete()
+                
+                message = f"Reset {topic} mastery successfully"
+                print(f"✅ Reset {topic}: {deleted_subtopics} subtopics, {deleted_topic} topic, {deleted_questions} questions")
+            else:
+                # Reset ALL topics
+                # Delete all subtopic masteries
+                deleted_subtopics = SubtopicMastery.query.filter_by(user_id=user_id).delete()
+                
+                # Delete all topic masteries
+                deleted_topics = UserMastery.query.filter_by(user_id=user_id).delete()
+                
+                # Delete all question history
+                deleted_questions = QuestionHistory.query.filter_by(user_id=user_id).delete()
+                
+                message = "Reset all mastery successfully"
+                print(f"✅ Reset all: {deleted_subtopics} subtopics, {deleted_topics} topics, {deleted_questions} questions")
+            
+            db.session.commit()
+            
+            # Also clear the tracker in memory
+            result = adaptive_controller.reset_user_mastery(user_id, topic)
+            
+            return jsonify({
+                'success': True,
+                'message': message
+            })
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ Error during reset: {e}")
+            return jsonify({'success': False, 'error': str(e)}), 500
+            
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 

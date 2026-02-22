@@ -592,19 +592,6 @@
   color: #991B1B;
 }
 
-.mastery-bar {
-  height: 6px;
-  background: #E2E8F0;
-  border-radius: 3px;
-  margin: 0.8rem 0;
-  overflow: hidden;
-}
-
-.mastery-fill {
-  height: 100%;
-  transition: width 0.3s ease;
-}
-
 .topic-stats {
   display: flex;
   justify-content: space-between;
@@ -926,38 +913,59 @@
   color: #92400e;
 }
 
-/* Topic Card Status */
-.topic-card.status-strong {
-  border-left: 4px solid #10B981;
-}
-
-.topic-card.status-weak {
-  border-left: 4px solid #EF4444;
-}
-
-.topic-card.status-medium {
-  border-left: 4px solid #F59E0B;
-}
-
-.topic-status {
-  font-size: 0.75rem;
-  padding: 2px 6px;
+.topic-card.minimal {
+  background: #FFFFFF;
   border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #E2E8F0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.8rem;
+  transition: all 0.2s ease;
 }
 
-.topic-status.status-strong {
-  background: #d1fae5;
-  color: #065f46;
+.topic-card.minimal:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
 }
 
-.topic-status.status-weak {
-  background: #fee2e2;
-  color: #991b1b;
+.topic-name {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #1E3A8A;
 }
 
-.topic-status.status-medium {
-  background: #fef3c7;
-  color: #92400e;
+.topic-simple-stats {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.topic-mastery {
+  font-weight: 700;
+  color: #1E293B;
+}
+
+.topic-questions {
+  font-size: 0.85rem;
+  color: #64748B;
+}
+
+.reset-btn {
+  align-self: flex-start;
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.reset-btn:hover {
+  background: #FEE2E2;
+  color: #991B1B;
+  border-color: #FECACA;
 }
 
 /* Concept Tags */
@@ -1099,4 +1107,230 @@
 .subtopic-value {
   font-size: 0.75rem;
   font-weight: 600;
+}
+
+/* All Attempted Subtopics Grid */
+.subtopic-grid {
+  margin-bottom: 2rem;
+}
+
+.subtopic-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-color: #1E3A8A !important;
+}
+
+/* Ensure strength and weakness sections are clean */
+.strength-card .topic-chip,
+.weakness-card .topic-chip {
+  margin-bottom: 0.5rem;
+  transition: all 0.2s ease;
+}
+
+.strength-card .topic-chip:hover,
+.weakness-card .topic-chip:hover {
+  transform: translateX(4px);
+}
+
+/* No data message */
+.no-data {
+  color: #94A3B8;
+  font-style: italic;
+  text-align: center;
+  padding: 2rem;
+  background: #F1F5F9;
+  border-radius: 8px;
+}
+
+/* Container for the three sections */
+.progress-sections-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* Base card styling for all sections */
+.section-card {
+  background: #F8FAFC;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #E2E8F0;
+  transition: all 0.2s ease;
+}
+
+.section-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+/* Section headers */
+.section-header {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #1E3A8A;
+  margin-bottom: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding-bottom: 0.5rem;
+  border-bottom: 2px solid #E2E8F0;
+}
+
+.section-header i {
+  font-size: 1rem;
+}
+
+/* Topic chip base styling - used by all */
+.topic-chip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.5rem;
+  border-radius: 8px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.topic-chip:hover {
+  transform: translateX(4px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+/* Strong topic chip */
+.topic-chip.strong {
+  background: #ECFDF5;
+  color: #065F46;
+  border: 1px solid #A7F3D0;
+}
+
+.topic-chip.strong:hover {
+  background: #D1FAE5;
+  border-color: #10B981;
+}
+
+/* Weak topic chip */
+.topic-chip.weak {
+  background: #FEF2F2;
+  color: #991B1B;
+  border: 1px solid #FECACA;
+}
+
+.topic-chip.weak:hover {
+  background: #FEE2E2;
+  border-color: #EF4444;
+}
+
+/* Medium/In Progress topic chip */
+.topic-chip.medium {
+  background: #FEF3C7;
+  color: #92400E;
+  border: 1px solid #FCD34D;
+}
+
+.topic-chip.medium:hover {
+  background: #FDE68A;
+  border-color: #F59E0B;
+}
+
+/* Chip value (percentage) styling */
+.chip-value {
+  background: rgba(255, 255, 255, 0.5);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0 0.5rem;
+  border: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.topic-chip.strong .chip-value {
+  background: #A7F3D0;
+  color: #065F46;
+}
+
+.topic-chip.weak .chip-value {
+  background: #FECACA;
+  color: #991B1B;
+}
+
+.topic-chip.medium .chip-value {
+  background: #FCD34D;
+  color: #92400E;
+}
+
+/* Chip count (questions) styling */
+.chip-count {
+  font-size: 0.7rem;
+  color: #666;
+  background: rgba(255, 255, 255, 0.5);
+  padding: 0.2rem 0.5rem;
+  border-radius: 12px;
+}
+
+.topic-chip.strong .chip-count {
+  color: #065F46;
+}
+
+.topic-chip.weak .chip-count {
+  color: #991B1B;
+}
+
+.topic-chip.medium .chip-count {
+  color: #92400E;
+}
+
+/* No data message */
+.no-data {
+  color: #94A3B8;
+  font-style: italic;
+  text-align: center;
+  padding: 2rem;
+  background: #F1F5F9;
+  border-radius: 8px;
+  border: 1px dashed #CBD5E1;
+}
+
+/* Section-specific containers - keep existing or replace with these */
+.strength-card,
+.weakness-card,
+.inprogress-card {
+  background: #F8FAFC;
+  border-radius: 12px;
+  padding: 1.5rem;
+  border: 1px solid #E2E8F0;
+  transition: all 0.2s ease;
+}
+
+/* Remove old conflicting styles and use these new ones */
+.strength-card .topic-chip,
+.weakness-card .topic-chip,
+.inprogress-card .topic-chip {
+  margin-bottom: 0.5rem;
+}
+
+/* Grid layout for sections if needed */
+.sections-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .sections-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .topic-chip {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+
+  .topic-chip span:first-child {
+    width: 100%;
+  }
 }

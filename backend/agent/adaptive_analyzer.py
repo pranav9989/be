@@ -136,7 +136,7 @@ class AdaptiveAnalyzer:
         """
         if not answer or len(answer.strip()) < 5:
             return {
-                "coverage_score": 0.0,  # RAW value
+                "coverage_score": 0.0,
                 "depth": "shallow",
                 "missing_concepts": [],
                 "covered_concepts": [],
@@ -146,17 +146,17 @@ class AdaptiveAnalyzer:
                 "grammatical_quality": 0.0,
                 "has_example": False,
                 "estimated_difficulty": "easy",
-                "semantic_similarity": 0.0,  # RAW value
-                "expected_answer": ""
+                "semantic_similarity": 0.0,
+                "expected_answer": expected_answer or ""
             }
         
         # Extract keywords
         key_terms = list(cls.extract_keywords(answer, topic))
         expected_keywords = cls.extract_keywords(question, topic)
         
-        # 🔥 Calculate RAW coverage using interview_analyzer function
+        # Calculate RAW coverage
         from interview_analyzer import calculate_keyword_coverage
-        coverage = calculate_keyword_coverage(answer, question)  # ← RAW value (0.0-1.0)
+        coverage = calculate_keyword_coverage(answer, question)
         
         depth = cls.assess_depth(answer)
         confidence = cls.assess_confidence(answer)
@@ -173,7 +173,7 @@ class AdaptiveAnalyzer:
         good_sentences = sum(1 for s in sentences if s and s[0].isupper())
         grammatical_quality = good_sentences / len(sentences) if sentences else 0
         
-        # Estimate answer difficulty based on vocabulary and structure
+        # Estimate answer difficulty
         if depth == "deep" and confidence == "high" and has_example:
             est_difficulty = "hard"
         elif depth == "shallow" and confidence == "low":
@@ -181,25 +181,22 @@ class AdaptiveAnalyzer:
         else:
             est_difficulty = "medium"
         
-        # Use provided expected_answer if available, otherwise generate
-        if expected_answer is None:
+        # 🔥 CRITICAL FIX: Calculate semantic similarity using provided expected_answer
+        semantic_similarity = 0.0
+        if expected_answer and expected_answer.strip():
             try:
-                from rag import agentic_expected_answer
-                expected_answer, _ = agentic_expected_answer(question)
+                from interview_analyzer import calculate_semantic_similarity
+                semantic_similarity = calculate_semantic_similarity(answer, expected_answer)
+                print(f"📊 Semantic similarity calculated: {semantic_similarity:.3f}")
             except Exception as e:
-                print(f"⚠️ Could not generate expected answer: {e}")
-                expected_answer = ""
-        
-        # Calculate semantic similarity (RAW value)
-        try:
-            from interview_analyzer import calculate_semantic_similarity
-            semantic_similarity = calculate_semantic_similarity(answer, expected_answer)  # ← RAW value
-        except Exception as e:
-            print(f"⚠️ Could not calculate semantic similarity: {e}")
+                print(f"⚠️ Could not calculate semantic similarity: {e}")
+                semantic_similarity = 0.0
+        else:
+            print(f"⚠️ No expected answer provided for question: {question[:50]}...")
             semantic_similarity = 0.0
 
         return {
-            "coverage_score": round(coverage, 3),  # 🔥 RAW value
+            "coverage_score": round(coverage, 3),
             "depth": depth,
             "missing_concepts": missing,
             "covered_concepts": covered,
@@ -210,6 +207,6 @@ class AdaptiveAnalyzer:
             "has_example": has_example,
             "estimated_difficulty": est_difficulty,
             "expected_keywords": list(expected_keywords),
-            "semantic_similarity": round(semantic_similarity, 3),  # 🔥 RAW value
+            "semantic_similarity": round(semantic_similarity, 3),
             "expected_answer": expected_answer
         }
