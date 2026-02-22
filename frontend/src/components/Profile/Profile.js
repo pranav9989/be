@@ -71,7 +71,6 @@ const Profile = ({ user, onLogout }) => {
 
   const loadSubtopicQuestions = async (topic, subtopic) => {
     try {
-      // You'll need to create this API endpoint
       const response = await progressAPI.getSubtopicQuestions(topic, subtopic);
       if (response.data?.success) {
         setSubtopicQuestions(response.data.questions);
@@ -299,7 +298,7 @@ const Profile = ({ user, onLogout }) => {
               </button>
             </div>
 
-            {/* 🔥 FIXED: Strengths, Weaknesses & In Progress - CONSISTENT STYLING */}
+            {/* Strengths, Weaknesses & In Progress */}
             <div className="sections-grid">
               {/* Strengths Section */}
               <div className="strength-card">
@@ -356,7 +355,7 @@ const Profile = ({ user, onLogout }) => {
               </div>
             </div>
 
-            {/* In Progress Section - Now matching the others */}
+            {/* In Progress Section */}
             {progress.medium_subtopics && progress.medium_subtopics.length > 0 && (
               <div className="inprogress-card" style={{ marginTop: '1.5rem' }}>
                 <h4 className="section-header">
@@ -381,7 +380,7 @@ const Profile = ({ user, onLogout }) => {
               </div>
             )}
 
-            {/* 🔥 NEW: All Attempted Subtopics Section */}
+            {/* All Attempted Subtopics Section */}
             {progress.all_subtopics && progress.all_subtopics.length > 0 && (
               <div className="all-subtopics-section">
                 <h4 style={{ marginTop: '2rem', color: '#1E3A8A' }}>
@@ -434,7 +433,7 @@ const Profile = ({ user, onLogout }) => {
               </div>
             )}
 
-            {/* Topic Mastery Grid (Keep this for topic-level view) */}
+            {/* Topic Mastery Grid */}
             <h4 className="topics-title">Topic Mastery (Overview)</h4>
             <div className="topics-grid">
               {Object.entries(progress.topics).map(([topic, data]) => (
@@ -661,7 +660,6 @@ const Profile = ({ user, onLogout }) => {
                       <div className="question-scores">
                         <span className="score semantic">Semantic: {(q.semantic_score * 100).toFixed(1)}%</span>
                         <span className="score keyword">Keyword: {(q.keyword_score * 100).toFixed(1)}%</span>
-                        <span className="score coverage">Coverage: {(q.coverage_score * 100).toFixed(1)}%</span>
                       </div>
                     </div>
                   ))}

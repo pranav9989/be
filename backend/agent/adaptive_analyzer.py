@@ -96,6 +96,25 @@ class AdaptiveAnalyzer:
             return "medium"
         else:
             return "shallow"
+
+    @classmethod
+    def get_subtopic_concepts(cls, topic: str, subtopic: str, question_bank) -> Set[str]:
+        """
+        Get the exact concepts for a specific subtopic from the question bank taxonomy
+        This ensures we only check concepts that actually belong to this subtopic
+        """
+        if not topic or not subtopic or not question_bank:
+            return set()
+        
+        # Look through the taxonomy in question_bank
+        for t in question_bank.taxonomy["topics"]:
+            if t["name"] == topic:
+                for s in t["subtopics"]:
+                    if s["name"] == subtopic:
+                        # Return all concepts for this subtopic as lowercase set
+                        return set([c.lower() for c in s["concepts"]])
+        
+        return set()
     
     @classmethod
     def assess_confidence(cls, answer: str) -> str:
@@ -129,7 +148,9 @@ class AdaptiveAnalyzer:
     
 
     @classmethod
-    def analyze(cls, question: str, answer: str, topic: str = None, expected_answer: str = None) -> dict:
+    def analyze(cls, question: str, answer: str, topic: str = None, 
+                subtopic: str = None, question_bank = None,  # 🔥 NEW: Add subtopic and question_bank params
+                expected_answer: str = None) -> dict:
         """
         Comprehensive analysis with adaptive learning signals
         ALL metrics are RAW values (0.0 to 1.0) - NO SCALING
@@ -137,9 +158,9 @@ class AdaptiveAnalyzer:
         if not answer or not answer.strip() or len(answer.strip()) < 5:
             print(f"⚠️ Empty or very short answer detected, returning zeros")
             return {
-                "coverage_score": 0.0,
+                "keyword_coverage": 0.0,
                 "depth": "shallow",
-                "missing_concepts": [],
+                "missing_concepts": [],  # 🔥 Empty for short answers
                 "covered_concepts": [],
                 "confidence": "low",
                 "key_terms_used": [],
@@ -147,7 +168,7 @@ class AdaptiveAnalyzer:
                 "grammatical_quality": 0.0,
                 "has_example": False,
                 "estimated_difficulty": "easy",
-                "semantic_similarity": 0.0,  # 🔥 CRITICAL: Must be 0.0 for empty answers
+                "semantic_similarity": 0.0,
                 "expected_answer": expected_answer or ""
             }
         
@@ -157,14 +178,37 @@ class AdaptiveAnalyzer:
         
         # Calculate RAW coverage
         from interview_analyzer import calculate_keyword_coverage
-        coverage = calculate_keyword_coverage(answer, question)
+        keyword_coverage = calculate_keyword_coverage(answer, question)
         
         depth = cls.assess_depth(answer)
         confidence = cls.assess_confidence(answer)
         
-        # Find missing concepts
-        missing = cls.identify_missing_concepts(answer, expected_keywords)
-        covered = [c for c in expected_keywords if c not in missing]
+        # 🔥 FIX: Use subtopic-specific concepts for missing concepts, not broad topic keywords
+        missing = []
+        covered = []
+        
+        if topic and subtopic and question_bank:
+            # Get the EXACT concepts for this subtopic from the taxonomy
+            subtopic_concepts = cls.get_subtopic_concepts(topic, subtopic, question_bank)
+            
+            if subtopic_concepts:
+                answer_lower = answer.lower()
+                for concept in subtopic_concepts:
+                    if concept in answer_lower:
+                        covered.append(concept)
+                    else:
+                        missing.append(concept)
+                
+                print(f"🎯 Subtopic concepts for {topic} - {subtopic}: {len(subtopic_concepts)} concepts")
+                print(f"   Covered: {len(covered)}, Missing: {len(missing)}")
+            else:
+                # Fallback to old method if subtopic concepts not found
+                missing = cls.identify_missing_concepts(answer, expected_keywords)
+                covered = [c for c in expected_keywords if c not in missing]
+        else:
+            # Fallback to old method
+            missing = cls.identify_missing_concepts(answer, expected_keywords)
+            covered = [c for c in expected_keywords if c not in missing]
         
         # Check for examples
         has_example = 'example' in answer.lower() or 'instance' in answer.lower()
@@ -182,7 +226,7 @@ class AdaptiveAnalyzer:
         else:
             est_difficulty = "medium"
         
-        # 🔥 CRITICAL FIX: Calculate semantic similarity using provided expected_answer
+        # Calculate semantic similarity using provided expected_answer
         semantic_similarity = 0.0
         if expected_answer and expected_answer.strip():
             try:
@@ -197,10 +241,10 @@ class AdaptiveAnalyzer:
             semantic_similarity = 0.0
 
         return {
-            "coverage_score": round(coverage, 3),
+            "keyword_coverage": round(keyword_coverage, 3),
             "depth": depth,
-            "missing_concepts": missing,
-            "covered_concepts": covered,
+            "missing_concepts": missing[:5],  # Top 5 missing
+            "covered_concepts": covered[:10],  # Top 10 covered
             "confidence": confidence,
             "key_terms_used": key_terms[:10],
             "response_length": len(answer.split()),

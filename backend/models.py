@@ -60,14 +60,13 @@ class UserMastery(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
     topic = db.Column(db.String(50), nullable=False)
-    sessions_attempted = db.Column(db.Integer, default=0)  # 🔥 NEW
-    last_session_date = db.Column(db.DateTime, nullable=True)  # 🔥 NEW
+    sessions_attempted = db.Column(db.Integer, default=0)
+    last_session_date = db.Column(db.DateTime, nullable=True)
     
-    # Mastery scores (0-1)
+    # Mastery scores (0-1) - REMOVED coverage_avg
     mastery_level = db.Column(db.Float, default=0.0)
     semantic_avg = db.Column(db.Float, default=0.0)
     keyword_avg = db.Column(db.Float, default=0.0)
-    coverage_avg = db.Column(db.Float, default=0.0)
     
     # Statistics
     questions_attempted = db.Column(db.Integer, default=0)
@@ -88,7 +87,7 @@ class UserMastery(db.Model):
     weak_concepts = db.Column(db.Text, default='[]')
     strong_concepts = db.Column(db.Text, default='[]')
     
-    # 🔥 NEW: Concept stagnation tracking
+    # Concept stagnation tracking
     concept_stagnation = db.Column(db.Text, default='{}')
     
     # Timestamps
@@ -127,15 +126,14 @@ class UserMastery(db.Model):
     def set_concept_stagnation(self, stagnation_dict):
         self.concept_stagnation = json.dumps(stagnation_dict)
     
-    def update_mastery(self, semantic_score, keyword_score, coverage_score, response_time, missing=None):
+    def update_mastery(self, semantic_score, keyword_score, response_time, missing=None):
         """
-        Update mastery using exponential moving average - REBALANCED
-        With comprehensive logging for debugging
+        Update mastery using exponential moving average - SIMPLIFIED
+        Now only uses semantic and keyword scores (70/30 split)
         """
-        # 🔥 SAFETY FIX: Ensure no None values before math operations
+        # Safety fixes
         self.semantic_avg = self.semantic_avg or 0.0
         self.keyword_avg = self.keyword_avg or 0.0
-        self.coverage_avg = self.coverage_avg or 0.0
         self.mastery_level = self.mastery_level or 0.0
         self.mastery_velocity = self.mastery_velocity or 0.0
         self.last_mastery = self.last_mastery or 0.0
@@ -152,16 +150,14 @@ class UserMastery(db.Model):
         # Store old values for logging
         old_semantic = self.semantic_avg
         old_keyword = self.keyword_avg
-        old_coverage = self.coverage_avg
         old_mastery = self.mastery_level or 0.0
         old_good = self.consecutive_good
         old_poor = self.consecutive_poor
         old_difficulty = self.current_difficulty
         
-        # Ensure all values are floats and not None
+        # Ensure all values are floats
         semantic_score = float(semantic_score) if semantic_score is not None else 0.0
         keyword_score = float(keyword_score) if keyword_score is not None else 0.0
-        coverage_score = float(coverage_score) if coverage_score is not None else 0.0
         response_time = float(response_time) if response_time is not None else 0.0
         
         print(f"\n📊 UPDATING MASTERY FOR {self.topic}:")
@@ -171,53 +167,48 @@ class UserMastery(db.Model):
         print(f"\n   New answer scores:")
         print(f"   - Semantic: {semantic_score:.3f}")
         print(f"   - Keyword: {keyword_score:.3f}")
-        print(f"   - Coverage: {coverage_score:.3f}")
         print(f"   - Response time: {response_time:.2f}s")
         
         # Update averages
-        self.semantic_avg = (alpha * semantic_score) + ((1 - alpha) * (self.semantic_avg or 0.0))
-        self.keyword_avg = (alpha * keyword_score) + ((1 - alpha) * (self.keyword_avg or 0.0))
-        self.coverage_avg = (alpha * coverage_score) + ((1 - alpha) * (self.coverage_avg or 0.0))
+        self.semantic_avg = (alpha * semantic_score) + ((1 - alpha) * self.semantic_avg)
+        self.keyword_avg = (alpha * keyword_score) + ((1 - alpha) * self.keyword_avg)
         
         print(f"\n   Updated averages (EMA alpha={alpha}):")
         print(f"   - Semantic avg: {old_semantic:.3f} → {self.semantic_avg:.3f}")
         print(f"   - Keyword avg: {old_keyword:.3f} → {self.keyword_avg:.3f}")
-        print(f"   - Coverage avg: {old_coverage:.3f} → {self.coverage_avg:.3f}")
         
         # Store old mastery for velocity calculation
         old_mastery = self.mastery_level or 0.0
         
-        # 🔥 NEW FORMULA: Semantic dominant (70%), coverage (20%), keyword (10%)
+        # NEW FORMULA: Semantic dominant (70%), keyword (30%)
         self.mastery_level = (
             (self.semantic_avg or 0.0) * 0.7 +
-            (self.coverage_avg or 0.0) * 0.2 +
-            (self.keyword_avg or 0.0) * 0.1
+            (self.keyword_avg or 0.0) * 0.3
         )
         
-        print(f"\n   Mastery level (70% semantic, 20% coverage, 10% keyword):")
-        print(f"   - Calculation: ({self.semantic_avg:.3f}*0.7) + ({self.coverage_avg:.3f}*0.2) + ({self.keyword_avg:.3f}*0.1)")
+        print(f"\n   Mastery level (70% semantic, 30% keyword):")
+        print(f"   - Calculation: ({self.semantic_avg:.3f}*0.7) + ({self.keyword_avg:.3f}*0.3)")
         print(f"   - Result: {old_mastery:.3f} → {self.mastery_level:.3f}")
         
-        # Update learning velocity (delta)
+        # Update learning velocity
         self.mastery_velocity = self.mastery_level - old_mastery
         self.last_mastery = old_mastery
-        
         print(f"   - Learning velocity: {self.mastery_velocity:+.3f}")
         
-        # Update response time (EMA)
+        # Update response time
         old_response = self.avg_response_time
-        self.avg_response_time = (alpha * response_time) + ((1 - alpha) * (self.avg_response_time or 0.0))
+        self.avg_response_time = (alpha * response_time) + ((1 - alpha) * self.avg_response_time)
         print(f"   - Response time avg: {old_response:.2f}s → {self.avg_response_time:.2f}s")
         
         # Update counters
         self.questions_attempted += 1
-        if coverage_score > 0.6:
+        if keyword_score > 0.6:
             self.correct_count += 1
-            print(f"   - Correct count: {self.correct_count} (coverage > 0.6)")
+            print(f"   - Correct count: {self.correct_count} (keyword > 0.6)")
         
-        # 🔥 Update consecutive patterns using rebalanced weights for consistency
-        combined_score = (semantic_score * 0.7 + keyword_score * 0.1 + coverage_score * 0.2)
-        print(f"\n   Combined score (70% semantic, 10% keyword, 20% coverage): {combined_score:.3f}")
+        # Update consecutive patterns using simplified formula
+        combined_score = (semantic_score * 0.7 + keyword_score * 0.3)
+        print(f"\n   Combined score (70% semantic, 30% keyword): {combined_score:.3f}")
         
         if combined_score > 0.7:
             self.consecutive_good += 1
@@ -252,7 +243,6 @@ class UserMastery(db.Model):
             print(f"\n   ⬇️ THRESHOLD REACHED: {self.consecutive_poor} consecutive POOR answers")
             print(f"      Difficulty: {old_difficulty} → {self.current_difficulty} (NEXT question will be EASY)")
         else:
-            # Stay at current difficulty or default to medium
             if self.current_difficulty not in ["easy", "medium", "hard"]:
                 self.current_difficulty = "medium"
             print(f"\n   ➡️ No threshold reached")
@@ -270,7 +260,6 @@ class UserMastery(db.Model):
                     current_missing.append(concept)
                     print(f"      - Added new missing concept: {concept}")
                 
-                # Increment stagnation count for this concept
                 old_stagnation = stagnation.get(concept, 0)
                 stagnation[concept] = old_stagnation + 1
                 print(f"      - Stagnation for '{concept}': {old_stagnation} → {stagnation[concept]}")
@@ -292,7 +281,6 @@ class UserMastery(db.Model):
         print(f"   - Learning velocity: {self.mastery_velocity:+.3f}")
         print(f"   - Semantic avg: {self.semantic_avg:.3f}")
         print(f"   - Keyword avg: {self.keyword_avg:.3f}")
-        print(f"   - Coverage avg: {self.coverage_avg:.3f}")
         
         return self
     
@@ -327,8 +315,7 @@ class AdaptiveInterviewSession(db.Model):
     questions_asked = db.Column(db.Integer, default=0)
     avg_semantic = db.Column(db.Float, default=0.0)
     avg_keyword = db.Column(db.Float, default=0.0)
-    avg_coverage = db.Column(db.Float, default=0.0)
-    overall_score = db.Column(db.Float, default=0.0)
+    overall_score = db.Column(db.Float, default=0.0)  # REMOVED avg_coverage
     
     # Learning metrics
     learning_velocity = db.Column(db.Float, default=0.0)
@@ -373,12 +360,11 @@ class AdaptiveInterviewSession(db.Model):
             self.questions_asked = len(questions)
             self.avg_semantic = sum(q.semantic_score for q in questions) / len(questions)
             self.avg_keyword = sum(q.keyword_score for q in questions) / len(questions)
-            self.avg_coverage = sum(q.coverage_score for q in questions) / len(questions)
             
+            # Updated formula: 70% semantic, 30% keyword
             self.overall_score = (
-                self.avg_semantic * 0.4 +
-                self.avg_keyword * 0.3 +
-                self.avg_coverage * 0.3
+                self.avg_semantic * 0.7 +
+                self.avg_keyword * 0.3
             )
     
     def to_dict(self):
@@ -390,7 +376,6 @@ class AdaptiveInterviewSession(db.Model):
             'questions_asked': self.questions_asked,
             'avg_semantic': round(self.avg_semantic, 3),
             'avg_keyword': round(self.avg_keyword, 3),
-            'avg_coverage': round(self.avg_coverage, 3),
             'overall_score': round(self.overall_score, 3),
             'topics_covered': self.get_topics_covered(),
             'weakest_topics': self.get_weakest_topics(),
@@ -414,10 +399,9 @@ class QuestionHistory(db.Model):
     answer = db.Column(db.Text, nullable=True)
     expected_answer = db.Column(db.Text, nullable=True)
     
-    # Scores
+    # Scores - REMOVED coverage_score
     semantic_score = db.Column(db.Float, default=0.0)
     keyword_score = db.Column(db.Float, default=0.0)
-    coverage_score = db.Column(db.Float, default=0.0)
     
     # Analysis signals
     depth = db.Column(db.String(20), default="medium")  # shallow, medium, deep
@@ -454,7 +438,6 @@ class QuestionHistory(db.Model):
             'question': self.question[:100] + '...' if len(self.question) > 100 else self.question,
             'semantic_score': round(self.semantic_score, 3),
             'keyword_score': round(self.keyword_score, 3),
-            'coverage_score': round(self.coverage_score, 3),
             'difficulty': self.difficulty,
             'depth': self.depth,
             'confidence': self.confidence,
@@ -462,6 +445,7 @@ class QuestionHistory(db.Model):
             'timestamp': self.timestamp.isoformat(),
             'missing_concepts': self.get_missing_concepts()
         }
+
 
 class SubtopicMastery(db.Model):
     """Tracks mastery of individual subtopics"""

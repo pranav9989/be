@@ -243,7 +243,7 @@ class RunningStatistics:
         avg_keyword = self.total_keyword_score / self.question_count if self.question_count > 0 else 0
 
         # 🔥 NEW: Reduce keyword weight to 20% of overall
-        combined_score = (avg_semantic * 0.8) + (avg_keyword * 0.2)
+        combined_score = (avg_semantic * 0.7) + (avg_keyword * 0.3)
 
         return {
             'transcript': transcript,

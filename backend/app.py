@@ -1716,7 +1716,6 @@ def get_topic_details(topic):
                     'question': q.question[:100] + '...' if len(q.question) > 100 else q.question,
                     'semantic_score': q.semantic_score,
                     'keyword_score': q.keyword_score,
-                    'coverage_score': q.coverage_score,
                     'timestamp': q.timestamp.isoformat()
                 } for q in recent
             ]
@@ -1984,13 +1983,16 @@ def get_subtopic_questions(topic, subtopic):
                 'expected_answer': q.expected_answer,
                 'semantic_score': q.semantic_score,
                 'keyword_score': q.keyword_score,
-                'coverage_score': q.coverage_score,
+                # 🔥 REMOVED: coverage_score
                 'timestamp': q.timestamp.isoformat()
             } for q in questions]
         })
     except Exception as e:
+        print(f"❌ Error fetching subtopic questions: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
-
+        
 @app.route('/api/resume_based_questions', methods=['POST'])
 @jwt_required
 def generate_resume_based_questions():

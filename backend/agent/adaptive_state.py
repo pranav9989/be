@@ -13,7 +13,6 @@ class TopicSessionState:
     topic: str
     questions_asked: int = 0
     cumulative_semantic: float = 0.0
-    cumulative_coverage: float = 0.0
     cumulative_keyword: float = 0.0
     avg_score: float = 0.0
     depth_scores: List[str] = field(default_factory=list)
@@ -25,11 +24,10 @@ class TopicSessionState:
     # 🔥 NEW: Fixed limits - exactly 3 questions per topic per session
     QUESTIONS_PER_TOPIC = 3
     
-    def add_answer(self, semantic: float, coverage: float, keyword: float, depth: str):
+    def add_answer(self, semantic: float, keyword: float, depth: str):
         """Add an answer to this topic's session state"""
         self.questions_asked += 1
         self.cumulative_semantic += semantic
-        self.cumulative_coverage += coverage
         self.cumulative_keyword += keyword
         self.depth_scores.append(depth)
         self.avg_score = self.cumulative_semantic / self.questions_asked
@@ -52,6 +50,7 @@ class TopicSessionState:
             self.is_covered = True
             return True
 
+
 @dataclass
 class AdaptiveQARecord:
     question: str
@@ -62,10 +61,10 @@ class AdaptiveQARecord:
     analysis: Dict
     semantic_score: float = 0.0
     keyword_score: float = 0.0
-    coverage_score: float = 0.0
     response_time: float = 0.0
     missing_concepts: List[str] = field(default_factory=list)
     timestamp: float = field(default_factory=time.time)
+
 
 @dataclass
 class ConceptMastery:
@@ -79,6 +78,7 @@ class ConceptMastery:
     is_weak: bool = False
     is_strong: bool = False
 
+
 @dataclass
 class TopicMastery:
     """Per-topic mastery tracking with longitudinal data"""
@@ -88,7 +88,6 @@ class TopicMastery:
     mastery_level: float = 0.0
     semantic_avg: float = 0.0
     keyword_avg: float = 0.0
-    coverage_avg: float = 0.0
     
     # Statistics
     total_questions: int = 0
@@ -112,17 +111,20 @@ class TopicMastery:
     weak_concepts: Set[str] = field(default_factory=set)
     strong_concepts: Set[str] = field(default_factory=set)
     
-    # Stagnation tracking
+    # Stagnation tracking - Keep for backward compatibility but will be derived
     concept_stagnation: Dict[str, int] = field(default_factory=dict)
     
     # Recent scores for stability
     recent_scores: List[float] = field(default_factory=list)
     stability_score: float = 0.0
     
-    def update(self, semantic: float, keyword: float, coverage: float, 
+    def update(self, semantic: float, keyword: float,
                response_time: float, missing: List[str] = None, 
                concepts: List[str] = None):
-        """Update mastery with new answer - REBALANCED weights"""
+        """
+        Update mastery with new answer - EVIDENCE-BASED STAGNATION
+        Now uses concept-level tracking with proper decay and weak detection
+        """
         alpha = 0.3  # EMA factor
         
         # Store old mastery for velocity
@@ -131,13 +133,11 @@ class TopicMastery:
         # Update averages
         self.semantic_avg = (alpha * semantic) + ((1 - alpha) * self.semantic_avg)
         self.keyword_avg = (alpha * keyword) + ((1 - alpha) * self.keyword_avg)
-        self.coverage_avg = (alpha * coverage) + ((1 - alpha) * self.coverage_avg)
         
-        # 🔥 NEW FORMULA: Semantic dominant (70%), coverage (20%), keyword (10%)
+        # 🔥 NEW FORMULA: Semantic dominant (70%), keyword (30%)
         self.mastery_level = (
             self.semantic_avg * 0.7 +
-            self.coverage_avg * 0.2 +
-            self.keyword_avg * 0.1
+            self.keyword_avg * 0.3
         )
         
         # Update learning velocity
@@ -160,7 +160,7 @@ class TopicMastery:
         self.avg_response_time = (alpha * response_time) + ((1 - alpha) * getattr(self, 'avg_response_time', 0.0))
         
         # Update consecutive patterns (using weighted score)
-        combined = (semantic * 0.7 + keyword * 0.1 + coverage * 0.2)
+        combined = (semantic * 0.7 + keyword * 0.3)
         if combined > 0.7:
             self.consecutive_good += 1
             self.consecutive_poor = 0
@@ -179,43 +179,80 @@ class TopicMastery:
         else:
             self.current_difficulty = "medium"
         
-        # 🔥 NEW: Update concept-level mastery
+        # ========== EVIDENCE-BASED CONCEPT STAGNATION ==========
+        
+        # 🔥 STEP 1: RESET stagnation for concepts that WERE mentioned
         if concepts:
             for concept in concepts:
+                if concept in self.concepts:
+                    # Concept was mentioned - reset its stagnation
+                    self.concepts[concept].stagnation_count = 0
+                    self.concepts[concept].last_seen = time.time()
+                    
+                    # Update mastery for mentioned concept (good)
+                    self.concepts[concept].mastery_level = (alpha * 1.0) + ((1 - alpha) * self.concepts[concept].mastery_level)
+                    
+                    # Remove from weak concepts if it was there
+                    if concept in self.weak_concepts:
+                        self.weak_concepts.discard(concept)
+                        print(f"✅ Concept '{concept}' removed from weak (mentioned correctly)")
+        
+        # 🔥 STEP 2: Handle missing concepts (not mentioned)
+        if missing:
+            for concept in missing:
+                # Create concept if it doesn't exist
                 if concept not in self.concepts:
                     self.concepts[concept] = ConceptMastery(name=concept, topic=self.topic)
+                    print(f"🆕 New concept tracked: '{concept}'")
                 
                 concept_m = self.concepts[concept]
                 concept_m.attempts += 1
                 concept_m.last_seen = time.time()
                 
-                # Update concept mastery based on whether it was mentioned
-                if concept not in (missing or []):
-                    concept_m.mastery_level = (alpha * 1.0) + ((1 - alpha) * concept_m.mastery_level)
-                else:
-                    concept_m.mastery_level = (alpha * 0.3) + ((1 - alpha) * concept_m.mastery_level)
-                    concept_m.stagnation_count += 1
-        
-        # Update missing concepts and stagnation
-        if missing:
-            for concept in missing:
-                self.missing_concepts.add(concept)
-                self.concept_stagnation[concept] = self.concept_stagnation.get(concept, 0) + 1
+                # Update concept mastery (lower score for missing)
+                concept_m.mastery_level = (alpha * 0.3) + ((1 - alpha) * concept_m.mastery_level)
                 
-                # Update weak/strong based on concept mastery
-                if concept in self.concepts:
-                    if self.concepts[concept].mastery_level < 0.4:
-                        self.weak_concepts.add(concept)
-                    elif self.concepts[concept].mastery_level > 0.7:
+                # Increment stagnation count for this missing concept
+                concept_m.stagnation_count += 1
+                
+                # 🔥 STEP 3: Mark as weak ONLY after REPEATED failure
+                if concept_m.attempts >= 3:
+                    miss_ratio = concept_m.stagnation_count / concept_m.attempts
+                    if miss_ratio > 0.7:  # Missed more than 70% of the time
+                        if not concept_m.is_weak:
+                            concept_m.is_weak = True
+                            self.weak_concepts.add(concept)
+                            print(f"⚠️ Concept '{concept}' marked WEAK after {concept_m.attempts} attempts, miss ratio {miss_ratio:.2f}")
+                
+                # 🔥 STEP 4: Mark as strong if consistently good
+                elif concept_m.attempts >= 3 and (1 - (concept_m.stagnation_count / concept_m.attempts)) > 0.7:
+                    if not concept_m.is_strong:
+                        concept_m.is_strong = True
                         self.strong_concepts.add(concept)
+                        print(f"💪 Concept '{concept}' marked STRONG (good in >70% of attempts)")
+        
+        # 🔥 Update missing_concepts set (for backward compatibility)
+        self.missing_concepts = set(missing) if missing else set()
+        
+        # 🔥 Update concept_stagnation dictionary (for backward compatibility)
+        self.concept_stagnation = {
+            name: cm.stagnation_count 
+            for name, cm in self.concepts.items() 
+            if cm.stagnation_count > 0
+        }
     
     def get_priority_score(self) -> float:
-        """Calculate priority for next session (higher = more priority)"""
+        """
+        Calculate priority for next session (higher = more priority)
+        Evidence-based: only counts concepts with significant stagnation
+        """
         # Base priority on low mastery
         priority = 1.0 - self.mastery_level
         
-        # Add stagnation penalty
-        stagnation_penalty = min(len(self.concept_stagnation) * 0.05, 0.3)
+        # 🔥 REDUCED STAGNATION PENALTY - Only count concepts with >2 stagnation
+        # These are concepts that have been missed multiple times
+        stagnant_concepts = len([c for c in self.concepts.values() if c.stagnation_count > 2])
+        stagnation_penalty = min(stagnant_concepts * 0.05, 0.2)  # Max 0.2 instead of 0.3
         
         # Add weak concepts penalty
         weak_penalty = len(self.weak_concepts) * 0.1
@@ -223,7 +260,8 @@ class TopicMastery:
         # Subtract if strongly mastered
         strong_bonus = len(self.strong_concepts) * 0.05
         
-        return priority + stagnation_penalty + weak_penalty - strong_bonus
+        final_priority = priority + stagnation_penalty + weak_penalty - strong_bonus
+        return max(0.0, final_priority)  # Ensure non-negative
     
     def get_recommended_difficulty(self) -> str:
         return self.current_difficulty
@@ -234,6 +272,7 @@ class TopicMastery:
                 self.stability_score > 0.6 and 
                 self.total_questions >= 5 and
                 self.consecutive_good >= 2)
+
 
 @dataclass
 class AdaptiveInterviewState:
@@ -299,16 +338,21 @@ class AdaptiveInterviewState:
         return self.topic_order[next_index]
 
     def advance_to_next_topic(self) -> bool:
-        """Advance to next topic, returns True if successful (always True now - cycles)"""
+        """
+        Advance to next topic in the cycle
+        Returns True if moved to next topic successfully
+        Returns False if reached end of cycle (signal to start new cycle)
+        """
         if self.current_topic_index + 1 < len(self.topic_order):
             # Move to next topic in the order
             self.current_topic_index += 1
             self.current_topic = self.topic_order[self.current_topic_index]
             self.followup_count = 0
+            print(f"   ➡️ Advanced to next topic: {self.current_topic}")
             return True
         else:
             # We've reached the end - signal to start a new cycle
-            # Return False to indicate we need to restart the cycle
+            print(f"   🏁 Reached end of cycle, need to start new cycle")
             return False
     
     def add_to_history(self, record: AdaptiveQARecord):
@@ -370,15 +414,17 @@ class AdaptiveInterviewState:
         return available[0] if available else sorted_topics[0]
     
     def get_stagnant_concepts(self, topic: str, threshold: int = 3) -> List[str]:
-        """Get concepts that have stagnated"""
+        """Get concepts that have stagnated (evidence-based)"""
         mastery = self.topic_mastery.get(topic)
         if not mastery:
             return []
         
+        # Use concept-level stagnation counts
         stagnant = []
-        for concept, count in mastery.concept_stagnation.items():
-            if count >= threshold:
-                stagnant.append(concept)
+        for concept_name, concept in mastery.concepts.items():
+            if concept.stagnation_count >= threshold:
+                stagnant.append(concept_name)
+        
         return stagnant
     
     def time_remaining_sec(self) -> int:
