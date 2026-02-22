@@ -257,6 +257,43 @@ class AdaptiveInterviewController:
         state = self.sessions.get(session_id)
         if not state:
             return {"error": "Session not found"}
+
+        # 🔥 FIX: Handle silent answers properly
+        if not answer or answer == "[User remained silent]" or len(answer.strip()) < 5:
+            print(f"⚠️ Silent or very short answer detected, forcing scores to 0")
+            answer = "[User remained silent]"  # Standardize
+            # Force scores to 0 for silent answers
+            analysis = {
+                "coverage_score": 0.0,
+                "depth": "shallow",
+                "missing_concepts": ["no answer provided"],
+                "covered_concepts": [],
+                "confidence": "low",
+                "key_terms_used": [],
+                "response_length": 0,
+                "grammatical_quality": 0.0,
+                "has_example": False,
+                "estimated_difficulty": "easy",
+                "semantic_similarity": 0.0,
+                "expected_answer": expected_answer
+            }
+            semantic_score = 0.0
+            coverage_score = 0.0
+            missing = ["no answer provided"]
+            concepts_mentioned = []
+        else:
+            # Normal analysis for non-silent answers
+            analysis = AdaptiveAnalyzer.analyze(
+                question=state.current_question, 
+                answer=answer, 
+                topic=state.current_topic,
+                expected_answer=expected_answer
+            )
+            
+            semantic_score = analysis.get("semantic_similarity", 0.0)
+            coverage_score = analysis.get("coverage_score", 0.5)
+            missing = analysis.get("missing_concepts", [])
+            concepts_mentioned = analysis.get("key_terms_used", [])
         
         # Calculate response time
         response_time = time.time() - (state.question_start_time or time.time())

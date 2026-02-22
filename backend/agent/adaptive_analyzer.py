@@ -134,7 +134,8 @@ class AdaptiveAnalyzer:
         Comprehensive analysis with adaptive learning signals
         ALL metrics are RAW values (0.0 to 1.0) - NO SCALING
         """
-        if not answer or len(answer.strip()) < 5:
+        if not answer or not answer.strip() or len(answer.strip()) < 5:
+            print(f"⚠️ Empty or very short answer detected, returning zeros")
             return {
                 "coverage_score": 0.0,
                 "depth": "shallow",
@@ -146,7 +147,7 @@ class AdaptiveAnalyzer:
                 "grammatical_quality": 0.0,
                 "has_example": False,
                 "estimated_difficulty": "easy",
-                "semantic_similarity": 0.0,
+                "semantic_similarity": 0.0,  # 🔥 CRITICAL: Must be 0.0 for empty answers
                 "expected_answer": expected_answer or ""
             }
         

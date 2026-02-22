@@ -359,8 +359,13 @@ def calculate_semantic_similarity(answer, expected_answer):
     Calculate TRUE semantic similarity between answer and expected answer.
     Returns raw cosine similarity (0.0 to 1.0) - NO ARTIFICIAL SCALING.
     """
-    if not answer or not expected_answer:
-        print(f"❌ Semantic similarity: Empty input")
+    # 🔥 FIX: Handle empty answers
+    if not answer or not answer.strip():
+        print(f"📊 Empty answer detected, similarity = 0.0")
+        return 0.0
+    
+    if not expected_answer or not expected_answer.strip():
+        print(f"📊 Empty expected answer, similarity = 0.0")
         return 0.0
     
     try:
@@ -371,9 +376,11 @@ def calculate_semantic_similarity(answer, expected_answer):
         # Calculate raw cosine similarity
         similarity = cosine_similarity([answer_emb], [expected_emb])[0][0]
         
-        # 🔥 NO SCALING - return the REAL value
+        # 🔥 Ensure non-negative (cosine similarity can be slightly negative, but for text it should be >= 0)
+        similarity = max(0.0, float(similarity))
+        
         print(f"📊 TRUE Semantic similarity: {similarity:.3f}")
-        return float(similarity)
+        return similarity
         
     except Exception as e:
         print(f"❌ Semantic similarity error: {e}")

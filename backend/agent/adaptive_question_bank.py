@@ -4,7 +4,7 @@ from rag import generate_technical_explanation as generate_rag_response
 import random
 import re
 import numpy as np
-from typing import Dict, List, Set
+from typing import Dict, List, Set, Optional
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -29,43 +29,66 @@ class AdaptiveQuestionBank:
         "misconception_check"
     ]
     
+    # 🔥 Question types for dynamic prompting
+    QUESTION_TYPES = [
+        "definition",
+        "comparison",
+        "scenario",
+        "code",
+        "debugging",
+        "optimization"
+    ]
+    
     # 🔥 Layer 4: Subtopic Normalization (concept clusters)
     SUBTOPIC_CLUSTERS = {
         "Polymorphism": [
-            "Polymorphism (Compile-time & Runtime)",
-            "Method Overloading vs Overriding",
-            "Virtual functions",
-            "Dynamic dispatch"
+            "Polymorphism",
+            "method overloading",
+            "method overriding",
+            "runtime binding",
+            "compile-time binding",
+            "dynamic dispatch"
         ],
         "Memory Management": [
-            "Memory Management (Paging, Segmentation)",
+            "Memory Management",
+            "paging",
+            "segmentation",
             "Virtual Memory",
-            "Demand Paging & Page Replacement (LRU, FIFO)"
+            "page replacement"
         ],
         "Process Management": [
-            "Process vs Thread",
-            "Process States & PCB",
+            "Processes",
+            "Threads",
+            "process states",
+            "PCB",
             "Context Switching"
         ],
         "Synchronization": [
-            "Synchronization (Mutex, Semaphore, Monitor)",
-            "Deadlock (Conditions & Prevention)"
+            "Synchronization",
+            "mutex",
+            "semaphore",
+            "monitor",
+            "critical section"
         ],
         "Database Design": [
-            "Normalization (1NF, 2NF, 3NF, BCNF)",
-            "Keys (Primary, Foreign, Candidate, Composite)"
+            "Normalization",
+            "Keys",
+            "functional dependency",
+            "anomalies"
         ],
         "Query Optimization": [
-            "Indexing (B+ Tree, Hash Index)",
-            "Joins (Inner, Left, Right, Full)",
-            "SQL Queries (GROUP BY, HAVING, Subqueries)"
+            "Indexing",
+            "Joins",
+            "SQL Aggregation",
+            "query optimization"
         ],
         "Transaction Management": [
-            "ACID Properties",
-            "Transactions & Concurrency Control",
+            "ACID",
+            "Transactions",
+            "Concurrency Control",
             "Isolation Levels",
-            "Locking (Shared, Exclusive Locks)",
-            "Deadlocks in DBMS"
+            "Locking",
+            "Deadlocks"
         ]
     }
     
@@ -73,71 +96,167 @@ class AdaptiveQuestionBank:
         # Initialize sentence transformer for semantic duplicate detection
         self.embedder = SentenceTransformer("all-MiniLM-L6-v2")
         
-        # YOUR EXACT TOPICS AND SUBTOPICS - HARDCODED
+        # 🔥 RESTRUCTURED TAXONOMY - Atomic subtopics with internal concepts
         self.taxonomy = {
             "topics": [
                 {
                     "name": "DBMS",
                     "subtopics": [
-                        "Normalization (1NF, 2NF, 3NF, BCNF)",
-                        "Keys (Primary, Foreign, Candidate, Composite)",
-                        "ACID Properties",
-                        "Transactions & Concurrency Control",
-                        "Isolation Levels",
-                        "Indexing (B+ Tree, Hash Index)",
-                        "Joins (Inner, Left, Right, Full)",
-                        "SQL Queries (GROUP BY, HAVING, Subqueries)",
-                        "Locking (Shared, Exclusive Locks)",
-                        "Deadlocks in DBMS"
+                        {
+                            "name": "Normalization",
+                            "concepts": ["1NF", "2NF", "3NF", "BCNF", "functional dependency", "anomalies"]
+                        },
+                        {
+                            "name": "Keys",
+                            "concepts": ["Primary Key", "Foreign Key", "Candidate Key", "Composite Key", "Super Key"]
+                        },
+                        {
+                            "name": "ACID",
+                            "concepts": ["Atomicity", "Consistency", "Isolation", "Durability"]
+                        },
+                        {
+                            "name": "Transactions",
+                            "concepts": ["commit", "rollback", "transaction states", "savepoint"]
+                        },
+                        {
+                            "name": "Concurrency Control",
+                            "concepts": ["2PL", "timestamp ordering", "optimistic locking", "pessimistic locking"]
+                        },
+                        {
+                            "name": "Isolation Levels",
+                            "concepts": ["Read Uncommitted", "Read Committed", "Repeatable Read", "Serializable", "dirty read", "non-repeatable read", "phantom read"]
+                        },
+                        {
+                            "name": "Indexing",
+                            "concepts": ["B+ Tree", "Hash Index", "clustered index", "non-clustered index", "composite index"]
+                        },
+                        {
+                            "name": "Joins",
+                            "concepts": ["Inner Join", "Left Join", "Right Join", "Full Join", "Self Join", "Natural Join", "Equi Join", "cross join"]
+                        },
+                        {
+                            "name": "SQL Aggregation",
+                            "concepts": ["GROUP BY", "HAVING", "Subqueries", "COUNT", "SUM", "AVG", "MIN", "MAX", "correlated subquery"]
+                        },
+                        {
+                            "name": "Locking",
+                            "concepts": ["Shared Lock", "Exclusive Lock", "Lock Granularity", "row lock", "table lock", "deadlock"]
+                        },
+                        {
+                            "name": "Deadlocks",
+                            "concepts": ["Wait-for graph", "detection", "prevention", "avoidance", "banker's algorithm"]
+                        }
                     ]
                 },
                 {
                     "name": "OOPS",
                     "subtopics": [
-                        "Classes & Objects",
-                        "Encapsulation",
-                        "Abstraction",
-                        "Inheritance (Types & Diamond Problem)",
-                        "Polymorphism (Compile-time & Runtime)",
-                        "Method Overloading vs Overriding",
-                        "Interfaces vs Abstract Classes",
-                        "Constructors",
-                        "Access Modifiers",
-                        "SOLID Principles"
+                        {
+                            "name": "Classes",
+                            "concepts": ["class structure", "attributes", "methods", "static members", "instance members"]
+                        },
+                        {
+                            "name": "Objects",
+                            "concepts": ["instantiation", "state", "behavior", "identity", "object lifecycle"]
+                        },
+                        {
+                            "name": "Encapsulation",
+                            "concepts": ["data hiding", "getters/setters", "access control", "information hiding"]
+                        },
+                        {
+                            "name": "Abstraction",
+                            "concepts": ["abstract classes", "interfaces", "implementation hiding", "contract"]
+                        },
+                        {
+                            "name": "Inheritance",
+                            "concepts": ["single inheritance", "multiple inheritance", "multilevel inheritance", "diamond problem", "base class", "derived class"]
+                        },
+                        {
+                            "name": "Polymorphism",
+                            "concepts": ["method overloading", "method overriding", "runtime binding", "compile-time binding", "dynamic dispatch", "duck typing", "virtual functions"]
+                        },
+                        {
+                            "name": "Constructors",
+                            "concepts": ["default constructor", "parameterized constructor", "copy constructor", "constructor overloading", "destructor"]
+                        },
+                        {
+                            "name": "Access Modifiers",
+                            "concepts": ["public", "private", "protected", "default", "package-private"]
+                        },
+                        {
+                            "name": "SOLID Principles",
+                            "concepts": ["Single Responsibility", "Open/Closed", "Liskov Substitution", "Interface Segregation", "Dependency Inversion"]
+                        }
                     ]
                 },
                 {
                     "name": "OS",
                     "subtopics": [
-                        "Process vs Thread",
-                        "Process States & PCB",
-                        "Context Switching",
-                        "CPU Scheduling Algorithms (FCFS, SJF, RR, Priority)",
-                        "Synchronization (Mutex, Semaphore, Monitor)",
-                        "Deadlock (Conditions & Prevention)",
-                        "Memory Management (Paging, Segmentation)",
-                        "Virtual Memory",
-                        "Demand Paging & Page Replacement (LRU, FIFO)",
-                        "System Calls"
+                        {
+                            "name": "Processes",
+                            "concepts": ["process states", "PCB", "process creation", "process termination", "zombie process", "orphan process"]
+                        },
+                        {
+                            "name": "Threads",
+                            "concepts": ["user threads", "kernel threads", "multithreading", "thread pool", "green threads"]
+                        },
+                        {
+                            "name": "Context Switching",
+                            "concepts": ["CPU state saving", "overhead", "mode switch", "dispatch latency"]
+                        },
+                        {
+                            "name": "CPU Scheduling",
+                            "concepts": ["FCFS", "SJF", "Round Robin", "Priority", "preemptive", "non-preemptive", "multilevel queue", "multilevel feedback queue"]
+                        },
+                        {
+                            "name": "Synchronization",
+                            "concepts": ["mutex", "semaphore", "monitor", "critical section", "race condition", "spinlock"]
+                        },
+                        {
+                            "name": "Deadlocks",
+                            "concepts": ["mutual exclusion", "hold and wait", "no preemption", "circular wait", "prevention", "avoidance", "detection", "recovery"]
+                        },
+                        {
+                            "name": "Memory Management",
+                            "concepts": ["paging", "segmentation", "internal fragmentation", "external fragmentation", "memory allocation"]
+                        },
+                        {
+                            "name": "Virtual Memory",
+                            "concepts": ["demand paging", "page faults", "page replacement", "thrashing", "working set"]
+                        },
+                        {
+                            "name": "Page Replacement",
+                            "concepts": ["LRU", "FIFO", "Optimal", "clock algorithm", "second chance"]
+                        },
+                        {
+                            "name": "System Calls",
+                            "concepts": ["fork", "exec", "wait", "open", "read", "write", "close", "pipe", "kill"]
+                        }
                     ]
                 }
             ]
         }
         
-        # Build subtopic lookup dictionaries
+        # Build lookup dictionaries for backward compatibility
         self.subtopics_by_topic = {}
         self.subtopics_by_topic_upper = {}
         self.subtopics_by_topic_lower = {}
+        self.subtopic_concepts = {}  # New: Store concepts per subtopic
         
         for topic in self.taxonomy["topics"]:
             topic_name = topic["name"]
-            subtopics = topic["subtopics"]
+            subtopics = [st["name"] for st in topic["subtopics"]]
             
             self.subtopics_by_topic[topic_name] = subtopics
             self.subtopics_by_topic_upper[topic_name.upper()] = subtopics
             self.subtopics_by_topic_lower[topic_name.lower()] = subtopics
+            
+            # Store concepts for each subtopic
+            for subtopic in topic["subtopics"]:
+                key = f"{topic_name}:{subtopic['name']}"
+                self.subtopic_concepts[key] = subtopic["concepts"]
         
-        # Add common variations
+        # Add common variations for backward compatibility
         self.subtopics_by_topic["OOP"] = self.subtopics_by_topic["OOPS"]
         self.subtopics_by_topic["OOPs"] = self.subtopics_by_topic["OOPS"]
         self.subtopics_by_topic["Operating System"] = self.subtopics_by_topic["OS"]
@@ -145,17 +264,20 @@ class AdaptiveQuestionBank:
         self.subtopics_by_topic["Database"] = self.subtopics_by_topic["DBMS"]
         self.subtopics_by_topic["Databases"] = self.subtopics_by_topic["DBMS"]
         
-        print(f"✅ HARDCODED subtopics loaded successfully:")
-        for topic_name, subtopics in self.subtopics_by_topic.items():
-            if topic_name in ["DBMS", "OOPS", "OS"]:
-                print(f"   - {topic_name}: {len(subtopics)} subtopics")
-        
+        print(f"✅ RESTRUCTURED taxonomy loaded successfully with atomic subtopics:")
+        for topic_name in ["DBMS", "OOPS", "OS"]:
+            subtopics = self.subtopics_by_topic.get(topic_name, [])
+            print(f"   - {topic_name}: {len(subtopics)} atomic subtopics")
+            
         # 🔥 Layer 2: Hard Duplicate Avoidance Memory
         # Stores last 3 semantic embeddings per subtopic
         self.embedding_history = {}  # {topic: {subtopic: [embeddings]}}
         
         # 🔥 Intent tracking per subtopic
         self.intent_tracker = {}  # {topic: {subtopic: [intents_used]}}
+        
+        # 🔥 Question type tracking for variety
+        self.question_type_tracker = {}  # {topic: {subtopic: [types_used]}}
         
         # 🔥 Verbal-safe phrase replacements
         self.verbal_phrases = {
@@ -167,10 +289,15 @@ class AdaptiveQuestionBank:
             r"diagram": "describe"
         }
     
+    def _get_concepts_for_subtopic(self, topic: str, subtopic: str) -> list:
+        """Get the internal concepts for a given topic and subtopic"""
+        key = f"{topic}:{subtopic}"
+        return self.subtopic_concepts.get(key, [])
+    
     def _normalize_subtopic(self, topic: str, subtopic: str) -> str:
         """Map detailed subtopic to its conceptual cluster"""
         for cluster_name, members in self.SUBTOPIC_CLUSTERS.items():
-            if subtopic in members:
+            if subtopic in members or any(m in subtopic for m in members):
                 return cluster_name
         return subtopic
     
@@ -225,6 +352,35 @@ class AdaptiveQuestionBank:
         print(f"🎯 Intent for {topic} - {subtopic}: {chosen}")
         return chosen
     
+    def _get_next_question_type(self, topic: str, subtopic: str) -> str:
+        """Get next question type for variety"""
+        
+        # Initialize tracker
+        if topic not in self.question_type_tracker:
+            self.question_type_tracker[topic] = {}
+        
+        if subtopic not in self.question_type_tracker[topic]:
+            self.question_type_tracker[topic][subtopic] = []
+        
+        used_types = self.question_type_tracker[topic][subtopic]
+        
+        # If we've used all types, reset
+        if len(used_types) >= len(self.QUESTION_TYPES):
+            used_types = []
+            self.question_type_tracker[topic][subtopic] = []
+        
+        # Available types
+        available = [t for t in self.QUESTION_TYPES if t not in used_types]
+        
+        if available:
+            chosen = random.choice(available)
+        else:
+            chosen = random.choice(self.QUESTION_TYPES)
+        
+        # Record
+        self.question_type_tracker[topic][subtopic].append(chosen)
+        return chosen
+    
     def _is_duplicate(self, topic: str, subtopic: str, question: str) -> bool:
         """
         Layer 2: Hard duplicate avoidance using semantic embeddings
@@ -266,49 +422,113 @@ class AdaptiveQuestionBank:
         
         return question
     
-    def _build_prompt(self, topic: str, subtopic: str, intent: str, difficulty: str = "medium", user_name: str = "") -> str:
-        """Build prompt with intent and constraints"""
+    def _build_prompt(self, topic: str, subtopic: str, intent: str, 
+                 difficulty: str = "medium", user_name: str = "",
+                 weak_concepts: list = None, question_type: str = None,
+                 user_context: str = "") -> str:
+        """
+        Build prompt with intent, concepts, and user context
+        Uses at most 2 concepts for sharper, more focused questions
+        """
         
         personalization = f" for {user_name}" if user_name else ""
         
+        # Get internal concepts for this subtopic
+        concepts = self._get_concepts_for_subtopic(topic, subtopic)
+        
+        # 🔥 CRITICAL: Use at most 2 concepts for sharp focus
+        if concepts:
+            # If we have weak concepts, prioritize those
+            if weak_concepts and len(weak_concepts) > 0:
+                # Find which weak concepts are in our concept list
+                relevant_weak = [c for c in weak_concepts if c in concepts]
+                if relevant_weak:
+                    # Use up to 2 weak concepts
+                    focus_concepts = relevant_weak[:2]
+                    concepts_str = ", ".join(focus_concepts)
+                    print(f"🎯 Focusing on weak concepts: {concepts_str}")
+                else:
+                    # No relevant weak concepts, sample randomly
+                    sample_size = min(2, len(concepts))
+                    focus_concepts = random.sample(concepts, sample_size)
+                    concepts_str = ", ".join(focus_concepts)
+                    print(f"🎲 Sampled {sample_size} concepts: {concepts_str}")
+            else:
+                # No weak concepts, sample randomly (max 2)
+                sample_size = min(2, len(concepts))
+                focus_concepts = random.sample(concepts, sample_size)
+                concepts_str = ", ".join(focus_concepts)
+                print(f"🎲 Sampled {sample_size} concepts: {concepts_str}")
+        else:
+            concepts_str = subtopic
+        
+        # Determine question type if not provided
+        if not question_type:
+            question_type = self._get_next_question_type(topic, subtopic)
+        
         intent_descriptions = {
-            "core_definition": "Ask for the fundamental definition or core concept",
-            "conceptual_difference": "Ask how this concept differs from related concepts",
-            "mechanism_flow": "Ask about the internal mechanism or workflow",
-            "real_world_scenario": "Ask for a real-world application scenario",
-            "problem_case": "Present a problem that requires this concept to solve",
-            "edge_case": "Ask about edge cases or unusual situations",
-            "tradeoff_analysis": "Ask about tradeoffs, pros and cons",
-            "debugging_case": "Present a debugging scenario related to this concept",
-            "optimization_reasoning": "Ask about optimization strategies",
-            "misconception_check": "Address a common misconception about this topic"
+            "core_definition": f"Ask for the fundamental definition or core concept of {subtopic}",
+            "conceptual_difference": f"Ask how concepts within {subtopic} differ from each other or from related concepts",
+            "mechanism_flow": f"Ask about the internal mechanism or workflow of {subtopic}",
+            "real_world_scenario": f"Ask for a real-world application scenario using {subtopic}",
+            "problem_case": f"Present a problem that requires understanding of {subtopic} to solve",
+            "edge_case": f"Ask about edge cases or unusual situations related to {subtopic}",
+            "tradeoff_analysis": f"Ask about tradeoffs, pros and cons in {subtopic}",
+            "debugging_case": f"Present a debugging scenario related to {subtopic}",
+            "optimization_reasoning": f"Ask about optimization strategies for {subtopic}",
+            "misconception_check": f"Address a common misconception about {subtopic}"
         }
         
-        intent_desc = intent_descriptions.get(intent, "Ask a technical question")
+        intent_desc = intent_descriptions.get(intent, f"Ask a technical question about {subtopic}")
+        
+        # Question type guidance
+        question_type_guidance = {
+            "definition": "Focus on definitions and core concepts",
+            "comparison": "Ask to compare different concepts or approaches",
+            "scenario": "Present a real-world scenario and ask how to apply the concept",
+            "code": "Ask for code or pseudo-code implementation",
+            "debugging": "Present broken code or scenario and ask to debug",
+            "optimization": "Focus on performance and optimization"
+        }
+        
+        type_guidance = question_type_guidance.get(question_type, "")
+        
+        # Add user context if available (weak concepts, previous mistakes)
+        context_section = ""
+        if weak_concepts and len(weak_concepts) > 0:
+            context_section = f"\nThe candidate has shown weakness in: {', '.join(weak_concepts[:3])}"
+        elif user_context:
+            context_section = f"\n{user_context}"
         
         prompt = f"""
-You are a technical interviewer conducting a job interview{personalization}.
+    You are a technical interviewer conducting a job interview{personalization}.
 
-Generate ONE interview question about:
-Topic: {topic}
-Subtopic: {subtopic}
-Intent: {intent}
-Difficulty: {difficulty}
+    Generate ONE interview question about:
+    Topic: {topic}
+    Subtopic: {subtopic}
+    Key concepts within this subtopic: {concepts_str}
+    Intent: {intent}
+    Question Type: {question_type}
+    Difficulty: {difficulty}{context_section}
 
-INTENT GUIDANCE:
-{intent_desc}
+    INTENT GUIDANCE:
+    {intent_desc}
 
-STRICT RULES:
-- Ask ONLY the question - NO introductions, NO commentary, NO explanations
-- NO phrases like "let's talk about", "I'd like to ask", "here's a question"
-- NO "show me" - use "describe" or "explain" instead
-- Question must be answerable VERBALLY in an interview
-- Question must be UNDER {self.MAX_CHARS} characters
-- Focus specifically on {subtopic}
-- Be direct and conversational, like a real interviewer
+    QUESTION TYPE GUIDANCE:
+    {type_guidance}
 
-Generate ONLY the question text:
-"""
+    STRICT RULES:
+    - Ask ONLY the question - NO introductions, NO commentary, NO explanations
+    - NO phrases like "let's talk about", "I'd like to ask", "here's a question"
+    - NO "show me" - use "describe" or "explain" instead
+    - Question must be answerable VERBALLY in an interview
+    - Question must be UNDER {self.MAX_CHARS} characters
+    - Focus specifically on {subtopic} and its concepts: {concepts_str}
+    - Be direct and conversational, like a real interviewer
+    - Do NOT simply list the concepts - create a meaningful question around them
+
+    Generate ONLY the question text:
+    """
         return prompt
     
     def _enforce_length(self, question: str) -> str:
@@ -326,6 +546,9 @@ Generate ONLY the question text:
         # Remove markdown
         text = re.sub(r"[`*_#]", "", text)
         
+        # Remove quotes
+        text = text.strip('"\'')
+        
         # Ensure it's a question
         if "?" in text:
             # Take everything up to and including first question mark
@@ -336,23 +559,33 @@ Generate ONLY the question text:
         
         return text
     
-    def generate_question(self, topic: str, subtopic: str, difficulty: str = "medium", user_name: str = "") -> str:
+    def generate_question(self, topic: str, subtopic: str, difficulty: str = "medium", 
+                         user_name: str = "", weak_concepts: list = None,
+                         user_context: str = "") -> str:
         """
         Main question generation method with full pipeline:
         1. Intent selection with progression
-        2. Prompt building
-        3. RAG generation
-        4. Duplicate check
-        5. Length enforcement
-        6. Verbal-safe conversion
+        2. Question type selection for variety
+        3. Prompt building with internal concepts
+        4. RAG generation
+        5. Duplicate check
+        6. Length enforcement
+        7. Verbal-safe conversion
+        
+        Now uses atomic subtopics with internal concepts for better questions
         """
         
         for attempt in range(self.MAX_RETRIES):
             # Get next intent for variety
             intent = self._get_next_intent(topic, subtopic)
             
-            # Build prompt
-            prompt = self._build_prompt(topic, subtopic, intent, difficulty, user_name)
+            # Get question type for variety
+            question_type = self._get_next_question_type(topic, subtopic)
+            
+            # Build prompt with internal concepts
+            prompt = self._build_prompt(topic, subtopic, intent, difficulty, 
+                                       user_name, weak_concepts, question_type,
+                                       user_context)
             
             try:
                 # Generate with RAG
@@ -373,7 +606,7 @@ Generate ONLY the question text:
                 
                 # Check for duplicates
                 if not self._is_duplicate(topic, subtopic, question):
-                    print(f"✅ Generated {intent} question ({len(question)} chars): {question}")
+                    print(f"✅ Generated {intent}/{question_type} question ({len(question)} chars): {question}")
                     return question
                 else:
                     print(f"🔄 Attempt {attempt + 1}: Duplicate detected, retrying with different intent...")
@@ -382,13 +615,20 @@ Generate ONLY the question text:
                 print(f"⚠️ Generation attempt {attempt + 1} failed: {e}")
                 continue
         
-        # 🔥 Hard fallback - simple template question
+        # 🔥 Hard fallback - simple template question using concepts
+        concepts = self._get_concepts_for_subtopic(topic, subtopic)
+        if concepts:
+            concept_sample = random.choice(concepts)
+            fallback = f"Can you explain {concept_sample} and how it applies to {subtopic} in {topic}?"
+        else:
+            fallback = f"What are the key concepts and practical applications of {subtopic} in {topic}?"
+        
         print(f"⚠️ All {self.MAX_RETRIES} attempts failed, using fallback")
-        fallback = f"What are the key concepts and practical applications of {subtopic} in {topic}?"
         return fallback
     
     # Convenience wrappers
-    def generate_first_question(self, topic: str, subtopic: str = None, difficulty: str = "medium", user_name: str = "") -> str:
+    def generate_first_question(self, topic: str, subtopic: str = None, 
+                               difficulty: str = "medium", user_name: str = "") -> str:
         """Wrapper for first question in a topic"""
         if subtopic is None:
             subtopics = self.subtopics_by_topic.get(topic, [])
@@ -396,21 +636,25 @@ Generate ONLY the question text:
         
         return self.generate_question(topic, subtopic, difficulty, user_name)
     
-    def generate_question_for_subtopic(self, topic: str, subtopic: str, difficulty: str = "medium") -> str:
+    def generate_question_for_subtopic(self, topic: str, subtopic: str, 
+                                      difficulty: str = "medium") -> str:
         """Wrapper for subtopic-specific question"""
         return self.generate_question(topic, subtopic, difficulty)
     
-    def generate_gap_followup(self, topic: str, missing_concepts: list, difficulty: str = "medium", 
-                             current_subtopic: str = None, available_subtopics: list = None) -> str:
+    def generate_gap_followup(self, topic: str, missing_concepts: list, 
+                             difficulty: str = "medium", 
+                             current_subtopic: str = None, 
+                             available_subtopics: list = None) -> str:
         """Generate follow-up targeting missing concepts"""
         
         if current_subtopic:
             # Use a different intent for gap follow-up
-            # Force a deeper intent
             forced_intents = ["misconception_check", "debugging_case", "problem_case"]
             intent = random.choice(forced_intents)
             
-            prompt = self._build_prompt(topic, current_subtopic, intent, difficulty)
+            # Pass missing concepts as weak concepts
+            prompt = self._build_prompt(topic, current_subtopic, intent, difficulty,
+                                       weak_concepts=missing_concepts)
             try:
                 from rag import generate_technical_explanation as generate_rag_response
                 raw = generate_rag_response("gap followup", prompt)
@@ -423,18 +667,27 @@ Generate ONLY the question text:
             except:
                 pass
             
-            # Fallback
-            return f"Can you explain how {missing_concepts[0] if missing_concepts else current_subtopic} works in practice?"
+            # Fallback with concept-specific question
+            if missing_concepts and len(missing_concepts) > 0:
+                return f"Can you explain how {missing_concepts[0]} works in the context of {current_subtopic}?"
+            return f"Can you explain how {current_subtopic} works in practice?"
         
-        return f"Let's focus on {missing_concepts[0] if missing_concepts else topic}. Can you explain that concept?"
+        if missing_concepts and len(missing_concepts) > 0:
+            return f"Let's focus on {missing_concepts[0]}. Can you explain that concept?"
+        return f"Let's focus on {topic}. Can you explain the core concepts?"
     
     def generate_simplified_question(self, topic: str, missing_concepts: list) -> str:
         """Generate a simpler question for struggling users"""
         subtopic = missing_concepts[0] if missing_concepts else topic
         
+        # Get concepts for simpler targeting
+        concepts = self._get_concepts_for_subtopic(topic, subtopic)
+        simple_concept = concepts[0] if concepts else subtopic
+        
         prompt = f"""
-You are a helpful tutor. Ask a VERY SIMPLE question about {subtopic} in {topic}.
+You are a helpful tutor. Ask a VERY SIMPLE question about {simple_concept} in {topic}.
 Use plain language. Make it easy to answer.
+Focus on the basic definition or core idea.
 Question must be under {self.MAX_CHARS} characters.
 Return ONLY the question.
 """
@@ -449,7 +702,7 @@ Return ONLY the question.
         except:
             pass
         
-        return f"What is {subtopic} in simple terms?"
+        return f"What is {simple_concept} in simple terms?"
     
     def generate_deeper_dive(self, topic: str, difficulty: str = "hard") -> str:
         """Generate challenging question for strong performers"""
@@ -459,7 +712,7 @@ Return ONLY the question.
         
         # Pick an advanced subtopic
         subtopics = self._get_subtopics(topic)
-        advanced_keywords = ["Deadlock", "Synchronization", "Polymorphism", "Indexing", "Virtual Memory", "Optimization"]
+        advanced_keywords = ["Deadlocks", "Synchronization", "Polymorphism", "Indexing", "Virtual Memory", "Optimization"]
         advanced_subtopics = [s for s in subtopics if any(k.lower() in s.lower() for k in advanced_keywords)]
         
         if advanced_subtopics:
@@ -469,12 +722,23 @@ Return ONLY the question.
         
         return self.generate_question(topic, subtopic, "hard")
     
+    def generate_question_with_context(self, topic: str, subtopic: str, 
+                                      user_context: str, difficulty: str = "medium") -> str:
+        """Generate question with specific user context (previous mistakes, weak areas)"""
+        return self.generate_question(topic, subtopic, difficulty, 
+                                     user_context=user_context)
+    
     def _get_subtopics(self, topic: str) -> list:
         """Get subtopics for a topic"""
         return self.subtopics_by_topic.get(topic, [])
+    
+    def get_concepts_for_subtopic(self, topic: str, subtopic: str) -> list:
+        """Public method to get concepts for a subtopic"""
+        return self._get_concepts_for_subtopic(topic, subtopic)
     
     def reset_tracker(self, user_id: int = None):
         """Reset intent and embedding trackers (useful for testing or reset)"""
         self.intent_tracker = {}
         self.embedding_history = {}
+        self.question_type_tracker = {}
         print("🔄 Question bank trackers reset")

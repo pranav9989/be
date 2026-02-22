@@ -12,63 +12,129 @@ class SubtopicTracker:
     Priority order: WEAK → NEW → STRONG
     """
     
-    # Your exact subtopics - HARDCODED
+    # 🔥 UPDATED: Atomic subtopics (no parentheses, no comparisons)
     SUBTOPICS_BY_TOPIC = {
         "DBMS": [
-            "Normalization (1NF, 2NF, 3NF, BCNF)",
-            "Keys (Primary, Foreign, Candidate, Composite)",
-            "ACID Properties",
-            "Transactions & Concurrency Control",
+            "Normalization",
+            "Keys",
+            "ACID",
+            "Transactions",
+            "Concurrency Control",
             "Isolation Levels",
-            "Indexing (B+ Tree, Hash Index)",
-            "Joins (Inner, Left, Right, Full)",
-            "SQL Queries (GROUP BY, HAVING, Subqueries)",
-            "Locking (Shared, Exclusive Locks)",
-            "Deadlocks in DBMS"
+            "Indexing",
+            "Joins",
+            "SQL Aggregation",
+            "Locking",
+            "Deadlocks"
         ],
         "OOPS": [
-            "Classes & Objects",
+            "Classes",
+            "Objects",
             "Encapsulation",
             "Abstraction",
-            "Inheritance (Types & Diamond Problem)",
-            "Polymorphism (Compile-time & Runtime)",
-            "Method Overloading vs Overriding",
-            "Interfaces vs Abstract Classes",
+            "Inheritance",
+            "Polymorphism",
             "Constructors",
             "Access Modifiers",
             "SOLID Principles"
         ],
         "OS": [
-            "Process vs Thread",
-            "Process States & PCB",
+            "Processes",
+            "Threads",
             "Context Switching",
-            "CPU Scheduling Algorithms (FCFS, SJF, RR, Priority)",
-            "Synchronization (Mutex, Semaphore, Monitor)",
-            "Deadlock (Conditions & Prevention)",
-            "Memory Management (Paging, Segmentation)",
+            "CPU Scheduling",
+            "Synchronization",
+            "Deadlocks",
+            "Memory Management",
             "Virtual Memory",
-            "Demand Paging & Page Replacement (LRU, FIFO)",
+            "Page Replacement",
             "System Calls"
         ]
+    }
+    
+    # 🔥 NEW: Mapping from old to new names (for backward compatibility with DB)
+    OLD_TO_NEW_MAPPING = {
+        # OS mappings
+        "Process vs Thread": "Processes",
+        "Process States & PCB": "Processes",
+        "Context Switching": "Context Switching",
+        "CPU Scheduling Algorithms (FCFS, SJF, RR, Priority)": "CPU Scheduling",
+        "Synchronization (Mutex, Semaphore, Monitor)": "Synchronization",
+        "Deadlock (Conditions & Prevention)": "Deadlocks",
+        "Memory Management (Paging, Segmentation)": "Memory Management",
+        "Virtual Memory": "Virtual Memory",
+        "Demand Paging & Page Replacement (LRU, FIFO)": "Page Replacement",
+        "System Calls": "System Calls",
+        
+        # DBMS mappings
+        "Normalization (1NF, 2NF, 3NF, BCNF)": "Normalization",
+        "Keys (Primary, Foreign, Candidate, Composite)": "Keys",
+        "ACID Properties": "ACID",
+        "Transactions & Concurrency Control": "Transactions",
+        "Isolation Levels": "Isolation Levels",
+        "Indexing (B+ Tree, Hash Index)": "Indexing",
+        "Joins (Inner, Left, Right, Full)": "Joins",
+        "SQL Queries (GROUP BY, HAVING, Subqueries)": "SQL Aggregation",
+        "Locking (Shared, Exclusive Locks)": "Locking",
+        "Deadlocks in DBMS": "Deadlocks",
+        
+        # OOPS mappings
+        "Classes & Objects": "Classes",
+        "Encapsulation": "Encapsulation",
+        "Abstraction": "Abstraction",
+        "Inheritance (Types & Diamond Problem)": "Inheritance",
+        "Polymorphism (Compile-time & Runtime)": "Polymorphism",
+        "Method Overloading vs Overriding": "Polymorphism",
+        "Interfaces vs Abstract Classes": "Abstraction",
+        "Constructors": "Constructors",
+        "Access Modifiers": "Access Modifiers",
+        "SOLID Principles": "SOLID Principles"
     }
     
     def __init__(self, user_id: int):
         self.user_id = user_id
         self._load_from_db()
     
+    def _normalize_subtopic_name(self, topic: str, subtopic: str) -> str:
+        """Convert old subtopic names to atomic ones"""
+        # If it's already atomic, return as-is
+        if subtopic in self.SUBTOPICS_BY_TOPIC.get(topic, []):
+            return subtopic
+        
+        # Check mapping
+        if subtopic in self.OLD_TO_NEW_MAPPING:
+            new_name = self.OLD_TO_NEW_MAPPING[subtopic]
+            print(f"🔄 Normalizing '{subtopic}' -> '{new_name}'")
+            return new_name
+        
+        # Fallback: try to extract base name (before any parenthesis)
+        if "(" in subtopic:
+            base = subtopic.split("(")[0].strip()
+            if base in self.SUBTOPICS_BY_TOPIC.get(topic, []):
+                print(f"🔄 Extracted base name: '{subtopic}' -> '{base}'")
+                return base
+        
+        return subtopic
+    
     def _load_from_db(self):
-        """Load all subtopic masteries from database"""
+        """Load all subtopic masteries from database, normalizing old names"""
         self.masteries = {}
         db_masteries = SubtopicMastery.query.filter_by(user_id=self.user_id).all()
         
         for m in db_masteries:
+            # Normalize the subtopic name from DB (which might have old format)
+            normalized = self._normalize_subtopic_name(m.topic, m.subtopic)
+            
             if m.topic not in self.masteries:
                 self.masteries[m.topic] = {}
-            self.masteries[m.topic][m.subtopic] = {
+            
+            # Store with normalized name
+            self.masteries[m.topic][normalized] = {
                 'mastery_level': m.mastery_level,
                 'attempts': m.attempts,
                 'last_asked': m.last_asked,
-                'status': m.status  # 'weak', 'strong', or None
+                'status': m.status,  # 'weak', 'strong', or None
+                'original_subtopic': m.subtopic  # Keep original for DB updates
             }
     
     def _save_subtopic(self, topic: str, subtopic: str, 
@@ -76,17 +142,20 @@ class SubtopicTracker:
                        attempts: int = 0,
                        status: str = None):
         """Save or update a subtopic mastery in database"""
+        # Always store the normalized name in DB from now on
+        db_subtopic = subtopic
+        
         db_mastery = SubtopicMastery.query.filter_by(
             user_id=self.user_id,
             topic=topic,
-            subtopic=subtopic
+            subtopic=db_subtopic
         ).first()
         
         if not db_mastery:
             db_mastery = SubtopicMastery(
                 user_id=self.user_id,
                 topic=topic,
-                subtopic=subtopic
+                subtopic=db_subtopic
             )
             db.session.add(db_mastery)
         
@@ -97,7 +166,7 @@ class SubtopicTracker:
         
         db.session.commit()
         
-        # Update in-memory cache
+        # Update in-memory cache with normalized name
         if topic not in self.masteries:
             self.masteries[topic] = {}
         self.masteries[topic][subtopic] = {
@@ -115,8 +184,11 @@ class SubtopicTracker:
         - semantic_score < 0.4 → weak
         - otherwise → medium (no status)
         """
+        # Normalize the subtopic name first
+        normalized_subtopic = self._normalize_subtopic_name(topic, subtopic)
+        
         # Get current mastery or create new
-        current = self.masteries.get(topic, {}).get(subtopic, {})
+        current = self.masteries.get(topic, {}).get(normalized_subtopic, {})
         attempts = current.get('attempts', 0) + 1
         
         # Calculate new mastery level (EMA)
@@ -132,16 +204,16 @@ class SubtopicTracker:
         else:
             status = None  # Medium - no special status
         
-        # Save to database
+        # Save to database with normalized name
         self._save_subtopic(
             topic=topic,
-            subtopic=subtopic,
+            subtopic=normalized_subtopic,
             mastery_level=new_mastery,
             attempts=attempts,
             status=status
         )
         
-        print(f"📊 Updated subtopic {topic} - {subtopic}:")
+        print(f"📊 Updated subtopic {topic} - {normalized_subtopic}:")
         print(f"   Score: {semantic_score:.2f} → Mastery: {new_mastery:.2f}")
         print(f"   Status: {status if status else 'medium'}")
         print(f"   Attempts: {attempts}")
@@ -155,10 +227,10 @@ class SubtopicTracker:
         
         Uses probability: 80% weak/new, 20% strong when weak/new exist
         """
-        # Get all subtopics for this topic
+        # Get all subtopics for this topic (atomic names)
         all_subtopics = set(self.SUBTOPICS_BY_TOPIC.get(topic, []))
         
-        # Get attempted subtopics with their status
+        # Get attempted subtopics with their status (already normalized)
         attempted = self.masteries.get(topic, {})
         
         # Categorize subtopics
