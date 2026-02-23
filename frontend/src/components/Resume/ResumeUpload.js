@@ -35,15 +35,18 @@ const ResumeUpload = ({ user, onLogout }) => {
 
   const handleUpload = async () => {
     if (!selectedFile) {
-      showMessage('error', 'Please select a file first');
+      showMessage('error', 'Please select a resume file');
+      return;
+    }
+
+    if (!jobDescription.trim()) {
+      showMessage('error', 'Job Description is mandatory for interview preparation');
       return;
     }
 
     const formData = new FormData();
     formData.append('resume', selectedFile);
-    if (jobDescription.trim()) {
-      formData.append('job_description', jobDescription.trim());
-    }
+    formData.append('job_description', jobDescription.trim());
 
     setUploading(true);
     setUploadProgress(0);
@@ -68,10 +71,10 @@ const ResumeUpload = ({ user, onLogout }) => {
 
   return (
     <div className="resume-upload-container">
-      <Header 
-        user={user} 
-        onLogout={onLogout} 
-        title="Resume Upload" 
+      <Header
+        user={user}
+        onLogout={onLogout}
+        title="Resume Upload"
         showBack={true}
       />
 
@@ -86,7 +89,7 @@ const ResumeUpload = ({ user, onLogout }) => {
           <h2>Upload Your Resume</h2>
           <p>Upload your resume to get personalized interview questions and skills analysis</p>
 
-          <div 
+          <div
             className="upload-area"
             onClick={() => document.getElementById('file-input').click()}
             onDragOver={(e) => {
@@ -137,23 +140,24 @@ const ResumeUpload = ({ user, onLogout }) => {
 
           <div className="job-description-section">
             <label htmlFor="job-description" className="job-description-label">
-              <i className="fas fa-briefcase"></i> Job Description (Optional)
+              <i className="fas fa-briefcase"></i> Job Description <span className="required-star">*</span>
             </label>
             <textarea
               id="job-description"
               value={jobDescription}
               onChange={(e) => setJobDescription(e.target.value)}
-              placeholder="Paste the job description here to get more targeted interview questions based on the specific role..."
+              placeholder="Paste the job description here to get targeted interview questions based on the specific role..."
               className="job-description-textarea"
               rows="4"
+              required
             />
             <small className="job-description-help">
-              Adding a job description helps generate more relevant interview questions tailored to the specific role.
+              Job Description is required to generate relevant interview questions tailored to the specific role.
             </small>
           </div>
 
           {uploadProgress > 0 && (
-            <div className="progress-bar">
+            <div className="progress-bar show">
               <div
                 className="progress-fill"
                 style={{ width: `${uploadProgress}%` }}
@@ -162,7 +166,7 @@ const ResumeUpload = ({ user, onLogout }) => {
           )}
 
           {selectedFile && (
-            <button 
+            <button
               onClick={handleUpload}
               disabled={uploading}
               className="upload-btn"
@@ -204,19 +208,97 @@ const ResumeUpload = ({ user, onLogout }) => {
                   </p>
                 </div>
 
-                {results.projects && results.projects.length > 0 && (
+                {results.internships && results.internships.length > 0 && (
                   <div className="analysis-item">
-                    <h5><i className="fas fa-project-diagram"></i> Key Projects</h5>
-                    <ul className="projects-list">
-                      {results.projects.map((project, index) => (
-                        <li key={index}>{project}</li>
+                    <h5><i className="fas fa-briefcase"></i> Internships</h5>
+                    <ul className="internships-list">
+                      {results.internships.map((internship, index) => (
+                        <li key={index}>{internship}</li>
                       ))}
                     </ul>
                   </div>
                 )}
+
+                {results.certifications && results.certifications.length > 0 && (
+                  <div className="analysis-item">
+                    <h5><i className="fas fa-certificate"></i> Certifications</h5>
+                    <div className="certifications-list">
+                      {results.certifications.map((cert, index) => {
+                        // Clean up certification text - extract only the actual certification names
+                        let cleanCert = cert;
+
+                        // Remove "Degree/Certificate Institute/Board CGPA/Percentage Year" patterns
+                        if (cert.includes('Institute/Board') || cert.includes('CGPA/Percentage')) {
+                          // Try to extract meaningful certification names
+                          const certMatches = cert.match(/([A-Za-z\s]+(?:Certificate|Certification|Deep Learning|AI|SQL))/g);
+                          if (certMatches) {
+                            cleanCert = certMatches.join(', ');
+                          } else {
+                            // Skip this irrelevant line
+                            return null;
+                          }
+                        }
+
+                        return cleanCert.length > 5 ? (
+                          <span key={index} className="cert-tag">{cleanCert}</span>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {results.projects && results.projects.length > 0 && (
+                  <div className="analysis-item">
+                    <h5><i className="fas fa-project-diagram"></i> Key Projects</h5>
+                    <div className="projects-grid">
+                      {results.projects.map((project, index) => {
+                        // Parse project to extract name and tech stack
+                        let projectName = project;
+                        let techStack = [];
+                        let description = project;
+
+                        // Extract tech stack if present (look for "Tools & Technologies:" or similar)
+                        const techMatch = project.match(/(?:Tools?|Technologies?):\s*([^.]+)/i);
+                        if (techMatch) {
+                          techStack = techMatch[1].split(',').map(t => t.trim());
+                          // Remove tech stack line from description
+                          description = project.replace(/(?:Tools?|Technologies?):\s*[^.]+\s*/i, '').trim();
+                        }
+
+                        // Try to extract project name (first line or before colon)
+                        const lines = project.split('\n');
+                        if (lines.length > 1) {
+                          projectName = lines[0].trim();
+                          if (!description.includes(projectName)) {
+                            description = lines.slice(1).join(' ').trim();
+                          }
+                        }
+
+                        // Remove GitHub links from display
+                        description = description.replace(/\[\/github\]|\[\/github\.com\]/g, '').trim();
+
+                        return (
+                          <div key={index} className="project-card">
+                            <div className="project-header">
+                              <h6 className="project-name">{projectName}</h6>
+                              {techStack.length > 0 && (
+                                <div className="project-tech">
+                                  {techStack.map((tech, i) => (
+                                    <span key={i} className="tech-badge">{tech}</span>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                            <p className="project-description">{description}</p>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Job Fit Analysis - Only show if JD was provided */}
+              {/* Job Fit Analysis - Always shown because JD is required */}
               {results.job_fit_analysis && (
                 <div className="analysis-card job-fit-analysis">
                   <h4><i className="fas fa-bullseye"></i> Job Fit Analysis</h4>
@@ -226,6 +308,21 @@ const ResumeUpload = ({ user, onLogout }) => {
                       <span className="score-number">{results.job_fit_analysis.match_percentage}%</span>
                       <span className="score-label">Match</span>
                     </div>
+
+                    {/* Semantic similarity score */}
+                    {results.job_fit_analysis.semantic_similarity && (
+                      <div className="semantic-score">
+                        <span className="score-label">Semantic Similarity</span>
+                        <span className="score-value">{(results.job_fit_analysis.semantic_similarity * 100).toFixed(1)}%</span>
+                      </div>
+                    )}
+
+                    {/* Gap severity badge */}
+                    {results.job_fit_analysis.gap_severity && (
+                      <div className={`gap-severity severity-${results.job_fit_analysis.gap_severity.toLowerCase()}`}>
+                        {results.job_fit_analysis.gap_severity} Skill Gap
+                      </div>
+                    )}
                   </div>
 
                   <div className="analysis-item">
@@ -258,6 +355,22 @@ const ResumeUpload = ({ user, onLogout }) => {
                       {results.job_fit_analysis.experience_fit}
                     </p>
                   </div>
+
+                  {/* Section gaps if available */}
+                  {results.job_fit_analysis.section_gaps &&
+                    Object.keys(results.job_fit_analysis.section_gaps).length > 0 && (
+                      <div className="analysis-item">
+                        <h5><i className="fas fa-layer-group"></i> Section Gaps</h5>
+                        {Object.entries(results.job_fit_analysis.section_gaps).map(([section, skills]) => (
+                          skills.length > 0 && (
+                            <div key={section} className="section-gap">
+                              <span className="section-name">{section}:</span>
+                              <span className="section-skills">{skills.join(', ')}</span>
+                            </div>
+                          )
+                        ))}
+                      </div>
+                    )}
                 </div>
               )}
             </div>
@@ -267,10 +380,8 @@ const ResumeUpload = ({ user, onLogout }) => {
               <div className="interview-ready">
                 <h4><i className="fas fa-play-circle"></i> Ready for Mock Interview!</h4>
                 <p>
-                  {results.job_fit_analysis
-                    ? "Get personalized interview questions based on your resume and the job description."
-                    : "Practice with interview questions tailored to your resume and skills."
-                  }
+                  Get personalized interview questions based on your resume and the job description.
+                  The interview will focus on matching skills and addressing gaps.
                 </p>
                 <button
                   className="mock-interview-btn"

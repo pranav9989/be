@@ -1,0 +1,2706 @@
+[
+  {
+    "id": "1",
+    "paraphrased_question": "\u201cExplain, in the context of software systems, what a database is.\u201d"
+  },
+  {
+    "id": "2",
+    "paraphrased_question": "\u201cExplain the role of a Database Management System (DBMS) and outline its core functionalities.\u201d"
+  },
+  {
+    "id": "3",
+    "paraphrased_question": "\u201cExplain the key distinctions between a database system and a standard database.\u201d"
+  },
+  {
+    "id": "4",
+    "paraphrased_question": "\u201cBeyond traditional file systems, what specific benefits does a database management system offer?\u201d"
+  },
+  {
+    "id": "5",
+    "paraphrased_question": "\u201cWhat challenges did traditional file processing systems face that ultimately spurred the development of database management systems?\u201d"
+  },
+  {
+    "id": "6",
+    "paraphrased_question": "\u201cExplain the three-schema architecture for data abstraction in DBMS.\u201d"
+  },
+  {
+    "id": "7",
+    "paraphrased_question": "\u201cWhat are the two core principles of data validation within the relational model?\u201d"
+  },
+  {
+    "id": "8",
+    "paraphrased_question": "\u201cExplain the distinct components of a database \u2013 its core definition and its expanded capabilities.\u201d"
+  },
+  {
+    "id": "9",
+    "paraphrased_question": "\u201cDescribe System R and explain why it holds historical significance.\u201d"
+  },
+  {
+    "id": "10",
+    "paraphrased_question": "\u201cExplain the distinctions between System R\u2019s data model and the early relational model established by Codd.\u201d"
+  },
+  {
+    "id": "11",
+    "paraphrased_question": "\u201cExplain data independence in a database management system.\u201d"
+  },
+  {
+    "id": "12",
+    "paraphrased_question": "\u201cExplain what a database view is and how it contributes to data independence.\u201d"
+  },
+  {
+    "id": "13",
+    "paraphrased_question": "\u201cDescribe a data model and its purpose.\u201d"
+  },
+  {
+    "id": "14",
+    "paraphrased_question": "\u201cDescribe how the Entity-Relationship (E-R) model visually depicts data within a database.\u201d"
+  },
+  {
+    "id": "15",
+    "paraphrased_question": "\u201cExplain the fundamental principles behind the Object-Oriented Data Model.\u201d"
+  },
+  {
+    "id": "16",
+    "paraphrased_question": "\u201cDescribe an entity in the context of database design.\u201d"
+  },
+  {
+    "id": "17",
+    "paraphrased_question": "\u201cWhat distinguishes a specific type of object or concept within our database?\u201d"
+  },
+  {
+    "id": "18",
+    "paraphrased_question": "\u201cExplain the key distinctions between an entity and an entity type.\u201d"
+  },
+  {
+    "id": "19",
+    "paraphrased_question": "\u201cWhat is the length or format of a specific entity type?\u201d"
+  },
+  {
+    "id": "20",
+    "paraphrased_question": "\u201cDescribe what distinguishes a weak entity set.\u201d"
+  },
+  {
+    "id": "21",
+    "paraphrased_question": "\u201cIn the context of a database entity, what does an attribute represent?\u201d"
+  },
+  {
+    "id": "22",
+    "paraphrased_question": "\u201cDescribe the distinction between a relation schema and a relation instance.\u201d"
+  },
+  {
+    "id": "23",
+    "paraphrased_question": "\u201cDescribe how the \u2018degree\u2019 of a relation is defined and what it represents.\u201d"
+  },
+  {
+    "id": "24",
+    "paraphrased_question": "\u201cExplain the concept of relationships in data modeling.\u201d"
+  },
+  {
+    "id": "25",
+    "paraphrased_question": "\u201cExplain the concept of a relationship set.\u201d"
+  },
+  {
+    "id": "26",
+    "paraphrased_question": "\u201cCould you please explain how a relationship type is established in a database?\u201d"
+  },
+  {
+    "id": "27",
+    "paraphrased_question": "\u201cCould you please describe the characteristics or level of connection between two or more entities within your data?\u201d"
+  },
+  {
+    "id": "28",
+    "paraphrased_question": "\u201cExplain the role and function of the Data Definition Language (DDL).\u201d"
+  },
+  {
+    "id": "29",
+    "paraphrased_question": "\u201cDescribe the purpose and function of View Definition Language (VDL) within a database context.\u201d"
+  },
+  {
+    "id": "30",
+    "paraphrased_question": "\u201cExplain the purpose and role of the Storage Definition Language (SDL).\u201d"
+  },
+  {
+    "id": "31",
+    "paraphrased_question": "\u201cExplain the connection between data storage definitions and the actual physical storage of data.\u201d"
+  },
+  {
+    "id": "32",
+    "paraphrased_question": "What are the two primary types of Data Manipulation Language (DML) operations?"
+  },
+  {
+    "id": "33",
+    "paraphrased_question": "\u201cExplain the function and purpose of a DML compiler within a database system.\u201d"
+  },
+  {
+    "id": "34",
+    "paraphrased_question": "\u201cDescribe the role of the Query Evaluation Engine.\u201d"
+  },
+  {
+    "id": "35",
+    "paraphrased_question": "\u201cDescribe the role of a DDL interpreter.\u201d"
+  },
+  {
+    "id": "36",
+    "paraphrased_question": "\u201cExplain the process of performing database operations in a way that involves working with individual records at each step.\u201d"
+  },
+  {
+    "id": "37",
+    "paraphrased_question": "\u201cDescribe the process of performing data modification operations in a database, breaking them down into individual steps.\u201d"
+  },
+  {
+    "id": "38",
+    "paraphrased_question": "What is the fundamental concept of Relational Algebra?"
+  },
+  {
+    "id": "39",
+    "paraphrased_question": "\u201cExplain the concept of Relational Calculus.\u201d"
+  },
+  {
+    "id": "40",
+    "paraphrased_question": "\u201cCould you explain the core distinctions between Tuple and Domain Relational Calculus?\u201d"
+  },
+  {
+    "id": "41",
+    "paraphrased_question": "\u201cExplain database normalization and outline its key objectives.\u201d"
+  },
+  {
+    "id": "42",
+    "paraphrased_question": "\u201cExplain what a Functional Dependency (FD) is in the context of a database.\u201d"
+  },
+  {
+    "id": "43",
+    "paraphrased_question": "\u201cExplain the concept of a lossless join (non-additive join) and how it relates to decomposition within a database schema.\u201d"
+  },
+  {
+    "id": "44",
+    "paraphrased_question": "\u201cDescribe the requirements for achieving First Normal Form (1NF) in a database schema.\u201d"
+  },
+  {
+    "id": "45",
+    "paraphrased_question": "\u201cExplain what a Full Functional Dependency (FDF) is in the context of database design.\u201d"
+  },
+  {
+    "id": "46",
+    "paraphrased_question": "What are the conditions required for a relation to achieve Second Normal Form (2NF)?"
+  },
+  {
+    "id": "47",
+    "paraphrased_question": "What are the requirements for a relation to be in Third Normal Form (3NF)?"
+  },
+  {
+    "id": "48",
+    "paraphrased_question": "\u201cExplain Boyce-Codd Normal Form (BCNF) and compare its strength to 3NF.\u201d"
+  },
+  {
+    "id": "49",
+    "paraphrased_question": "Please provide the original question. I need the original question to rewrite it."
+  },
+  {
+    "id": "50",
+    "paraphrased_question": "\u201cExplain the concept of Fifth Normal Form (5NF) and Project-Join Normal Form (PJNF).\u201d"
+  },
+  {
+    "id": "51",
+    "paraphrased_question": "\u201cExplain Domain-Key Normal Form (DKNF) and its significance in database design.\u201d"
+  },
+  {
+    "id": "52",
+    "paraphrased_question": "\"Describe the various types of keys used in database design.\""
+  },
+  {
+    "id": "53",
+    "paraphrased_question": "\u201cExplain database indexing and describe some of the common types of indexes.\u201d"
+  },
+  {
+    "id": "54",
+    "paraphrased_question": "\u201cExplain the system catalog and what is its commonly used name?\u201d"
+  },
+  {
+    "id": "55",
+    "paraphrased_question": "\u201cExplain how DBMS query optimization works.\u201d"
+  },
+  {
+    "id": "56",
+    "paraphrased_question": "\u201cExplain what the 'Durability' property of a transaction signifies.\u201d"
+  },
+  {
+    "id": "57",
+    "paraphrased_question": "\u201cExplain the distinctions between atomicity and aggregation in database operations.\u201d"
+  },
+  {
+    "id": "58",
+    "paraphrased_question": "\u201cDescribe a Phantom Deadlock situation in a distributed system.\u201d"
+  },
+  {
+    "id": "59",
+    "paraphrased_question": "\u201cExplain a database checkpoint and discuss its significance.\u201d"
+  },
+  {
+    "id": "60",
+    "paraphrased_question": "\u201cDescribe the different stages involved in recovering from a transaction failure.\u201d"
+  },
+  {
+    "id": "61",
+    "paraphrased_question": "\u201cDescribe a database structure that stores data in a simple, tabular format without a complex relational model.\u201d"
+  },
+  {
+    "id": "62",
+    "paraphrased_question": "\u201cDescribe a transparent database system and explain why it\u2019s beneficial.\u201d"
+  },
+  {
+    "id": "63",
+    "paraphrased_question": "\u201cExplain, in your own words, what a database query is and its purpose.\u201d"
+  },
+  {
+    "id": "64",
+    "paraphrased_question": "\u201cExplain how a correlated subquery works in SQL.\u201d"
+  },
+  {
+    "id": "65",
+    "paraphrased_question": "What are the fundamental operations that are universally used across various record management systems?"
+  },
+  {
+    "id": "66",
+    "paraphrased_question": "\u201cExplain the unary operations in Relational Algebra.\u201d"
+  },
+  {
+    "id": "67",
+    "paraphrased_question": "\u201cAre the results of the \u2018PRODUCT\u2019 and \u2018JOIN\u2019 operations identical?\u201d"
+  },
+  {
+    "id": "68",
+    "paraphrased_question": "\u201cExplain the core functionality of the RDBMS kernel.\u201d"
+  },
+  {
+    "id": "69",
+    "paraphrased_question": "\u201cCould you describe the key components or modules that make up an relational database management system (RDBMS)?\u201d"
+  },
+  {
+    "id": "70",
+    "paraphrased_question": "\u201cWhat component of the RDBMS is responsible for managing the data dictionary, and how does it function?\u201d"
+  },
+  {
+    "id": "71",
+    "paraphrased_question": "\u201cWhy is the data dictionary important, and what does it represent?\u201d"
+  },
+  {
+    "id": "72",
+    "paraphrased_question": "\u201cDescribe your approach to interacting with a relational database management system.\u201d"
+  },
+  {
+    "id": "73",
+    "paraphrased_question": "\u201cExplain the key differences between SQL and conventional programming languages.\u201d"
+  },
+  {
+    "id": "74",
+    "paraphrased_question": "What are the three primary file types that comprise an Oracle database?"
+  },
+  {
+    "id": "75",
+    "paraphrased_question": "\u201cExplain what a database trigger is.\u201d"
+  },
+  {
+    "id": "76",
+    "paraphrased_question": "\u201cExplain stored procedures and detail their benefits.\u201d"
+  },
+  {
+    "id": "77",
+    "paraphrased_question": "\u201cDescribe the function and responsibilities of the Storage Manager within a database management system.\u201d"
+  },
+  {
+    "id": "78",
+    "paraphrased_question": "\u201cDescribe the role and function of the Buffer Manager within a system.\u201d"
+  },
+  {
+    "id": "79",
+    "paraphrased_question": "\u201cExplain the role and purpose of the Transaction Manager.\u201d"
+  },
+  {
+    "id": "80",
+    "paraphrased_question": "\u201cDescribe the function and purpose of the File Manager within a system.\u201d"
+  },
+  {
+    "id": "81",
+    "paraphrased_question": "\u201cDescribe the role and responsibilities of the Authorization and Integrity Manager.\u201d"
+  },
+  {
+    "id": "82",
+    "paraphrased_question": "\u201cExplain the function of standalone procedures within a database system.\u201d"
+  },
+  {
+    "id": "83",
+    "paraphrased_question": "\u201cExplain database cursors and the different types of cursors available.\u201d"
+  },
+  {
+    "id": "84",
+    "paraphrased_question": "\u201cExplain the key distinctions between a cold and hot backup strategy.\u201d"
+  },
+  {
+    "id": "85",
+    "paraphrased_question": "\u201cExplain the different types of database updates \u2013 proactive, retroactive, and simultaneous \u2013 and how they\u2019re utilized.\u201d"
+  },
+  {
+    "id": "86",
+    "paraphrased_question": "\u201cHow does data relate to information within a database system?\u201d"
+  },
+  {
+    "id": "87",
+    "paraphrased_question": "\u201cExplain the concept of ERP and what type of database system is typically employed within an ERP solution?\u201d"
+  },
+  {
+    "id": "88",
+    "paraphrased_question": "\u201cPlease provide a detailed explanation of a Database Management System (DBMS).\u201d"
+  },
+  {
+    "id": "89",
+    "paraphrased_question": "\u201cWhat are the key characteristics that make a database inherently self-describing?\u201d"
+  },
+  {
+    "id": "90",
+    "paraphrased_question": "\u201cDescribe E.F. Codd and explain his significance in the development of database technology.\u201d"
+  },
+  {
+    "id": "91",
+    "paraphrased_question": "\u201cExplain SQL and why does it hold such importance?\u201d"
+  },
+  {
+    "id": "92",
+    "paraphrased_question": "\u201cDescribe how you would write a SQL query to retrieve all student records where the student's grade is 90 or above.\u201d"
+  },
+  {
+    "id": "93",
+    "paraphrased_question": "\u201cPlease list the five primary SQL aggregate functions.\u201d"
+  },
+  {
+    "id": "94",
+    "paraphrased_question": "\u201cDescribe a SQL query that returns a count of all students and presents the count along with a descriptive column alias.\u201d"
+  },
+  {
+    "id": "95",
+    "paraphrased_question": "\u201cExplain what an SQL subquery is.\u201d"
+  },
+  {
+    "id": "96",
+    "paraphrased_question": "\u201cWhat different names are used to describe the elements within the relational model?\u201d"
+  },
+  {
+    "id": "97",
+    "paraphrased_question": "\u201cExplain why functional dependencies are not treated as mathematical equations.\u201d"
+  },
+  {
+    "id": "98",
+    "paraphrased_question": "\u201cExplain the concept of a foreign key and its role within a database.\u201d"
+  },
+  {
+    "id": "99",
+    "paraphrased_question": "\u201cExplain the concepts of insertion and deletion anomalies and how they impact database systems.\u201d"
+  },
+  {
+    "id": "100",
+    "paraphrased_question": "\u201cExplain the concept of Boyce-Codd Normal Form (BCNF) and what it signifies.\u201d"
+  },
+  {
+    "id": "101",
+    "paraphrased_question": "\u201cConsidering the data you\u2019ll be storing, what key aspects should you prioritize when designing a new database schema?\u201d"
+  },
+  {
+    "id": "102",
+    "paraphrased_question": "\u201cWhat are the potential challenges and increased complexity in SQL queries that arise from using normalized database schemas?\u201d"
+  },
+  {
+    "id": "103",
+    "paraphrased_question": "\u201cExplain the concept of a multivalue or multicolumn problem.\u201d"
+  },
+  {
+    "id": "104",
+    "paraphrased_question": "\u201cExplain how the concept of multivalue and multicolumn relationships relate to the problem of multivalued dependencies.\u201d"
+  },
+  {
+    "id": "105",
+    "paraphrased_question": "\u201cDescribe the challenges that can arise when data in a database contains conflicting or redundant information.\u201d"
+  },
+  {
+    "id": "106",
+    "paraphrased_question": "\u201cDescribe the connections between entities, classes that represent entities, and individual instances of those entities.\u201d"
+  },
+  {
+    "id": "107",
+    "paraphrased_question": "\u201cCan you explain the distinction between attributes and identifiers in a database context?\u201d"
+  },
+  {
+    "id": "108",
+    "paraphrased_question": "Please provide the original question. I need the original question to rewrite it."
+  },
+  {
+    "id": "109",
+    "paraphrased_question": "\u201cDescribe how you\u2019d approach designing a system with a specific, recurring role or behavior.\u201d"
+  },
+  {
+    "id": "110",
+    "paraphrased_question": "\u201cExplain how a recursive relationship works.\u201d"
+  },
+  {
+    "id": "111",
+    "paraphrased_question": "\u201cDescribe the process of converting a specific entity into a structured format suitable for a database.\u201d"
+  },
+  {
+    "id": "112",
+    "paraphrased_question": "\u201cExplain the purpose of a surrogate key and why is it generally preferred over a natural key as a primary key in a database design?\u201d"
+  },
+  {
+    "id": "113",
+    "paraphrased_question": "Please explain data constraints and their various types."
+  },
+  {
+    "id": "114",
+    "paraphrased_question": "\u201cDescribe how recursive relationships are typically handled within a database schema.\u201d"
+  },
+  {
+    "id": "115",
+    "paraphrased_question": "\u201cExplain the concept of cascading updates.\u201d"
+  },
+  {
+    "id": "116",
+    "paraphrased_question": "\u201cExplain SQL views and describe their primary purposes.\u201d"
+  },
+  {
+    "id": "117",
+    "paraphrased_question": "\u201cHow might the differences in how SQL and application programming languages approach data manipulation lead to challenges in integration?\u201d"
+  },
+  {
+    "id": "118",
+    "paraphrased_question": "\u201cProvide four examples of how database triggers are typically used in practice.\u201d"
+  },
+  {
+    "id": "119",
+    "paraphrased_question": "\u201cExplain the key distinctions between stored procedures and triggers.\u201d"
+  },
+  {
+    "id": "120",
+    "paraphrased_question": "\u201cExplain the benefits of employing stored procedures.\u201d"
+  },
+  {
+    "id": "121",
+    "paraphrased_question": "\u201cWhat are the primary reasons and challenges associated with undertaking database redesign?\u201d"
+  },
+  {
+    "id": "122",
+    "paraphrased_question": "What is the fundamental distinction between a correlated subquery and a regular subquery?"
+  },
+  {
+    "id": "123",
+    "paraphrased_question": "\u201cExplain how the concept of a dependency graph is utilized within database management systems.\u201d"
+  },
+  {
+    "id": "124",
+    "paraphrased_question": "\u201cDescribe the standard procedure for implementing a NOT NULL constraint on an existing table, incorporating data insertion.\u201d"
+  },
+  {
+    "id": "125",
+    "paraphrased_question": "\u201cDescribe the process of establishing a one-to-many relationship between entities in a database schema.\u201d"
+  },
+  {
+    "id": "126",
+    "paraphrased_question": "\u201cExplain the distinctions between exclusive locks and shared locks.\u201d"
+  },
+  {
+    "id": "127",
+    "paraphrased_question": "\u201cExplain the key distinctions between optimistic and pessimistic concurrency control mechanisms.\u201d"
+  },
+  {
+    "id": "128",
+    "paraphrased_question": "\u201cExplain a deadlock and describe the strategies used to resolve it.\u201d"
+  },
+  {
+    "id": "129",
+    "paraphrased_question": "\u201cDescribe the core duties and functions of a Database Administrator.\u201d"
+  },
+  {
+    "id": "130",
+    "paraphrased_question": "\u201cExplain ACID properties and how they ensure data integrity in database transactions.\u201d"
+  },
+  {
+    "id": "131",
+    "paraphrased_question": "\u201cWhat are the typical approaches used to establish and populate an Oracle database?\u201d"
+  },
+  {
+    "id": "132",
+    "paraphrased_question": "\u201cExplain database sequences and discuss potential challenges or drawbacks associated with their implementation.\u201d"
+  },
+  {
+    "id": "133",
+    "paraphrased_question": "\u201cWhen should you create a database index to improve query performance?\u201d"
+  },
+  {
+    "id": "134",
+    "paraphrased_question": "\u201cDescribe the primary transaction isolation levels available in Oracle.\u201d"
+  },
+  {
+    "id": "135",
+    "paraphrased_question": "\u201cWhat file types are essential for recovering data from an Oracle database?\u201d"
+  },
+  {
+    "id": "136",
+    "paraphrased_question": "\u201cExplain the distinctions between full and differential backups in SQL Server.\u201d"
+  },
+  {
+    "id": "137",
+    "paraphrased_question": "\u201cDescribe the different transaction isolation levels available in SQL Server and explain what each level signifies.\u201d"
+  },
+  {
+    "id": "138",
+    "paraphrased_question": "\"Explain the distinctions between the Simple, Full, and Bulk-Logged recovery models in SQL Server.\""
+  },
+  {
+    "id": "139",
+    "paraphrased_question": "\u201cExplain the distinction between clustered and nonclustered indexes in SQL Server.\u201d"
+  },
+  {
+    "id": "140",
+    "paraphrased_question": "\u201cWhat types of triggers can SQL Server execute?\u201d"
+  },
+  {
+    "id": "141",
+    "paraphrased_question": "\u201cExplain the relationships between ODBC, OLE DB, and ADO.\u201d"
+  },
+  {
+    "id": "142",
+    "paraphrased_question": "What are the three primary types of ODBC data sources?"
+  },
+  {
+    "id": "143",
+    "paraphrased_question": "\u201cWhy did OLE DB focus on addressing a specific drawback of ODBC?\u201d"
+  },
+  {
+    "id": "144",
+    "paraphrased_question": "\u201cWhy did the developers choose to implement the Object Linking and Embedding Database (OLE DB)?\u201d"
+  },
+  {
+    "id": "145",
+    "paraphrased_question": "\u201cExplain the difference between an interface and its implementation in Object-Oriented Database Access (OLE DB).\u201d"
+  },
+  {
+    "id": "146",
+    "paraphrased_question": "\u201cWhat are the key advantages of using XML over HTML for data representation?\u201d"
+  },
+  {
+    "id": "147",
+    "paraphrased_question": "\u201cCan you outline the two primary methods used to characterize the structure and content of an XML document?\u201d"
+  },
+  {
+    "id": "148",
+    "paraphrased_question": "\u201cExplain the distinctions between basic XML elements and more complex types in XML Schema.\u201d"
+  },
+  {
+    "id": "149",
+    "paraphrased_question": "\u201cExplain ADO.NET.\u201d"
+  },
+  {
+    "id": "150",
+    "paraphrased_question": "\u201cExplain the purpose and functionality of a DataSet within the ADO.NET framework.\u201d"
+  },
+  {
+    "id": "151",
+    "paraphrased_question": "\u201cWhat are the four JDBC driver types defined by Sun?\u201d"
+  },
+  {
+    "id": "152",
+    "paraphrased_question": "\u201cExplain the key distinctions between a Java Servlet and a Java Applet.\u201d"
+  },
+  {
+    "id": "153",
+    "paraphrased_question": "\u201cDescribe the typical approach to incorporating JDBC into Java code.\u201d"
+  },
+  {
+    "id": "154",
+    "paraphrased_question": "\u201cExplain JavaBean functionality.\u201d"
+  },
+  {
+    "id": "155",
+    "paraphrased_question": "How does MySQL manage and store surrogate keys and metadata?"
+  },
+  {
+    "id": "156",
+    "paraphrased_question": "\u201cExplain a data mart.\u201d"
+  },
+  {
+    "id": "157",
+    "paraphrased_question": "\u201cExplain RFM analysis.\u201d"
+  },
+  {
+    "id": "158",
+    "paraphrased_question": "What are the primary functions and capabilities of a Business Intelligence (BI) reporting system?"
+  },
+  {
+    "id": "159",
+    "paraphrased_question": "\u201cExplain the concept of OLAP.\u201d"
+  },
+  {
+    "id": "160",
+    "paraphrased_question": "\u201cExplain the concept of market basket analysis.\u201d"
+  },
+  {
+    "id": "161",
+    "paraphrased_question": "\u201cExplain the distinctions between structured and unstructured data.\u201d"
+  },
+  {
+    "id": "162",
+    "paraphrased_question": "\u201cConsidering that file processing systems are often older, why is it crucial to have a grasp of how they function?\u201d"
+  },
+  {
+    "id": "163",
+    "paraphrased_question": "\u201cWhat are the significant drawbacks of traditional file processing methods?\u201d"
+  },
+  {
+    "id": "164",
+    "paraphrased_question": "\u201cConsidering the different types of database applications, what are the five main categories you\u2019d identify?\u201d"
+  },
+  {
+    "id": "165",
+    "paraphrased_question": "\u201cExplain the key distinctions between an intranet and an extranet.\u201d"
+  },
+  {
+    "id": "166",
+    "paraphrased_question": "\u201cWhat are the five key elements that comprise an Information Systems Architecture?\u201d"
+  },
+  {
+    "id": "167",
+    "paraphrased_question": "\u201cCould you explain the steps involved in developing software?\u201d"
+  },
+  {
+    "id": "168",
+    "paraphrased_question": "What are the two primary types of packaged data models?"
+  },
+  {
+    "id": "169",
+    "paraphrased_question": "\u201cCould you please list the individuals who are most prominent within a systems or database development team?\u201d"
+  },
+  {
+    "id": "170",
+    "paraphrased_question": "What are the core activities performed within the Software Development Life Cycle (SDLC)?"
+  },
+  {
+    "id": "171",
+    "paraphrased_question": "\u201cExplain the purpose of an Entity-Relationship Diagram (ERD).\u201d"
+  },
+  {
+    "id": "172",
+    "paraphrased_question": "\u201cDescribe what makes a well-defined data model effective.\u201d"
+  },
+  {
+    "id": "173",
+    "paraphrased_question": "What does minimum and maximum cardinality represent in a relationship?"
+  },
+  {
+    "id": "174",
+    "paraphrased_question": "\u201cDescribe the key principles and considerations for designing effective and maintainable relationship names within an Entity-Relationship Diagram (ERD).\u201d"
+  },
+  {
+    "id": "175",
+    "paraphrased_question": "\u201cHow crucial is it to represent data with associated timestamps for analysis?\u201d"
+  },
+  {
+    "id": "176",
+    "paraphrased_question": "\u201cExplain the distinctions between total and partial specialization within a supertype/subtype relationship.\u201d"
+  },
+  {
+    "id": "177",
+    "paraphrased_question": "\u201cExplain the key distinctions between an Entity-Relationship Diagram (ERD) and an Entity-Relationship Design (EERD).\u201d"
+  },
+  {
+    "id": "178",
+    "paraphrased_question": "\u201cExplain the distinction between disjoint and overlap rules in the context of subtyping.\u201d"
+  },
+  {
+    "id": "179",
+    "paraphrased_question": "What are the three primary types of business rules?"
+  },
+  {
+    "id": "180",
+    "paraphrased_question": "\u201cDescribe how you\u2019d use scenarios to establish business rules within a project.\u201d"
+  },
+  {
+    "id": "181",
+    "paraphrased_question": "What are the key goals of database normalization?"
+  },
+  {
+    "id": "182",
+    "paraphrased_question": "\u201cDescribe the essential characteristics of a robust and clearly defined relationship within a database.\u201d"
+  },
+  {
+    "id": "183",
+    "paraphrased_question": "\u201cHow do you proceed to transform a relation into Third Normal Form (3NF)?\u201d"
+  },
+  {
+    "id": "184",
+    "paraphrased_question": "\u201cDescribe the process of associating specific data types within a database with distinct physical table structures.\u201d"
+  },
+  {
+    "id": "185",
+    "paraphrased_question": "\u201cExplain how database domain constraints impact data integrity and functionality.\u201d"
+  },
+  {
+    "id": "186",
+    "paraphrased_question": "\u201cWhat are the four primary goals when choosing a data type for an attribute?\u201d"
+  },
+  {
+    "id": "187",
+    "paraphrased_question": "\u201cExplain the four primary types of indexes and their respective roles or functions within a database system.\u201d"
+  },
+  {
+    "id": "188",
+    "paraphrased_question": "\u201cExplain denormalization and outline the reasons why a database designer might choose to implement it.\u201d"
+  },
+  {
+    "id": "189",
+    "paraphrased_question": "\u201cDescribe the key distinctions between the hierarchical and network database models.\u201d"
+  },
+  {
+    "id": "190",
+    "paraphrased_question": "\u201cExplain the distinctions between horizontal and vertical partitioning.\u201d"
+  },
+  {
+    "id": "191",
+    "paraphrased_question": "\u201cExplain the key distinctions between dynamic and materialized views.\u201d"
+  },
+  {
+    "id": "192",
+    "paraphrased_question": "\u201cHow do you approach optimizing the speed and efficiency of an existing database?\u201d"
+  },
+  {
+    "id": "193",
+    "paraphrased_question": "What are the three primary types of SQL commands?"
+  },
+  {
+    "id": "194",
+    "paraphrased_question": "\u201cWhat are the essential steps involved in establishing a database table?\u201d"
+  },
+  {
+    "id": "195",
+    "paraphrased_question": "\u201cWhat are some potential drawbacks or limitations of using a standardized language like SQL?\u201d"
+  },
+  {
+    "id": "196",
+    "paraphrased_question": "\u201cExplain how a table join functions and why its importance is a core principle of the relational model.\u201d"
+  },
+  {
+    "id": "197",
+    "paraphrased_question": "\u201cDescribe the key differences between a database trigger and a stored procedure.\u201d"
+  },
+  {
+    "id": "198",
+    "paraphrased_question": "\u201cExplain what an outer join is and provide an example of a scenario where you would use it.\u201d"
+  },
+  {
+    "id": "199",
+    "paraphrased_question": "\u201cExplain what a subquery is and how it functions within a query.\u201d"
+  },
+  {
+    "id": "200",
+    "paraphrased_question": "\u201cExplain the key distinctions between embedded SQL and dynamic SQL.\u201d"
+  },
+  {
+    "id": "201",
+    "paraphrased_question": "\u201cExplain the distinctions between two-tier and three-tier client-server architectures.\u201d"
+  },
+  {
+    "id": "202",
+    "paraphrased_question": "\u201cExplain the key differences between SQL and QBE as database query languages.\u201d"
+  },
+  {
+    "id": "203",
+    "paraphrased_question": "\u201cExplain ODBC and describe how it addresses a specific challenge.\u201d"
+  },
+  {
+    "id": "204",
+    "paraphrased_question": "\u201cExplain the distinctions between thin-client and fat-client architectures.\u201d"
+  },
+  {
+    "id": "205",
+    "paraphrased_question": "\u201cWhat motivates an Access user to learn VBA?\u201d"
+  },
+  {
+    "id": "206",
+    "paraphrased_question": "\u201cExplain the role of middleware in web-database connectivity.\u201d"
+  },
+  {
+    "id": "207",
+    "paraphrased_question": "\u201cCould you explain JavaScript and VBScript, and describe their typical applications?\u201d"
+  },
+  {
+    "id": "208",
+    "paraphrased_question": "\u201cExplain Web Services \u2013 including their purpose, common types, and how they function.\u201d"
+  },
+  {
+    "id": "209",
+    "paraphrased_question": "\u201cDescribe XML and its significance.\u201d"
+  },
+  {
+    "id": "210",
+    "paraphrased_question": "What are the most significant security risks associated with websites?"
+  },
+  {
+    "id": "211",
+    "paraphrased_question": "\u201cDescribe how metadata contributes to the functionality of a three-layer data architecture.\u201d"
+  },
+  {
+    "id": "212",
+    "paraphrased_question": "\u201cWhy is it generally recommended to maintain distinct operational and informational systems?\u201d"
+  },
+  {
+    "id": "213",
+    "paraphrased_question": "What distinguishes a data warehouse from other types of data storage?"
+  },
+  {
+    "id": "214",
+    "paraphrased_question": "\u201cCan you explain why organizations frequently experience discrepancies between what they know and what they need to know?\u201d"
+  },
+  {
+    "id": "215",
+    "paraphrased_question": "\u201cExplain the key distinctions between a data warehouse and a data mart.\u201d"
+  },
+  {
+    "id": "216",
+    "paraphrased_question": "\u201cCould you explain the key distinctions between data administration and database administration?\u201d"
+  },
+  {
+    "id": "217",
+    "paraphrased_question": "\u201cDescribe the security measures implemented within a database management system.\u201d"
+  },
+  {
+    "id": "218",
+    "paraphrased_question": "\u201cExplain the concept of concurrent control and its importance in database systems.\u201d"
+  },
+  {
+    "id": "219",
+    "paraphrased_question": "\u201cExplain the concept of database locking and its importance.\u201d"
+  },
+  {
+    "id": "220",
+    "paraphrased_question": "\u201cWhat are the most important elements that influence how quickly and efficiently a database operates?\u201d"
+  },
+  {
+    "id": "221",
+    "paraphrased_question": "\u201cExplain the key distinctions between homogeneous and heterogeneous distributed databases.\u201d"
+  },
+  {
+    "id": "222",
+    "paraphrased_question": "\u201cExplain the concept of a distributed database and its key characteristics.\u201d"
+  },
+  {
+    "id": "223",
+    "paraphrased_question": "\u201cDescribe the distinctions between horizontal and vertical fragmentation within a database system.\u201d"
+  },
+  {
+    "id": "224",
+    "paraphrased_question": "\u201cExplain how to ensure a distributed system\u2019s behavior remains consistent even when multiple processes or threads access and modify shared data concurrently.\u201d"
+  },
+  {
+    "id": "225",
+    "paraphrased_question": "Please explain snapshot replication."
+  },
+  {
+    "id": "226",
+    "paraphrased_question": "\u201cExplain a file-based system and outline its key drawbacks.\u201d"
+  },
+  {
+    "id": "227",
+    "paraphrased_question": "\u201cDescribe the database approach and contrast it with the approach used in file-based systems.\u201d"
+  },
+  {
+    "id": "228",
+    "paraphrased_question": "\u201cExplain, in your own words, what a Database Management System (DBMS) is.\u201d"
+  },
+  {
+    "id": "229",
+    "paraphrased_question": "What are the fundamental characteristics or qualities that define a database system?"
+  },
+  {
+    "id": "230",
+    "paraphrased_question": "\u201cDescribe the key features and advantages of database systems.\u201d"
+  },
+  {
+    "id": "231",
+    "paraphrased_question": "\u201cExplain data independence and why its importance is significant.\u201d"
+  },
+  {
+    "id": "232",
+    "paraphrased_question": "\u201cDescribe the various data modeling techniques you\u2019re familiar with.\u201d"
+  },
+  {
+    "id": "233",
+    "paraphrased_question": "\u201cExplain data modeling and its role in database design.\u201d"
+  },
+  {
+    "id": "234",
+    "paraphrased_question": "\u201cDescribe the various levels of data abstraction you might employ in database design and explain how they impact data management.\u201d"
+  },
+  {
+    "id": "235",
+    "paraphrased_question": "\u201cCould you explain the different categories or classifications used to describe database management systems?\u201d"
+  },
+  {
+    "id": "236",
+    "paraphrased_question": "\u201cExplain the Relational Data Model and who is credited with its development?\u201d"
+  },
+  {
+    "id": "237",
+    "paraphrased_question": "\u201cDescribe the fundamental elements of a relational database system.\u201d"
+  },
+  {
+    "id": "238",
+    "paraphrased_question": "\u201cDescribe the characteristics of a table within the relational model.\u201d"
+  },
+  {
+    "id": "239",
+    "paraphrased_question": "\u201cExplain the concept of an Entity-Relationship (ER) data model.\u201d"
+  },
+  {
+    "id": "240",
+    "paraphrased_question": "\u201cDescribe the various types of entities commonly found in Entity-Relationship (ER) modeling diagrams.\u201d"
+  },
+  {
+    "id": "241",
+    "paraphrased_question": "\u201cDescribe the various types of attributes that can be included in an Entity-Relationship (ER) model.\u201d"
+  },
+  {
+    "id": "242",
+    "paraphrased_question": "\u201cDescribe the various key types used in database systems.\u201d"
+  },
+  {
+    "id": "243",
+    "paraphrased_question": "\u201cDescribe the primary types of relationships represented in Entity-Relationship (ER) modeling.\u201d"
+  },
+  {
+    "id": "244",
+    "paraphrased_question": "\u201cExplain relational algebra and detail its key operations.\u201d"
+  },
+  {
+    "id": "245",
+    "paraphrased_question": "\u201cBeyond the basic relational algebra operations, what are some additional concepts or functionalities that arise from the underlying relational algebra principles?\u201d"
+  },
+  {
+    "id": "246",
+    "paraphrased_question": "\u201cExplain the concept of concurrency control and its significance within database systems.\u201d"
+  },
+  {
+    "id": "247",
+    "paraphrased_question": "\u201cDescribe the core methods used to manage simultaneous access to data within a database system.\u201d"
+  },
+  {
+    "id": "248",
+    "paraphrased_question": "Please define database transactions and describe the ACID properties."
+  },
+  {
+    "id": "249",
+    "paraphrased_question": "\u201cExplain transaction scheduling, conflict serializability, and view serializability.\u201d"
+  },
+  {
+    "id": "250",
+    "paraphrased_question": "\u201cDescribe the different transaction isolation levels available in SQL.\u201d"
+  },
+  {
+    "id": "251",
+    "paraphrased_question": "\u201cExplain database recovery and describe the methods employed for recovering from errors or data loss.\u201d"
+  },
+  {
+    "id": "252",
+    "paraphrased_question": "\u201cExplain deadlock in database systems and describe the strategies used to resolve it.\u201d"
+  },
+  {
+    "id": "253",
+    "paraphrased_question": "\u201cExplain query optimization and discuss the primary methods used to improve query performance.\u201d"
+  },
+  {
+    "id": "254",
+    "paraphrased_question": "\u201cExplain database indices and the different types of indexes available.\u201d"
+  },
+  {
+    "id": "255",
+    "paraphrased_question": "\u201cExplain normalization and its resulting normal forms.\u201d"
+  },
+  {
+    "id": "1",
+    "paraphrased_question": "\u201cExplain the difference between objects and classes in object-oriented programming.\u201d"
+  },
+  {
+    "id": "2",
+    "paraphrased_question": "\u201cDescribe your understanding of the differences between objects and classes and provide examples of when you would choose one over the other.\u201d"
+  },
+  {
+    "id": "3",
+    "paraphrased_question": "\u201cWhat are some frequently misunderstood aspects of object-oriented programming versus class-based programming?\u201d"
+  },
+  {
+    "id": "4",
+    "paraphrased_question": "\u201cExplain the concept of encapsulation in object-oriented programming.\u201d"
+  },
+  {
+    "id": "5",
+    "paraphrased_question": "\u201cDescribe a scenario where you would choose to use encapsulation in your code.\u201d"
+  },
+  {
+    "id": "6",
+    "paraphrased_question": "\u201cWhat are some common mistakes or misunderstandings people often have regarding Encapsulation?\u201d"
+  },
+  {
+    "id": "7",
+    "paraphrased_question": "\u201cExplain the concept of abstraction in object-oriented programming.\u201d"
+  },
+  {
+    "id": "8",
+    "paraphrased_question": "\u201cDescribe a scenario where you would benefit from using abstraction in your work.\u201d"
+  },
+  {
+    "id": "9",
+    "paraphrased_question": "\u201cWhat are some frequently misunderstood aspects of abstraction?\u201d"
+  },
+  {
+    "id": "10",
+    "paraphrased_question": "\u201cExplain the concept of inheritance within Object-Oriented Programming.\u201d"
+  },
+  {
+    "id": "11",
+    "paraphrased_question": "\u201cDescribe a scenario where you would implement inheritance and explain the benefits of using this design pattern.\u201d"
+  },
+  {
+    "id": "12",
+    "paraphrased_question": "\u201cWhat are some common mistakes or misunderstandings surrounding the concept of Inheritance?\u201d"
+  },
+  {
+    "id": "13",
+    "paraphrased_question": "\u201cExplain the concept of polymorphism in object-oriented programming.\u201d"
+  },
+  {
+    "id": "14",
+    "paraphrased_question": "\u201cDescribe a situation where you would choose to use polymorphism in your code.\u201d"
+  },
+  {
+    "id": "15",
+    "paraphrased_question": "\u201cWhat are some frequently misunderstood or incorrect understandings of polymorphism?\u201d"
+  },
+  {
+    "id": "16",
+    "paraphrased_question": "\u201cExplain the concept of composition in object-oriented programming and how it differs from inheritance.\u201d"
+  },
+  {
+    "id": "17",
+    "paraphrased_question": "\u201cDescribe a scenario where you would choose to use composition over inheritance in your software design.\u201d"
+  },
+  {
+    "id": "18",
+    "paraphrased_question": "\u201cWhat are some frequently misunderstood aspects of using composition over inheritance?\u201d"
+  },
+  {
+    "id": "19",
+    "paraphrased_question": "\u201cExplain the differences between interfaces and abstract classes within the context of object-oriented programming.\u201d"
+  },
+  {
+    "id": "20",
+    "paraphrased_question": "\u201cDescribe scenarios where you would choose to utilize Interfaces versus Abstract Classes in your programming projects.\u201d"
+  },
+  {
+    "id": "21",
+    "paraphrased_question": "\u201cWhat are some common mistakes or misunderstandings associated with the use of Interfaces versus Abstract Classes?\u201d"
+  },
+  {
+    "id": "22",
+    "paraphrased_question": "\u201cExplain the differences between method overloading and overriding in object-oriented programming.\u201d"
+  },
+  {
+    "id": "23",
+    "paraphrased_question": "\u201cExplain the differences between method overloading and overriding and provide examples of when each might be used in a programming context.\u201d"
+  },
+  {
+    "id": "24",
+    "paraphrased_question": "\u201cWhat are frequently misunderstood aspects of Method Overloading and Overriding?\u201d"
+  },
+  {
+    "id": "25",
+    "paraphrased_question": "\u201cExplain how Access Modifiers work in object-oriented programming.\u201d"
+  },
+  {
+    "id": "26",
+    "paraphrased_question": "\u201cExplain when and why you would employ Access Modifiers in a database design.\u201d"
+  },
+  {
+    "id": "27",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people often make regarding Access Modifiers?\u201d"
+  },
+  {
+    "id": "28",
+    "paraphrased_question": "\u201cExplain the concept of constructors and destructors within Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "29",
+    "paraphrased_question": "\u201cDescribe scenarios where you would utilize constructors and destructors in your code.\u201d"
+  },
+  {
+    "id": "30",
+    "paraphrased_question": "\u201cWhat are some frequently misunderstood aspects of constructors and destructors?\u201d"
+  },
+  {
+    "id": "31",
+    "paraphrased_question": "\u201cExplain the difference between deep and shallow copies in object-oriented programming.\u201d"
+  },
+  {
+    "id": "32",
+    "paraphrased_question": "\u201cExplain the scenarios where you would choose to use Deep Copy versus Shallow Copy.\u201d"
+  },
+  {
+    "id": "33",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people often make when comparing and contrasting Deep and Shallow Copy?\u201d"
+  },
+  {
+    "id": "34",
+    "paraphrased_question": "\u201cExplain the differences between structural and referential equality in object-oriented programming (OOP).\u201d"
+  },
+  {
+    "id": "35",
+    "paraphrased_question": "\u201cExplain the differences between using equality and structural relationships in database design, and provide scenarios where you would choose one over the other.\u201d"
+  },
+  {
+    "id": "36",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors regarding the distinction between structural and referential equality?\u201d"
+  },
+  {
+    "id": "37",
+    "paraphrased_question": "\u201cExplain the difference between static and instance members in object-oriented programming.\u201d"
+  },
+  {
+    "id": "38",
+    "paraphrased_question": "\u201cDescribe the differences between static and instance members and provide examples of when you would choose one over the other.\u201d"
+  },
+  {
+    "id": "39",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors when considering the differences between static and instance members?\u201d"
+  },
+  {
+    "id": "40",
+    "paraphrased_question": "\u201cExplain the core concepts of Object-Oriented Programming (OOP) within the context of Object-Oriented Design (OOD).\u201d"
+  },
+  {
+    "id": "41",
+    "paraphrased_question": "\u201cCould you describe a situation where you\u2019d leverage the core concepts of UML?\u201d"
+  },
+  {
+    "id": "42",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people often make when learning the fundamentals of UML?\u201d"
+  },
+  {
+    "id": "43",
+    "paraphrased_question": "\u201cExplain the concept of SRP (Single Responsibility Principle) within the context of Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "44",
+    "paraphrased_question": "\u201cExplain when and why you would employ the Responsibility of Key Reference (SRP) principles.\u201d"
+  },
+  {
+    "id": "45",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors associated with the SRP pattern?\u201d"
+  },
+  {
+    "id": "46",
+    "paraphrased_question": "\u201cExplain the SOLID principles and how they relate to Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "47",
+    "paraphrased_question": "\u201cConsidering the principles of SOLID, how would you apply them in the context of OCP (Organizational Capabilities Planning)?\u201d"
+  },
+  {
+    "id": "48",
+    "paraphrased_question": "\u201cWhat are common misunderstandings or errors associated with the SOLID design principles?\u201d"
+  },
+  {
+    "id": "49",
+    "paraphrased_question": "\u201cExplain the SOLID principles and the LSP (Liskov Substitution) in object-oriented programming.\u201d"
+  },
+  {
+    "id": "50",
+    "paraphrased_question": "\u201cExplain when and why you would choose to apply SOLID principles to your code.\u201d"
+  },
+  {
+    "id": "51",
+    "paraphrased_question": "\u201cWhat are some frequently misunderstood aspects of the SOLID design principles?\u201d"
+  },
+  {
+    "id": "52",
+    "paraphrased_question": "\u201cExplain the SOLID principles and their relationship to the Inversion of Control pattern in Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "53",
+    "paraphrased_question": "\u201cExplain when and why you\u2019d consider leveraging the ISP pattern in a software design.\u201d"
+  },
+  {
+    "id": "54",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors associated with the SOLID design principle?\u201d"
+  },
+  {
+    "id": "55",
+    "paraphrased_question": "\u201cExplain the SOLID principles in the context of Object-Oriented Programming.\u201d"
+  },
+  {
+    "id": "56",
+    "paraphrased_question": "\u201cDescribe a scenario where you would leverage the SOLID principles, specifically DIP, and explain why you would choose that approach.\u201d"
+  },
+  {
+    "id": "57",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors associated with the SOLID design principles?\u201d"
+  },
+  {
+    "id": "58",
+    "paraphrased_question": "\u201cExplain Design by Contract in Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "59",
+    "paraphrased_question": "\u201cDescribe a situation where you would leverage Design by Contract. What are the potential benefits and challenges of this approach?\u201d"
+  },
+  {
+    "id": "60",
+    "paraphrased_question": "\u201cWhat are some recurring mistakes or misunderstandings associated with the Design by Contract methodology?\u201d"
+  },
+  {
+    "id": "61",
+    "paraphrased_question": "\u201cExplain the concept of immutability in object-oriented programming.\u201d"
+  },
+  {
+    "id": "62",
+    "paraphrased_question": "\u201cDescribe a situation where immutability would be beneficial and why you would choose to implement it.\u201d"
+  },
+  {
+    "id": "63",
+    "paraphrased_question": "Please share the original question you want me to rewrite. I need the original question to paraphrase it."
+  },
+  {
+    "id": "64",
+    "paraphrased_question": "\u201cExplain the concepts of Multiple Inheritance and Diamond Inheritance in object-oriented programming.\u201d"
+  },
+  {
+    "id": "65",
+    "paraphrased_question": "\u201cExplain when and why you would consider employing Multiple Inheritance and Diamond inheritance.\u201d"
+  },
+  {
+    "id": "66",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors often associated with Multiple Inheritance and Diamond?\u201d"
+  },
+  {
+    "id": "67",
+    "paraphrased_question": "\u201cExplain MRO and the `super()` function in Python, focusing on how they relate to Object-Oriented Programming.\u201d"
+  },
+  {
+    "id": "68",
+    "paraphrased_question": "\u201cExplain when and why you would utilize the MRO (Multiple Recursive Optimizer) and super() functions in Python.\u201d"
+  },
+  {
+    "id": "69",
+    "paraphrased_question": "\u201cWhat are frequently misunderstood aspects of MRO and super() in Python?\u201d"
+  },
+  {
+    "id": "70",
+    "paraphrased_question": "\u201cExplain Virtual functions and vtables as they relate to Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "71",
+    "paraphrased_question": "\u201cDescribe a scenario where you would utilize virtual functions and vtables. What are the key benefits of using these techniques in this context?\u201d"
+  },
+  {
+    "id": "72",
+    "paraphrased_question": "\u201cWhat are some frequently misunderstood aspects or challenges related to Virtual functions and vtables?\u201d"
+  },
+  {
+    "id": "73",
+    "paraphrased_question": "\u201cExplain the Rule of 3/5/0 concept within object-oriented programming (C++).\u201d"
+  },
+  {
+    "id": "74",
+    "paraphrased_question": "\u201cCan you describe scenarios where you would apply the Rule of 3/5/0 (C++)?\u201d"
+  },
+  {
+    "id": "75",
+    "paraphrased_question": "\u201cWhat are some frequently misunderstood or incorrect understandings of the Rule of 3/5/0 (C++)?\u201d"
+  },
+  {
+    "id": "76",
+    "paraphrased_question": "\u201cExplain RAII (C++) in the context of object-oriented programming.\u201d"
+  },
+  {
+    "id": "77",
+    "paraphrased_question": "\u201cDescribe scenarios where you would consider employing RAII (C++) in your code.\u201d"
+  },
+  {
+    "id": "78",
+    "paraphrased_question": "\u201cWhat are some frequent errors or misunderstandings related to RAII (C++)?\u201d"
+  },
+  {
+    "id": "79",
+    "paraphrased_question": "\u201cExplain Smart Pointers (C++) within the context of Object-Oriented Programming.\u201d"
+  },
+  {
+    "id": "80",
+    "paraphrased_question": "\u201cDescribe scenarios where you would consider leveraging Smart Pointers (C++) in your code.\u201d"
+  },
+  {
+    "id": "81",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people often make when using Smart Pointers (C++)?\u201d"
+  },
+  {
+    "id": "82",
+    "paraphrased_question": "\u201cExplain the concepts of generics, templates, and covariance in object-oriented programming.\u201d"
+  },
+  {
+    "id": "83",
+    "paraphrased_question": "\u201cDescribe a scenario where using generics, templates, or covariance would be beneficial. Explain the specific reasons behind your choice.\u201d"
+  },
+  {
+    "id": "84",
+    "paraphrased_question": "\u201cWhat are some frequently misunderstood concepts or errors related to Generics, Templates, and Covariance?\u201d"
+  },
+  {
+    "id": "85",
+    "paraphrased_question": "\u201cExplain the concepts of Casting and RTTI within Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "86",
+    "paraphrased_question": "\u201cDescribe scenarios where casting and RTTI would be beneficial. Why would you choose to employ these techniques?\u201d"
+  },
+  {
+    "id": "87",
+    "paraphrased_question": "\u201cWhat are some frequently misunderstood aspects of casting and runtime tracking and synchronization (RTTI)?\u201d"
+  },
+  {
+    "id": "88",
+    "paraphrased_question": "\u201cExplain how Operator Overloading works within Object-Oriented Programming (OOP) in C++.\u201d"
+  },
+  {
+    "id": "89",
+    "paraphrased_question": "\u201cDescribe scenarios where you would utilize Operator Overloading in C++.\u201d"
+  },
+  {
+    "id": "90",
+    "paraphrased_question": "\u201cWhat are some common mistakes or misunderstandings people often make when using Operator Overloading (C++)?\u201d"
+  },
+  {
+    "id": "91",
+    "paraphrased_question": "\u201cExplain the concept of design patterns, specifically focusing on the Strategy pattern within Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "92",
+    "paraphrased_question": "\u201cDescribe a scenario where you would consider leveraging a Design Pattern, specifically Strategy, and explain the rationale behind your choice.\u201d"
+  },
+  {
+    "id": "93",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors when discussing Design Patterns, particularly Strategy?\u201d"
+  },
+  {
+    "id": "94",
+    "paraphrased_question": "\u201cExplain the purpose of the Factory pattern in Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "95",
+    "paraphrased_question": "\u201cDescribe scenarios where you would employ the Factory pattern. What are the key reasons for considering its use?\u201d"
+  },
+  {
+    "id": "96",
+    "paraphrased_question": "\u201cWhat are common misunderstandings or incorrect assumptions about the use of Factory design pattern?\u201d"
+  },
+  {
+    "id": "97",
+    "paraphrased_question": "\u201cExplain Singleton with caveats in object-oriented programming (OOP).\u201d"
+  },
+  {
+    "id": "98",
+    "paraphrased_question": "\u201cDescribe a situation where you would consider using the Singleton design pattern, and what factors would lead you to choose it over alternative solutions?\u201d"
+  },
+  {
+    "id": "99",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or incorrect assumptions about the Singleton design pattern?\u201d"
+  },
+  {
+    "id": "100",
+    "paraphrased_question": "\u201cExplain the concepts of adapter, decorator, and proxy in object-oriented programming (OOP).\u201d"
+  },
+  {
+    "id": "101",
+    "paraphrased_question": "\u201cDescribe scenarios where you would employ design patterns like Adapter, Decorator, or Proxy.  What are the key reasons for considering these patterns?\u201d"
+  },
+  {
+    "id": "102",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or oversimplifications surrounding Design Patterns like Adapters, Decoders, and Proxies?\u201d"
+  },
+  {
+    "id": "103",
+    "paraphrased_question": "\u201cExplain the concept of a composite pattern in Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "104",
+    "paraphrased_question": "\u201cDescribe a scenario where you would consider using a Composite design pattern. What are the benefits and potential challenges of applying this pattern?\u201d"
+  },
+  {
+    "id": "105",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or inaccurate perceptions surrounding the use of Composite Design Patterns?\u201d"
+  },
+  {
+    "id": "106",
+    "paraphrased_question": "\u201cExplain the Observer pattern within Object-Oriented Programming.\u201d"
+  },
+  {
+    "id": "107",
+    "paraphrased_question": "\u201cDescribe a scenario where you would consider employing the Observer pattern. What are the key benefits of using this design pattern in this context?\u201d"
+  },
+  {
+    "id": "108",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors associated with the Observer pattern?\u201d"
+  },
+  {
+    "id": "109",
+    "paraphrased_question": "\u201cExplain the Command pattern within the context of Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "110",
+    "paraphrased_question": "\u201cDescribe a scenario where you would consider utilizing a Command pattern in your software development process.  What are the potential benefits and drawbacks of applying this pattern in this specific context?\u201d"
+  },
+  {
+    "id": "111",
+    "paraphrased_question": "\u201cWhat are common misunderstandings or errors often associated with using Command design patterns?\u201d"
+  },
+  {
+    "id": "112",
+    "paraphrased_question": "\u201cExplain design patterns in the context of object-oriented programming.\u201d"
+  },
+  {
+    "id": "113",
+    "paraphrased_question": "\u201cCould you explain situations where you would consider implementing a state pattern in your software development?\u201d"
+  },
+  {
+    "id": "114",
+    "paraphrased_question": "\u201cWhat are common misunderstandings or misperceptions surrounding the design pattern State?\u201d"
+  },
+  {
+    "id": "115",
+    "paraphrased_question": "\u201cExplain the concept of a Template Method in Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "116",
+    "paraphrased_question": "\u201cDescribe a scenario where implementing a design pattern like Template Method would be beneficial. Explain the rationale behind choosing that particular pattern and its potential advantages.\u201d"
+  },
+  {
+    "id": "117",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors associated with the Template Method design pattern?\u201d"
+  },
+  {
+    "id": "118",
+    "paraphrased_question": "\u201cExplain the Builder design pattern in object-oriented programming.\u201d"
+  },
+  {
+    "id": "119",
+    "paraphrased_question": "\u201cDescribe a scenario where using a Builder pattern would be beneficial. What are the key reasons for choosing this design approach?\u201d"
+  },
+  {
+    "id": "120",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors associated with the Builder pattern?\u201d"
+  },
+  {
+    "id": "121",
+    "paraphrased_question": "\u201cExplain the concept of a Facade in object-oriented programming (OOP).\u201d"
+  },
+  {
+    "id": "122",
+    "paraphrased_question": "\u201cDescribe a scenario where you would choose to implement a Facade pattern. What are the benefits and potential drawbacks of using this approach?\u201d"
+  },
+  {
+    "id": "123",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or inaccurate perceptions surrounding the Facade design pattern?\u201d"
+  },
+  {
+    "id": "124",
+    "paraphrased_question": "\u201cExplain Flyweight in Object-Oriented Programming (OOP) and how it contributes to design.\u201d"
+  },
+  {
+    "id": "125",
+    "paraphrased_question": "\u201cDescribe a situation where you would consider implementing Flyweight as a solution. What are the potential benefits and drawbacks of using this design pattern?\u201d"
+  },
+  {
+    "id": "126",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or incorrect assumptions people often make about Design Patterns, specifically Flyweight?\u201d"
+  },
+  {
+    "id": "127",
+    "paraphrased_question": "\u201cExplain the role of a bridge pattern within Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "128",
+    "paraphrased_question": "\u201cDescribe a scenario where you would implement the Bridge design pattern and explain the reasoning behind your choice.\u201d"
+  },
+  {
+    "id": "129",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people often make when discussing Design Patterns, particularly concerning Bridge?\u201d"
+  },
+  {
+    "id": "130",
+    "paraphrased_question": "\u201cExplain the concept of prototype objects in object-oriented programming.\u201d"
+  },
+  {
+    "id": "131",
+    "paraphrased_question": "\u201cDescribe a scenario where you would implement a prototype approach to solve a specific problem. What are the potential benefits and drawbacks of using this strategy?\u201d"
+  },
+  {
+    "id": "132",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people commonly make when discussing or using Prototype?\u201d"
+  },
+  {
+    "id": "133",
+    "paraphrased_question": "\u201cExplain the concept of Exception Safety in C++.\u201d"
+  },
+  {
+    "id": "134",
+    "paraphrased_question": "\u201cDescribe scenarios where you would employ exception safety (C++) and explain why you would choose to use it in those situations.\u201d"
+  },
+  {
+    "id": "135",
+    "paraphrased_question": "\u201cWhat are frequently misunderstood or problematic aspects of Exception Safety (C++)?\u201d"
+  },
+  {
+    "id": "136",
+    "paraphrased_question": "\u201cExplain the purpose and functionality of PIMPL (C++) within object-oriented programming.\u201d"
+  },
+  {
+    "id": "137",
+    "paraphrased_question": "\u201cDescribe the scenarios where you would consider utilizing the PIMPL (C++) framework.\u201d"
+  },
+  {
+    "id": "138",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people commonly make when working with PIMPL (C++)?\u201d"
+  },
+  {
+    "id": "139",
+    "paraphrased_question": "\u201cExplain Law of Demeter in object-oriented programming.\u201d"
+  },
+  {
+    "id": "140",
+    "paraphrased_question": "\u201cDescribe a scenario where you would leverage the Law of Demeter principle. What are the potential benefits and drawbacks of applying it in this context?\u201d"
+  },
+  {
+    "id": "141",
+    "paraphrased_question": "\u201cWhat are the most frequent errors or misunderstandings associated with the Law of Demeter principle?\u201d"
+  },
+  {
+    "id": "142",
+    "paraphrased_question": "\u201cExplain Tell, Don\u2019t Ask in the context of Object-Oriented Programming.\u201d"
+  },
+  {
+    "id": "143",
+    "paraphrased_question": "\u201cDescribe a situation where using Tell, Don\u2019t Ask, would be beneficial and explain the rationale behind your choice.\u201d"
+  },
+  {
+    "id": "144",
+    "paraphrased_question": "What are common misunderstandings or inaccurate perceptions of Tell, Don\u2019t Ask?"
+  },
+  {
+    "id": "145",
+    "paraphrased_question": "\u201cExplain the difference between Value and Reference semantics in object-oriented programming.\u201d"
+  },
+  {
+    "id": "146",
+    "paraphrased_question": "\u201cDescribe scenarios where you\u2019d choose one data storage model \u2013 Value or Reference \u2013 and explain the reasoning behind your selection.\u201d"
+  },
+  {
+    "id": "147",
+    "paraphrased_question": "What are some common misunderstandings or errors regarding the difference between Value and Reference semantics?"
+  },
+  {
+    "id": "148",
+    "paraphrased_question": "\u201cExplain the concept of Sealed Classes and Algebraic Hierarchies within the context of Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "149",
+    "paraphrased_question": "\u201cDescribe scenarios where you would consider employing Sealed Classes or Algebraic Hierarchies to improve your code\u2019s design and maintainability.\u201d"
+  },
+  {
+    "id": "150",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people make when working with Sealed Classes or Algebraic Hierarchies?\u201d"
+  },
+  {
+    "id": "151",
+    "paraphrased_question": "\u201cExplain Mixins and Traits in Object-Oriented Programming.\u201d"
+  },
+  {
+    "id": "152",
+    "paraphrased_question": "\u201cDescribe a situation where you might leverage Mixins and Traits, and explain the benefits of using them in that context.\u201d"
+  },
+  {
+    "id": "153",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people often make when using Mixins and Traits?\u201d"
+  },
+  {
+    "id": "154",
+    "paraphrased_question": "\u201cExplain the differences between Duck Typing and Nominal Typing in object-oriented programming.\u201d"
+  },
+  {
+    "id": "155",
+    "paraphrased_question": "\u201cExplain the differences between Duck Typing and Nominal Typing, and provide scenarios where each approach would be preferred.\u201d"
+  },
+  {
+    "id": "156",
+    "paraphrased_question": "Please describe some common misunderstandings or errors people often have when comparing Duck Typing and Nominal Typing."
+  },
+  {
+    "id": "157",
+    "paraphrased_question": "\u201cExplain the concept of `abc/Protocol` in Python, focusing on its role within Object-Oriented Programming.\u201d"
+  },
+  {
+    "id": "158",
+    "paraphrased_question": "\u201cDescribe a scenario where you would employ the `abc/Protocol` (Python) framework and explain the reasoning behind your choice.\u201d"
+  },
+  {
+    "id": "159",
+    "paraphrased_question": "\u201cWhat are frequently misunderstood or problematic aspects of the abc/Protocol (Python) paradigm?\u201d"
+  },
+  {
+    "id": "160",
+    "paraphrased_question": "\u201cExplain the concept of data classes in Python or Java, focusing on their purpose and implementation.\u201d"
+  },
+  {
+    "id": "161",
+    "paraphrased_question": "\u201cDescribe scenarios where you would consider leveraging Data classes in Python or Java.\u201d"
+  },
+  {
+    "id": "162",
+    "paraphrased_question": "What are some frequently overlooked or misunderstood aspects of data classes (in Python or Java)?"
+  },
+  {
+    "id": "163",
+    "paraphrased_question": "\u201cExplain Copy elision & moves (C++) in object-oriented programming.\u201d"
+  },
+  {
+    "id": "164",
+    "paraphrased_question": "\u201cDescribe scenarios where you would employ Copy elision and moves (C++) and explain the reasoning behind your choice.\u201d"
+  },
+  {
+    "id": "165",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people often make regarding Copy elision and moves (C++)?\u201d"
+  },
+  {
+    "id": "166",
+    "paraphrased_question": "\u201cExplain the difference between superclasses and overrides in object-oriented programming (OOP) \u2013 specifically in Java and Python.\u201d"
+  },
+  {
+    "id": "167",
+    "paraphrased_question": "\u201cDescribe the scenarios where you would choose to use super classes versus overrides in Java or Python, and why?\u201d"
+  },
+  {
+    "id": "168",
+    "paraphrased_question": "\u201cWhat are frequently misunderstood aspects of super and overrides (in Java or Python)?\u201d"
+  },
+  {
+    "id": "169",
+    "paraphrased_question": "\u201cExplain the concept of final/sealed methods within object-oriented programming.\u201d"
+  },
+  {
+    "id": "170",
+    "paraphrased_question": "\u201cDescribe a scenario where you would choose to utilize Final/sealed methods and explain the rationale behind your decision.\u201d"
+  },
+  {
+    "id": "171",
+    "paraphrased_question": "\u201cWhat are some common mistakes or misunderstandings people have regarding Final/sealed methods?\u201d"
+  },
+  {
+    "id": "172",
+    "paraphrased_question": "\u201cExplain serialization and versioning in the context of Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "173",
+    "paraphrased_question": "\u201cDescribe a situation where you would choose to serialize and version your data, and explain the reasons behind that decision.\u201d"
+  },
+  {
+    "id": "174",
+    "paraphrased_question": "\u201cWhat are some common errors or misunderstandings related to serialization and versioning?\u201d"
+  },
+  {
+    "id": "175",
+    "paraphrased_question": "\u201cExplain the concepts of thread safety and confinement within object-oriented programming (OOP).\u201d"
+  },
+  {
+    "id": "176",
+    "paraphrased_question": "\u201cDescribe scenarios where using thread safety and confinement would be beneficial, and why you\u2019d choose that approach.\u201d"
+  },
+  {
+    "id": "177",
+    "paraphrased_question": "\u201cWhat are frequently misunderstood concepts related to thread safety and concurrency?\u201d"
+  },
+  {
+    "id": "178",
+    "paraphrased_question": "\u201cExplain the concepts of cohesion and coupling in object-oriented programming.\u201d"
+  },
+  {
+    "id": "179",
+    "paraphrased_question": "\u201cExplain the concept of cohesion and coupling, and provide examples of situations where you would choose to emphasize one over the other.\u201d"
+  },
+  {
+    "id": "180",
+    "paraphrased_question": "\u201cWhat are some frequently overlooked or overly simplified aspects of cohesion and coupling?\u201d"
+  },
+  {
+    "id": "181",
+    "paraphrased_question": "\u201cExplain the difference between Code Smells and Refactorings in Object-Oriented Programming.\u201d"
+  },
+  {
+    "id": "182",
+    "paraphrased_question": "\u201cDescribe the differences between code smells and refactoring, and provide examples of when you might choose one over the other.\u201d"
+  },
+  {
+    "id": "183",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people make when discussing the difference between code smells and refactorings?\u201d"
+  },
+  {
+    "id": "184",
+    "paraphrased_question": "\u201cExplain the role of testing in Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "185",
+    "paraphrased_question": "\u201cDescribe a scenario where you would consider utilizing Object-Oriented Programming (OO) principles in your code.\u201d"
+  },
+  {
+    "id": "186",
+    "paraphrased_question": "\u201cWhat are some frequently misunderstood or problematic aspects of object-oriented code design?\u201d"
+  },
+  {
+    "id": "187",
+    "paraphrased_question": "\u201cExplain Open Recursion and Self in the context of object-oriented programming.\u201d"
+  },
+  {
+    "id": "188",
+    "paraphrased_question": "\u201cDescribe a situation where you would consider leveraging Open Recursion & Self, and what potential benefits would you expect to see from using this approach?\u201d"
+  },
+  {
+    "id": "189",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people commonly make regarding Open Recursion & Self?\u201d"
+  },
+  {
+    "id": "190",
+    "paraphrased_question": "\u201cExplain the concepts of invariant and representation in Object-Oriented Programming (OOP).\u201d"
+  },
+  {
+    "id": "191",
+    "paraphrased_question": "\u201cCould you explain scenarios where using invariant and representation exposure would be beneficial?\u201d"
+  },
+  {
+    "id": "192",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people often make when learning about Invariant & Representation exposure?\u201d"
+  },
+  {
+    "id": "193",
+    "paraphrased_question": "\u201cExplain the difference between value objects and entities in object-oriented programming.\u201d"
+  },
+  {
+    "id": "194",
+    "paraphrased_question": "\u201cDescribe the differences between value objects and entities, and provide examples of when you might choose one over the other.\u201d"
+  },
+  {
+    "id": "195",
+    "paraphrased_question": "\u201cWhat are some common misunderstandings or errors people often make when comparing Value Objects and Entities?\u201d"
+  },
+  {
+    "id": "196",
+    "paraphrased_question": "\u201cExplain the concept of Aggregate/Bounded Context within the context of Object-Oriented Programming (OOP) and Domain-Driven Design (DDD).\u201d"
+  },
+  {
+    "id": "197",
+    "paraphrased_question": "\u201cDescribe scenarios where you would leverage Aggregate or Bounded Context modeling \u2013 specifically, when and why would you choose to employ these architectural patterns?\u201d"
+  },
+  {
+    "id": "198",
+    "paraphrased_question": "\u201cWhat are frequently misunderstood aspects of Aggregate/Bounded Context principles (in the context of Object-Oriented Programming and Domain-Driven Design)?\u201d"
+  },
+  {
+    "id": "199",
+    "paraphrased_question": "\u201cDescribe the Observer pattern and provide examples of situations where you would choose to apply this design pattern.\u201d"
+  },
+  {
+    "id": "200",
+    "paraphrased_question": "\u201cDescribe the Decorator pattern and provide examples of situations where you would apply it.\u201d"
+  },
+  {
+    "id": "201",
+    "paraphrased_question": "\u201cDescribe the Adapter pattern and provide examples of situations where it would be beneficial.\u201d"
+  },
+  {
+    "id": "202",
+    "paraphrased_question": "\u201cExplain the Proxy pattern and provide examples of scenarios where you would employ it.\u201d"
+  },
+  {
+    "id": "203",
+    "paraphrased_question": "\u201cExplain the Composite pattern and provide examples of situations where it\u2019s beneficial to apply it.\u201d"
+  },
+  {
+    "id": "204",
+    "paraphrased_question": "\u201cExplain the Command pattern and provide examples of situations where you would employ it.\u201d"
+  },
+  {
+    "id": "205",
+    "paraphrased_question": "\u201cExplain the State pattern and provide examples of situations where you would consider employing this design pattern.\u201d"
+  },
+  {
+    "id": "206",
+    "paraphrased_question": "\u201cExplain the Strategy pattern and provide examples of situations where it would be beneficial to apply it.\u201d"
+  },
+  {
+    "id": "207",
+    "paraphrased_question": "\u201cExplain the Template Method pattern and provide examples of situations where it\u2019s a suitable choice.\u201d"
+  },
+  {
+    "id": "208",
+    "paraphrased_question": "\u201cExplain the Builder pattern and provide examples of situations where it would be a beneficial design choice.\u201d"
+  },
+  {
+    "id": "209",
+    "paraphrased_question": "\u201cDescribe the Facade pattern and provide examples of scenarios where you would apply it.\u201d"
+  },
+  {
+    "id": "210",
+    "paraphrased_question": "\u201cExplain the Flyweight pattern and provide examples of scenarios where you would choose to apply it.\u201d"
+  },
+  {
+    "id": "211",
+    "paraphrased_question": "\u201cExplain the Bridge pattern and provide examples of situations where you would choose to use it.\u201d"
+  },
+  {
+    "id": "212",
+    "paraphrased_question": "\u201cExplain the Prototype pattern and provide examples of situations where it would be beneficial to apply it.\u201d"
+  },
+  {
+    "id": "213",
+    "paraphrased_question": "\u201cExplain the distinct roles and behavior of `@staticmethod` and `@classmethod` in Python\u2019s object-oriented programming model.\u201d"
+  },
+  {
+    "id": "214",
+    "paraphrased_question": "\u201cCan you explain how Python achieves data encapsulation, even though it doesn\u2019t have true private fields?\u201d"
+  },
+  {
+    "id": "215",
+    "paraphrased_question": "\u201cDescribe Python\u2019s dataclasses and how they contribute to object-oriented design principles.\u201d"
+  },
+  {
+    "id": "216",
+    "paraphrased_question": "\u201cExplain the rationale behind using both `equals()` and `hashCode()` to be overridden in Java.\u201d"
+  },
+  {
+    "id": "217",
+    "paraphrased_question": "Please explain the purpose and benefits of using sealed classes in Java."
+  },
+  {
+    "id": "218",
+    "paraphrased_question": "\u201cExplain the distinctions between the default methods and abstract classes provided by interfaces.\u201d"
+  },
+  {
+    "id": "219",
+    "paraphrased_question": "\u201cExplain the necessity of virtual destructors in C++ base classes.\u201d"
+  },
+  {
+    "id": "220",
+    "paraphrased_question": "\u201cDescribe the Rule of Five and when it\u2019s a suitable approach.\u201d"
+  },
+  {
+    "id": "221",
+    "paraphrased_question": "\u201cExplain slicing in C++ Object-Oriented Programming and describe methods to prevent its use?\u201d"
+  },
+  {
+    "id": "1",
+    "paraphrased_question": "\u201cDescribe the fundamental functions of an operating system.\u201d"
+  },
+  {
+    "id": "2",
+    "paraphrased_question": "What are the key elements that make up an operating system?"
+  },
+  {
+    "id": "3",
+    "paraphrased_question": "\u201cDescribe a process and its key elements.\u201d"
+  },
+  {
+    "id": "4",
+    "paraphrased_question": "\u201cDescribe the different stages or phases a process can go through.\u201d"
+  },
+  {
+    "id": "5",
+    "paraphrased_question": "\u201cDescribe the process scheduling algorithms and their implementation.\u201d"
+  },
+  {
+    "id": "6",
+    "paraphrased_question": "\u201cExplain what a thread is.\u201d"
+  },
+  {
+    "id": "7",
+    "paraphrased_question": "\u201cExplain the fundamental distinctions between a process and a thread.\u201d"
+  },
+  {
+    "id": "8",
+    "paraphrased_question": "\u201cExplain virtual memory.\u201d"
+  },
+  {
+    "id": "9",
+    "paraphrased_question": "\u201cExplain paging in the context of database systems.\u201d"
+  },
+  {
+    "id": "10",
+    "paraphrased_question": "\u201cExplain the concept of segmentation.\u201d"
+  },
+  {
+    "id": "11",
+    "paraphrased_question": "\u201cDescribe the phenomenon of deadlock.\u201d"
+  },
+  {
+    "id": "12",
+    "paraphrased_question": "\u201cWhat are the conditions that must be met for a deadlock to occur?\u201d"
+  },
+  {
+    "id": "13",
+    "paraphrased_question": "\u201cExplain a semaphore and its purpose in computer programming.\u201d"
+  },
+  {
+    "id": "14",
+    "paraphrased_question": "\u201cExplain what a race condition is.\u201d"
+  },
+  {
+    "id": "15",
+    "paraphrased_question": "\u201cExplain the basic structure and function of a file system.\u201d"
+  },
+  {
+    "id": "16",
+    "paraphrased_question": "\u201cExplain demand paging.\u201d"
+  },
+  {
+    "id": "17",
+    "paraphrased_question": "\u201cExplain interrupt handling in a system.\u201d"
+  },
+  {
+    "id": "18",
+    "paraphrased_question": "\u201cExplain what a device driver is.\u201d"
+  },
+  {
+    "id": "19",
+    "paraphrased_question": "\u201cDescribe the round robin scheduling algorithm.\u201d"
+  },
+  {
+    "id": "20",
+    "paraphrased_question": "\u201cDescribe the concept of thrashing.\u201d"
+  },
+  {
+    "id": "21",
+    "paraphrased_question": "\u201cExplain the concept of a critical section.\u201d"
+  },
+  {
+    "id": "22",
+    "paraphrased_question": "\u201cExplain mutual exclusion and its importance in database systems.\u201d"
+  },
+  {
+    "id": "23",
+    "paraphrased_question": "\u201cExplain the key distinctions between preemptive and non-preemptive scheduling algorithms.\u201d"
+  },
+  {
+    "id": "24",
+    "paraphrased_question": "\u201cDescribe the concept of multiprogramming.\u201d"
+  },
+  {
+    "id": "25",
+    "paraphrased_question": "\u201cExplain the paging replacement algorithm and its purpose.\u201d"
+  },
+  {
+    "id": "26",
+    "paraphrased_question": "\u201cExplain the concept of cache memory.\u201d"
+  },
+  {
+    "id": "27",
+    "paraphrased_question": "\u201cExplain what a bootloader is.\u201d"
+  },
+  {
+    "id": "28",
+    "paraphrased_question": "\u201cDescribe file descriptors and their purpose.\u201d"
+  },
+  {
+    "id": "29",
+    "paraphrased_question": "\u201cExplain the process of managing memory within a system.\u201d"
+  },
+  {
+    "id": "30",
+    "paraphrased_question": "\u201cDescribe the distinctions between hard links and soft links.\u201d"
+  },
+  {
+    "id": "31",
+    "paraphrased_question": "\u201cExplain the distinctions between multiprogramming and multitasking.\u201d"
+  },
+  {
+    "id": "32",
+    "paraphrased_question": "\u201cDescribe the purpose and function of a process control block (PCB).\u201d"
+  },
+  {
+    "id": "33",
+    "paraphrased_question": "\u201cHow does the scheduler contribute to the functionality of an operating system?\u201d"
+  },
+  {
+    "id": "34",
+    "paraphrased_question": "\u201cCould you describe the various scheduling algorithms or methods used in database systems?\u201d"
+  },
+  {
+    "id": "35",
+    "paraphrased_question": "\u201cExplain how a page table works within a virtual memory system.\u201d"
+  },
+  {
+    "id": "36",
+    "paraphrased_question": "\u201cExplain the distinctions between internal and external fragmentation within a database schema.\u201d"
+  },
+  {
+    "id": "37",
+    "paraphrased_question": "\u201cExplain how a translation lookaside buffer (TLB) contributes to database performance.\u201d"
+  },
+  {
+    "id": "38",
+    "paraphrased_question": "\u201cExplain the advantages of a microkernel architecture compared to a monolithic kernel.\u201d"
+  },
+  {
+    "id": "39",
+    "paraphrased_question": "\u201cExplain the banker\u2019s algorithm and its application.\u201d"
+  },
+  {
+    "id": "40",
+    "paraphrased_question": "\u201cDescribe the function of a monitor within a operating system.\u201d"
+  },
+  {
+    "id": "41",
+    "paraphrased_question": "\u201cHow would you approach the challenges of race conditions in concurrent programming, specifically concerning the potential impact of different data versions on shared resources?\u201d"
+  },
+  {
+    "id": "42",
+    "paraphrased_question": "\u201cDescribe the key distinctions between soft and hard real-time operating systems.\u201d"
+  },
+  {
+    "id": "43",
+    "paraphrased_question": "\u201cExplain the key distinctions between cooperative and preemptive multitasking techniques.\u201d"
+  },
+  {
+    "id": "44",
+    "paraphrased_question": "What are the primary functionalities of the I/O subsystem?"
+  },
+  {
+    "id": "45",
+    "paraphrased_question": "\u201cDescribe what a file descriptor represents in a system.\u201d"
+  },
+  {
+    "id": "46",
+    "paraphrased_question": "\u201cExplain swap space.\u201d"
+  },
+  {
+    "id": "47",
+    "paraphrased_question": "\u201cExplain the key distinctions between synchronous and asynchronous I/O operations.\u201d"
+  },
+  {
+    "id": "48",
+    "paraphrased_question": "\u201cExplain the concept of a signal in the context of UNIX/Linux.\u201d"
+  },
+  {
+    "id": "49",
+    "paraphrased_question": "\u201cDescribe the key distinctions between a process and a job.\u201d"
+  },
+  {
+    "id": "50",
+    "paraphrased_question": "\u201cExplain how file locking works.\u201d"
+  },
+  {
+    "id": "51",
+    "paraphrased_question": "\u201cDescribe the fundamental role and overall objective of an operating system.\u201d"
+  },
+  {
+    "id": "52",
+    "paraphrased_question": "\u201cExplain the concept of demand paging.\u201d"
+  },
+  {
+    "id": "53",
+    "paraphrased_question": "\u201cDescribe the benefits of using multiple processors in a system.\u201d"
+  },
+  {
+    "id": "54",
+    "paraphrased_question": "\u201cExplain the fundamental role and purpose of the operating system kernel.\u201d"
+  },
+  {
+    "id": "55",
+    "paraphrased_question": "\u201cDescribe the characteristics and challenges of real-time systems.\u201d"
+  },
+  {
+    "id": "56",
+    "paraphrased_question": "\u201cExplain virtual memory.\u201d"
+  },
+  {
+    "id": "57",
+    "paraphrased_question": "\u201cExplain what the primary goal or purpose of running multiple programs simultaneously is.\u201d"
+  },
+  {
+    "id": "58",
+    "paraphrased_question": "\u201cDescribe time-sharing systems and their key characteristics.\u201d"
+  },
+  {
+    "id": "59",
+    "paraphrased_question": "\u201cCould you please explain what SMP stands for?\u201d"
+  },
+  {
+    "id": "60",
+    "paraphrased_question": "\u201cDescribe the different categories or classifications used for server systems.\u201d"
+  },
+  {
+    "id": "61",
+    "paraphrased_question": "\u201cExplain asymmetric clustering.\u201d"
+  },
+  {
+    "id": "62",
+    "paraphrased_question": "\u201cExplain what a thread is.\u201d"
+  },
+  {
+    "id": "63",
+    "paraphrased_question": "\u201cWhat are some advantages of using multiple threads within a program?\u201d"
+  },
+  {
+    "id": "64",
+    "paraphrased_question": "\u201cDescribe the First-Come, First-Served (FCFS) scheduling algorithm.\u201d"
+  },
+  {
+    "id": "65",
+    "paraphrased_question": "\u201cExplain the RR scheduling algorithm.\u201d"
+  },
+  {
+    "id": "66",
+    "paraphrased_question": "\u201cHow can certain conditions within a system cause a deadlock?\u201d"
+  },
+  {
+    "id": "67",
+    "paraphrased_question": "\u201cDescribe the various RAID configurations you\u2019re familiar with.\u201d"
+  },
+  {
+    "id": "68",
+    "paraphrased_question": "\u201cExplain Banker\u2019s algorithm.\u201d"
+  },
+  {
+    "id": "69",
+    "paraphrased_question": "\u201cConsidering a deadlock avoidance system, what criteria should be considered to determine if a detection algorithm is necessary?\u201d"
+  },
+  {
+    "id": "70",
+    "paraphrased_question": "\u201cExplain the key differences between logical and physical address spaces.\u201d"
+  },
+  {
+    "id": "71",
+    "paraphrased_question": "\u201cExplain how dynamic loading improves memory space efficiency.\u201d"
+  },
+  {
+    "id": "72",
+    "paraphrased_question": "\u201cDescribe how overlays work within a database context.\u201d"
+  },
+  {
+    "id": "73",
+    "paraphrased_question": "\u201cExplain the core purpose of paging.\u201d"
+  },
+  {
+    "id": "74",
+    "paraphrased_question": "\u201cExplain fragmentation in a database context.\u201d"
+  },
+  {
+    "id": "75",
+    "paraphrased_question": "\u201cExplain how changing the data within a database can improve its memory usage.\u201d"
+  },
+  {
+    "id": "76",
+    "paraphrased_question": "\u201cDescribe a specific process state in detail.\u201d"
+  },
+  {
+    "id": "77",
+    "paraphrased_question": "\u201cExplain the purpose and functionality of a socket.\u201d"
+  },
+  {
+    "id": "78",
+    "paraphrased_question": "\u201cExplain the Direct Access Method.\u201d"
+  },
+  {
+    "id": "79",
+    "paraphrased_question": "\u201cWhat are the conditions under which trash is discarded?\u201d"
+  },
+  {
+    "id": "80",
+    "paraphrased_question": "\u201cConsidering the fundamental design of an operating system, what page size offers the most optimal balance of performance and resource utilization?\u201d"
+  },
+  {
+    "id": "81",
+    "paraphrased_question": "\u201cConsidering the file system design for an operating system, what characteristics are crucial to define?\u201d"
+  },
+  {
+    "id": "82",
+    "paraphrased_question": "\u201cExplain the role and purpose of the root partition in a storage system.\u201d"
+  },
+  {
+    "id": "83",
+    "paraphrased_question": "\u201cDescribe the role and function of device drivers within a computing system.\u201d"
+  },
+  {
+    "id": "84",
+    "paraphrased_question": "\u201cDescribe the core responsibilities and key operations of the Virtual File System.\u201d"
+  },
+  {
+    "id": "85",
+    "paraphrased_question": "\u201cDescribe the various types of CPU registers commonly found in operating system designs.\u201d"
+  },
+  {
+    "id": "86",
+    "paraphrased_question": "\u201cWhy is it important to track the status of I/O operations?\u201d"
+  },
+  {
+    "id": "87",
+    "paraphrased_question": "\u201cExplain the concept of multitasking.\u201d"
+  },
+  {
+    "id": "88",
+    "paraphrased_question": "\u201cDescribe the advantages and disadvantages of using a command-line interface.\u201d"
+  },
+  {
+    "id": "89",
+    "paraphrased_question": "\u201cExplain caching concepts and their purpose.\u201d"
+  },
+  {
+    "id": "90",
+    "paraphrased_question": "\u201cExplain spooling in the context of database systems.\u201d"
+  },
+  {
+    "id": "91",
+    "paraphrased_question": "\u201cExplain the function of an assembler.\u201d"
+  },
+  {
+    "id": "92",
+    "paraphrased_question": "\u201cExplain what interrupts are in a database context.\u201d"
+  },
+  {
+    "id": "93",
+    "paraphrased_question": "\u201cDescribe the functionality of a Graphical User Interface.\u201d"
+  },
+  {
+    "id": "94",
+    "paraphrased_question": "\u201cExplain how a system can handle multiple tasks concurrently, prioritizing certain tasks over others.\u201d"
+  },
+  {
+    "id": "95",
+    "paraphrased_question": "\u201cWhat are the essential steps required before installing an operating system?\u201d"
+  },
+  {
+    "id": "96",
+    "paraphrased_question": "\u201cExplain the purpose and function of different types of piping systems.\u201d"
+  },
+  {
+    "id": "97",
+    "paraphrased_question": "\u201cDescribe NOS.\u201d"
+  },
+  {
+    "id": "98",
+    "paraphrased_question": "\u201cExplain the key differences between internal and external commands within a system.\u201d"
+  },
+  {
+    "id": "99",
+    "paraphrased_question": "\u201cDescribe the command you would use in DOS to list files in a directory and pause after each screen output.\u201d"
+  },
+  {
+    "id": "100",
+    "paraphrased_question": "\u201cIf you were to execute the DOS command line and view a file named EXAMPLEFILE.TXT, what would the output look like?\u201d"
+  },
+  {
+    "id": "101",
+    "paraphrased_question": "\u201cExplain what a system call is.\u201d"
+  },
+  {
+    "id": "102",
+    "paraphrased_question": "\u201cDescribe the fundamental distinctions between user mode and kernel mode within a computer system.\u201d"
+  },
+  {
+    "id": "103",
+    "paraphrased_question": "\u201cExplain what a context switch is in the context of operating systems.\u201d"
+  },
+  {
+    "id": "104",
+    "paraphrased_question": "\u201cExplain what a memory leak is.\u201d"
+  },
+  {
+    "id": "105",
+    "paraphrased_question": "\u201cExplain the role and benefit of buffers in data processing.\u201d"
+  },
+  {
+    "id": "106",
+    "paraphrased_question": "\u201cDescribe the phenomenon of process starvation and its potential consequences in a scheduling context.\u201d"
+  },
+  {
+    "id": "107",
+    "paraphrased_question": "\u201cDescribe a daemon process and its typical characteristics.\u201d"
+  },
+  {
+    "id": "108",
+    "paraphrased_question": "\u201cExplain the distinction between static and dynamic linking in database systems.\u201d"
+  },
+  {
+    "id": "109",
+    "paraphrased_question": "\u201cExplain the function of the init process (PID 1) in Unix/Linux.\u201d"
+  },
+  {
+    "id": "110",
+    "paraphrased_question": "\u201cDescribe a process that appears to be inactive but still consumes resources.\u201d"
+  },
+  {
+    "id": "111",
+    "paraphrased_question": "\u201cDescribe how a pipe works within the Unix/Linux operating system.\u201d"
+  },
+  {
+    "id": "112",
+    "paraphrased_question": "\u201cExplain the key distinctions between symbolic links and hard links.\u201d"
+  },
+  {
+    "id": "113",
+    "paraphrased_question": "\u201cExplain the function and why the TLB is used in memory management.\u201d"
+  },
+  {
+    "id": "114",
+    "paraphrased_question": "\u201cDescribe the concept of a system program and its role within a larger software system.\u201d"
+  },
+  {
+    "id": "115",
+    "paraphrased_question": "\u201cDescribe what a trap is in operating systems.\u201d"
+  },
+  {
+    "id": "116",
+    "paraphrased_question": "\u201cExplain the key distinctions between buffering and spooling in data processing.\u201d"
+  },
+  {
+    "id": "117",
+    "paraphrased_question": "\u201cExplain the concept of a reentrant kernel.\u201d"
+  },
+  {
+    "id": "118",
+    "paraphrased_question": "What is the function or role of the \u2018fork()' system call?"
+  },
+  {
+    "id": "119",
+    "paraphrased_question": "\u201cExplain the distinctions between concurrency and parallelism.\u201d"
+  },
+  {
+    "id": "120",
+    "paraphrased_question": "\u201cExplain the concept of a distributed operating system and its key characteristics.\u201d"
+  },
+  {
+    "id": "121",
+    "paraphrased_question": "\u201cExplain the function of the 'exec()' system call.\u201d"
+  },
+  {
+    "id": "122",
+    "paraphrased_question": "\u201cExplain what a real-time operating system (RTOS) is and its key characteristics.\u201d"
+  },
+  {
+    "id": "123",
+    "paraphrased_question": "\u201cExplain the concept of priority inversion.\u201d"
+  },
+  {
+    "id": "124",
+    "paraphrased_question": "What is the function or reason behind the \u2018wait\u2019 system call?"
+  },
+  {
+    "id": "125",
+    "paraphrased_question": "\u201cExplain the key distinctions between a monolithic kernel and a microkernel.\u201d"
+  },
+  {
+    "id": "126",
+    "paraphrased_question": "Please explain the function and use case of the `chmod` command in Unix/Linux."
+  },
+  {
+    "id": "127",
+    "paraphrased_question": "\u201cExplain the key distinctions between a process and a program.\u201d"
+  },
+  {
+    "id": "128",
+    "paraphrased_question": "\u201cExplain the function of the `ls` command within Unix/Linux.\u201d"
+  },
+  {
+    "id": "129",
+    "paraphrased_question": "\u201cExplain the distinction between a logical and physical address.\u201d"
+  },
+  {
+    "id": "130",
+    "paraphrased_question": "\u201cExplain the function of the `grep` command within Unix/Linux systems.\u201d"
+  },
+  {
+    "id": "131",
+    "paraphrased_question": "\u201cExplain the key distinctions between a shell and a kernel.\u201d"
+  },
+  {
+    "id": "132",
+    "paraphrased_question": "\u201cExplain the function of the `ps` command in Unix/Linux.\u201d"
+  },
+  {
+    "id": "133",
+    "paraphrased_question": "\u201cExplain the fundamental distinctions between a file and a directory.\u201d"
+  },
+  {
+    "id": "134",
+    "paraphrased_question": "\u201cExplain the function of the `kill` command in Unix/Linux.\u201d"
+  },
+  {
+    "id": "135",
+    "paraphrased_question": "\u201cExplain the key distinctions between a stack and a heap data structure.\u201d"
+  },
+  {
+    "id": "136",
+    "paraphrased_question": "\u201cExplain the function of the `mkdir` command in Unix/Linux.\u201d"
+  },
+  {
+    "id": "137",
+    "paraphrased_question": "\u201cExplain the distinction between a system call and a library function.\u201d"
+  },
+  {
+    "id": "138",
+    "paraphrased_question": "\u201cExplain the function of the `rm` command in Unix/Linux.\u201d"
+  },
+  {
+    "id": "139",
+    "paraphrased_question": "\u201cCan you explain the key distinctions between processes that rely heavily on CPU processing and those that are primarily focused on input/output operations?\u201d"
+  },
+  {
+    "id": "140",
+    "paraphrased_question": "\u201cExplain the function of the `cp` command in Unix/Linux.\u201d"
+  },
+  {
+    "id": "141",
+    "paraphrased_question": "\u201cExplain the key distinctions between a process and a thread.\u201d"
+  },
+  {
+    "id": "142",
+    "paraphrased_question": "\u201cExplain the function or purpose of the `mv` command in Unix/Linux.\u201d"
+  },
+  {
+    "id": "143",
+    "paraphrased_question": "\u201cExplain the key distinctions between binary and counting semaphores.\u201d"
+  },
+  {
+    "id": "144",
+    "paraphrased_question": "\u201cExplain the function of the \u2018find\u2019 command in Unix/Linux.\u201d"
+  },
+  {
+    "id": "145",
+    "paraphrased_question": "\u201cExplain the key distinctions between a shell script and a compiled program.\u201d"
+  },
+  {
+    "id": "146",
+    "paraphrased_question": "\u201cExplain the function of the `tar` command in Unix/Linux.\u201d"
+  },
+  {
+    "id": "147",
+    "paraphrased_question": "\u201cCould you explain the key distinctions between hard real-time and soft real-time systems?\u201d"
+  },
+  {
+    "id": "148",
+    "paraphrased_question": "\u201cExplain the function or role of the `ssh` command within the Unix/Linux operating system.\u201d"
+  },
+  {
+    "id": "149",
+    "paraphrased_question": "\u201cExplain the key distinctions between process and thread scheduling mechanisms.\u201d"
+  },
+  {
+    "id": "150",
+    "paraphrased_question": "\u201cWhat is the function or goal of the `top` command in Unix/Linux?\u201d"
+  },
+  {
+    "id": "151",
+    "paraphrased_question": "\u201cExplain the distinctions between synchronous and asynchronous I/O operations.\u201d"
+  },
+  {
+    "id": "152",
+    "paraphrased_question": "\u201cExplain memory-mapped files.\u201d"
+  },
+  {
+    "id": "153",
+    "paraphrased_question": "\u201cExplain the function of the `df` command in Unix/Linux.\u201d"
+  },
+  {
+    "id": "154",
+    "paraphrased_question": "\u201cExplain the core distinctions between polling and interrupts.\u201d"
+  },
+  {
+    "id": "155",
+    "paraphrased_question": "\u201cExplain the function of the \u2018du\u2019 command in Unix/Linux.\u201d"
+  },
+  {
+    "id": "156",
+    "paraphrased_question": "\u201cCan you explain what a privileged instruction is in the context of database systems?\u201d"
+  },
+  {
+    "id": "157",
+    "paraphrased_question": "\u201cExplain the key distinctions between pipes and named pipes (FIFOs).\u201d"
+  },
+  {
+    "id": "158",
+    "paraphrased_question": "Please explain the function of the `netstat` command."
+  },
+  {
+    "id": "159",
+    "paraphrased_question": "\u201cExplain the key distinctions between preemptive and cooperative scheduling algorithms.\u201d"
+  },
+  {
+    "id": "160",
+    "paraphrased_question": "\u201cExplain the function of the `lsof` command.\u201d"
+  },
+  {
+    "id": "161",
+    "paraphrased_question": "\u201cExplain what a system image is.\u201d"
+  },
+  {
+    "id": "162",
+    "paraphrased_question": "\u201cExplain the distinctions between absolute and relative paths.\u201d"
+  },
+  {
+    "id": "163",
+    "paraphrased_question": "\u201cDescribe the role and function of the \u2018cron\u2019 daemon.\u201d"
+  },
+  {
+    "id": "164",
+    "paraphrased_question": "\u201cExplain the distinction between using the `kill` command and the `kill -9` option.\u201d"
+  },
+  {
+    "id": "165",
+    "paraphrased_question": "\u201cExplain the function of the 'syslog' facility within the system.\u201d"
+  },
+  {
+    "id": "166",
+    "paraphrased_question": "\u201cExplain the key distinctions between a logical file system and a physical file system.\u201d"
+  },
+  {
+    "id": "167",
+    "paraphrased_question": "What is the function of the \u2018mount\u2019 command?"
+  },
+  {
+    "id": "168",
+    "paraphrased_question": "\u201cExplain the distinction between using the ampersand (&) and the escape sequence 'fg/bg' in shell job control.\u201d"
+  },
+  {
+    "id": "169",
+    "paraphrased_question": "\u201cExplain the function or reason behind the `umask` setting.\u201d"
+  },
+  {
+    "id": "170",
+    "paraphrased_question": "\u201cExplain the key distinctions between RAID 0 and RAID 1.\u201d"
+  },
+  {
+    "id": "171",
+    "paraphrased_question": "\u201cExplain the functions and purpose of the \u2018nice\u2019 and \u2018renice\u2019 commands within the context of this system.\u201d"
+  },
+  {
+    "id": "172",
+    "paraphrased_question": "\u201cExplain the distinctions between sockets and ports.\u201d"
+  },
+  {
+    "id": "173",
+    "paraphrased_question": "\u201cExplain the function or purpose of the `strace` command.\u201d"
+  },
+  {
+    "id": "174",
+    "paraphrased_question": "\u201cExplain the distinct roles and characteristics of inode and file descriptors.\u201d"
+  },
+  {
+    "id": "175",
+    "paraphrased_question": "\u201cExplain the function of the \u2018which\u2019 command within the database system.\u201d"
+  },
+  {
+    "id": "176",
+    "paraphrased_question": "\u201cExplain the distinctions between the '>' and '>>' redirection operators.\u201d"
+  },
+  {
+    "id": "177",
+    "paraphrased_question": "\u201cWhy is the 'passwd' file created and maintained?\u201d"
+  },
+  {
+    "id": "178",
+    "paraphrased_question": "\u201cExplain the distinctions between allocating memory in a static and dynamic manner.\u201d"
+  },
+  {
+    "id": "179",
+    "paraphrased_question": "\u201cExplain the function or reason behind the use of the \u2018sudo\u2019 command.\u201d"
+  },
+  {
+    "id": "180",
+    "paraphrased_question": "\u201cCan you explain the distinct functions of the 'jobs' and 'ps' commands?\u201d"
+  },
+  {
+    "id": "181",
+    "paraphrased_question": "\u201cCan you explain the function of the \u2018alias\u2019 command?\u201d"
+  },
+  {
+    "id": "182",
+    "paraphrased_question": "\u201cExplain the key distinctions between symbolic links and shortcuts.\u201d"
+  },
+  {
+    "id": "183",
+    "paraphrased_question": "\u201cExplain the function of the \u2018env\u2019 command.\u201d"
+  },
+  {
+    "id": "184",
+    "paraphrased_question": "\u201cExplain the key distinctions between the `echo` and `printf` functions.\u201d"
+  },
+  {
+    "id": "185",
+    "paraphrased_question": "\u201cWhat is the intended function or operation of the \u2018history\u2019 command?\u201d"
+  },
+  {
+    "id": "186",
+    "paraphrased_question": "\u201cExplain the key distinctions between shell variables and environment variables.\u201d"
+  },
+  {
+    "id": "187",
+    "paraphrased_question": "What is the function or purpose of the `wc` command?"
+  },
+  {
+    "id": "188",
+    "paraphrased_question": "\u201cExplain the distinctions between the `grep`, `egrep`, and `fgrep` commands.\u201d"
+  },
+  {
+    "id": "189",
+    "paraphrased_question": "\u201cExplain the function of the \u2018sed\u2019 command.\u201d"
+  },
+  {
+    "id": "190",
+    "paraphrased_question": "\u201cExplain the key distinctions between the commands \u2018cut\u2019 and \u2018awk\u2019.\u201d"
+  },
+  {
+    "id": "191",
+    "paraphrased_question": "\u201cWhat does the \u2018sort\u2019 command do?\u201d"
+  },
+  {
+    "id": "192",
+    "paraphrased_question": "\u201cExplain the distinctions between \u2018head\u2019 and \u2018tail\u2019 in a database context.\u201d"
+  },
+  {
+    "id": "193",
+    "paraphrased_question": "What is the function or purpose of the \u2018uniq\u2019 command?"
+  },
+  {
+    "id": "194",
+    "paraphrased_question": "\u201cExplain the distinctions between the use of \u2018tr\u2019 and \u2018sed\u2019 for character replacement operations.\u201d"
+  },
+  {
+    "id": "195",
+    "paraphrased_question": "\u201cExplain the function of the \u2018xargs\u2019 command.\u201d"
+  },
+  {
+    "id": "196",
+    "paraphrased_question": "\u201cExplain the key distinctions between the `find -exec` and `xargs` command-line utilities.\u201d"
+  },
+  {
+    "id": "197",
+    "paraphrased_question": "\u201cExplain the function of the \u2018tee\u2019 command.\u201d"
+  },
+  {
+    "id": "198",
+    "paraphrased_question": "\u201cExplain the key distinctions between the actions of 'sleep' and 'wait'.\""
+  },
+  {
+    "id": "199",
+    "paraphrased_question": "What is the function or purpose of the \u2018time\u2019 command?"
+  },
+  {
+    "id": "200",
+    "paraphrased_question": "\u201cExplain the distinction between the string literal 'test' and the syntax `[ ]` in shell scripting.\u201d"
+  }
+]

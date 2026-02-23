@@ -1,5 +1,0 @@
-Silence belongs in backend turn logic, which you already built.
-
-“Is there a better way?”
-
-✅ Yes — VAD + silence timer hybrid (best practice)

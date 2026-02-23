@@ -349,9 +349,16 @@ def finalize_user_answer(session_key):
         if "stats" in session:
             from interview_analyzer import calculate_semantic_similarity, calculate_keyword_coverage
             
-            # Calculate scores (compare with expected answer)
-            semantic_score = calculate_semantic_similarity(final_answer, expected_answer)
-            keyword_score = calculate_keyword_coverage(final_answer, question)
+            # Check for silent answer
+            is_silent = (final_answer == "[User remained silent]" or len(final_answer.strip()) < 5)
+            if is_silent:
+                semantic_score = 0.0
+                keyword_score = 0.0
+                print(f"📊 Silent answer detected, setting scores to 0")
+            else:
+                # Calculate scores (compare with expected answer)
+                semantic_score = calculate_semantic_similarity(final_answer, expected_answer)
+                keyword_score = calculate_keyword_coverage(final_answer, question)
             
             # Record in stats with expected answer
             session["stats"].record_qa_pair(question, final_answer, expected_answer, semantic_score, keyword_score)
@@ -575,138 +582,174 @@ def extract_text_from_docx(file_stream):
         return None
 
 def parse_resume_text(text):
-    """
-    Extract skills, experience, and projects from resume text.
-    Only extracts information actually present in the resume.
-    """
     import re
 
-    lines = text.strip().splitlines()
-    text_lower = text.lower()
+    lines = [l.strip() for l in text.split("\n") if l.strip()]
 
-    skills = []
-    projects = []
-    experience_years = 0
-
-    # Common technical skills patterns - only add if actually found in resume
-    common_skills = {
-        'Programming Languages': ['python', 'java', 'javascript', 'typescript', 'c++', 'c#', 'php', 'ruby', 'go', 'rust', 'swift', 'kotlin', 'scala'],
-        'Web Technologies': ['html', 'css', 'react', 'angular', 'vue', 'node.js', 'express', 'django', 'flask', 'spring'],
-        'Databases': ['mysql', 'postgresql', 'mongodb', 'redis', 'oracle', 'sql server', 'sqlite'],
-        'Cloud & DevOps': ['aws', 'azure', 'gcp', 'docker', 'kubernetes', 'jenkins', 'github actions', 'terraform'],
-        'Tools & Technologies': ['git', 'linux', 'windows', 'api', 'rest', 'graphql', 'json', 'xml'],
-        'Frameworks & Libraries': ['pandas', 'numpy', 'tensorflow', 'pytorch', 'scikit-learn', 'opencv'],
-        'Methodologies': ['agile', 'scrum', 'kanban', 'ci/cd', 'tdd', 'bdd']
+    section_map = {
+        "skills": ["skills", "technical skills"],
+        "projects": ["projects", "key projects"],
+        "internships": ["internship", "internships", "work experience"],
+        "certifications": ["certifications", "certificate", "credentials"]
     }
 
-    # Extract skills by checking if they appear in the resume
-    for category, skill_list in common_skills.items():
-        for skill in skill_list:
-            # Use word boundaries to avoid partial matches
-            if re.search(r'\b' + re.escape(skill) + r'\b', text_lower):
-                # Capitalize properly
-                if skill == 'node.js':
-                    skills.append('Node.js')
-                elif skill == 'c++':
-                    skills.append('C++')
-                elif skill == 'c#':
-                    skills.append('C#')
-                elif skill == 'ci/cd':
-                    skills.append('CI/CD')
-                elif skill == 'tdd':
-                    skills.append('TDD')
-                elif skill == 'bdd':
-                    skills.append('BDD')
-                else:
-                    skills.append(skill.title())
+    sections = {k: [] for k in section_map}
+    current_section = None
 
-    # Remove duplicates while preserving order
-    skills = list(dict.fromkeys(skills))
-
-    # Extract experience years - multiple patterns
-    experience_patterns = [
-        r'(\d+)\+?\s*years?\s*(?:of\s*)?experience',
-        r'experience\s*(?:of\s*)?(\d+)\+?\s*years?',
-        r'(\d+)\+?\s*years?\s*(?:of\s*)?(?:professional\s*)?experience',
-        r'total\s*(?:of\s*)?(\d+)\+?\s*years?',
-        r'over\s*(\d+)\s*years?',
-        r'more\s*than\s*(\d+)\s*years?'
-    ]
-
-    for pattern in experience_patterns:
-        matches = re.findall(pattern, text_lower)
-        for match in matches:
-            years = int(match)
-            if years > experience_years:  # Take the highest mentioned experience
-                experience_years = years
-
-    # If no years found, look for months and convert to years
-    if experience_years == 0:
-        month_patterns = [
-            r'(\d+)\+?\s*months?\s*(?:of\s*)?experience',
-            r'experience\s*(?:of\s*)?(\d+)\+?\s*months?'
-        ]
-        for pattern in month_patterns:
-            matches = re.findall(pattern, text_lower)
-            for match in matches:
-                months = int(match)
-                years = months / 12
-                if years > experience_years:
-                    experience_years = int(years)
-
-    # Extract projects - look for project-related sections
-    project_keywords = ['project', 'projects', 'developed', 'built', 'created', 'implemented', 'worked on', 'led', 'managed']
-    in_projects_section = False
-    current_projects = []
-
+    # ---------- SECTION SPLIT ----------
     for line in lines:
-        line_lower = line.lower().strip()
+        line_lower = line.lower()
 
-        # Check if we're entering a projects section
-        if any(keyword in line_lower for keyword in ['projects', 'project experience', 'key projects', 'personal projects']):
-            in_projects_section = True
+        header_found = False
+        for section, keywords in section_map.items():
+            if any(line_lower == k for k in keywords):
+                current_section = section
+                header_found = True
+                break
+
+        if header_found:
             continue
 
-        # If we're in projects section, collect project descriptions
-        if in_projects_section and len(line.strip()) > 20:  # Meaningful project description
-            # Stop if we hit another section
-            if any(section in line_lower for section in ['education', 'skills', 'experience', 'certifications', 'achievements']):
-                in_projects_section = False
+        # Stop when new major header detected
+        if re.match(r"^[A-Z\s]{3,}$", line) and len(line.split()) <= 4:
+            current_section = None
+            continue
+
+        if current_section:
+            sections[current_section].append(line)
+
+    # ===============================
+    # 🔹 SKILLS CLEANING (STRICT)
+    # ===============================
+
+    skills = []
+    invalid_words = [
+        "tools", "technologies", "programming languages",
+        "showcasing", "coding", "extra", "curricular"
+    ]
+
+    for line in sections["skills"]:
+        parts = re.split(r"[•,|:]", line)
+        for p in parts:
+            clean = p.strip()
+
+            if not clean:
                 continue
 
-            # Clean and add project
-            project_text = line.strip()
-            if project_text and not any(word in project_text.lower() for word in ['•', '-', '*']):  # Avoid bullet points alone
-                current_projects.append(project_text)
+            clean_lower = clean.lower()
 
-        # Also look for project mentions in regular text
-        elif any(keyword in line_lower for keyword in project_keywords) and len(line.strip()) > 30:
-            current_projects.append(line.strip())
+            # remove unwanted labels
+            if any(word in clean_lower for word in invalid_words):
+                continue
 
-        # Limit to 5 projects max
-        if len(current_projects) >= 5:
-            break
+            # remove punctuation
+            clean = re.sub(r"[^\w\s+#]", "", clean)
 
-    # Clean up projects - remove duplicates and empty entries
+            clean = clean.strip().upper()
+
+            if 2 < len(clean) < 30:
+                skills.append(clean)
+
+    skills = sorted(list(dict.fromkeys(skills)))
+
+    # ===============================
+    # 🔹 EXPERIENCE FIX
+    # ===============================
+
+    experience_years = 0
+    match = re.search(r"(\d+)\+?\s*years?", text.lower())
+    if match:
+        experience_years = int(match.group(1))
+
+    # If internship exists but no years detected → assume 1
+    if experience_years == 0 and sections["internships"]:
+        experience_years = 1
+
+    # ===============================
+    # 🔹 INTERNSHIPS
+    # ===============================
+
+    internships = []
+    for line in sections["internships"]:
+        if "intern" in line.lower():
+            internships.append(line.strip())
+
+    internships = list(dict.fromkeys(internships))
+
+    # ===============================
+    # 🔹 CERTIFICATIONS
+    # ===============================
+
+    certifications = []
+    for line in sections["certifications"]:
+        if re.search(r"\S+@\S+", line):
+            continue
+        if re.search(r"\b(b\.?e|bachelor|master|university|college)\b", line, re.I):
+            continue
+        if 5 < len(line) < 100:
+            certifications.append(line.strip())
+
+    certifications = list(dict.fromkeys(certifications))
+
+    # ===============================
+    # 🔹 PROJECTS (NAME + TECH ONLY)
+    # ===============================
+
     projects = []
-    for proj in current_projects:
-        proj_clean = proj.strip()
-        if len(proj_clean) > 10 and proj_clean not in projects:
-            projects.append(proj_clean)
+
+    for line in sections["projects"]:
+        if "Tools" in line or "Technologies" in line:
+            # Extract project name before month/year
+            name_match = re.match(r"•?\s*(.*?)\s+(January|February|March|April|May|June|July|August|September|October|November|December|20\d{2})", line)
+            project_name = None
+            if name_match:
+                project_name = name_match.group(1).strip()
+            else:
+                project_name = line.split("Tools")[0].strip("• ").strip()
+
+            # Extract tech stack
+            tech_match = re.search(r"Technologies:\s*(.*)", line, re.I)
+            tech_stack = []
+            if tech_match:
+                tech_stack = [t.strip().upper() for t in tech_match.group(1).split(",")]
+
+            if project_name:
+                projects.append({
+                    "name": project_name,
+                    "tech_stack": tech_stack
+                })
+
+    projects = projects[:5]
 
     return {
-        'skills': skills[:10],  # Limit to top 10 most relevant skills
-        'experience_years': experience_years,
-        'projects': projects[:3],  # Limit to top 3 projects
-        'raw_text': text[:1000]
+        "skills": skills,
+        "experience_years": experience_years,
+        "projects": projects,
+        "internships": internships,
+        "certifications": certifications
     }
 
 def analyze_resume_job_fit(resume_data, job_description):
-    """Analyze how well the resume fits the job description"""
+    """Analyze how well the resume fits the job description using both keyword and semantic matching"""
     if not job_description:
         return None
+    
+    # Load semantic model (lazy loading to avoid import issues)
+    try:
+        from sentence_transformers import SentenceTransformer
+        from sklearn.metrics.pairwise import cosine_similarity
+        import numpy as np
+        
+        # Initialize model if not already in global scope
+        if not hasattr(analyze_resume_job_fit, "model"):
+            analyze_resume_job_fit.model = SentenceTransformer("all-MiniLM-L6-v2")
+        
+        model = analyze_resume_job_fit.model
+    except Exception as e:
+        print(f"⚠️ Semantic model not available: {e}")
+        model = None
 
-    resume_skills = set(resume_data.get('skills', []))
+    resume_skills = set([s.lower() for s in resume_data.get('skills', [])])
     jd_text = job_description.lower()
 
     # Extract skills from job description
@@ -716,38 +759,84 @@ def analyze_resume_job_fit(resume_data, job_description):
         'machine learning', 'data science', 'flask', 'django', 'mongodb', 'mysql',
         'aws', 'docker', 'kubernetes', 'git', 'linux', 'windows', 'api', 'rest',
         'graphql', 'agile', 'scrum', 'ci/cd', 'jenkins', 'testing', 'unit test',
-        'c++', 'c#', 'php', 'ruby', 'go', 'rust', 'typescript', 'vue', 'angular'
+        'c++', 'c#', 'php', 'ruby', 'go', 'rust', 'typescript', 'vue', 'angular',
+        'tensorflow', 'pytorch', 'pandas', 'numpy', 'scikit-learn', 'tableau',
+        'power bi', 'excel', 'spark', 'hadoop', 'kafka', 'rabbitmq', 'redis',
+        'postgresql', 'mongodb', 'dynamodb', 'firebase', 'supabase'
     ]
 
     for skill in tech_keywords:
         if skill in jd_text and skill.title() not in jd_skills:
             jd_skills.append(skill.title())
 
-    jd_skills_set = set(jd_skills)
+    jd_skills_set = set([s.lower() for s in jd_skills])
 
-    # Calculate match scores
+    # Calculate keyword match scores
     matching_skills = resume_skills.intersection(jd_skills_set)
     missing_skills = jd_skills_set - resume_skills
-
+    
     match_percentage = (len(matching_skills) / len(jd_skills_set) * 100) if jd_skills_set else 0
+
+    # ----- SEMANTIC SIMILARITY SCORE -----
+    semantic_score = 0.0
+    if model and resume_data.get('projects') or resume_data.get('skills'):
+        # Combine resume content for embedding
+        resume_text_parts = []
+        resume_text_parts.extend(resume_data.get('skills', []))
+        resume_text_parts.extend(resume_data.get('projects', []))
+        resume_text_parts.extend(resume_data.get('internships', []))
+        resume_text_parts.extend(resume_data.get('certifications', []))
+        
+        resume_text_combined = " ".join(resume_text_parts)
+        
+        if resume_text_combined.strip():
+            try:
+                resume_emb = model.encode([resume_text_combined], normalize_embeddings=True)
+                jd_emb = model.encode([job_description], normalize_embeddings=True)
+                
+                semantic_score = float(cosine_similarity(resume_emb, jd_emb)[0][0])
+            except Exception as e:
+                print(f"⚠️ Semantic similarity calculation failed: {e}")
 
     # Experience analysis
     experience_required = 0
-    if 'year' in jd_text and 'experience' in jd_text:
-        import re
-        exp_match = re.search(r'(\d+)\+?\s*year', jd_text)
-        if exp_match:
+    exp_match = re.search(r'(\d+)\+?\s*year', jd_text)
+    if exp_match:
+        try:
             experience_required = int(exp_match.group(1))
+        except:
+            pass
 
     experience_fit = "Good fit" if resume_data.get('experience_years', 0) >= experience_required else "May need more experience"
+
+    # Gap severity
+    if match_percentage >= 75:
+        gap_severity = "Low"
+    elif match_percentage >= 50:
+        gap_severity = "Medium"
+    else:
+        gap_severity = "High"
+
+    # Section-level gaps (where missing skills are from)
+    section_gaps = {}
+    if missing_skills:
+        # This is simplified - in production you'd map skills to sections
+        section_gaps = {
+            'technical': list(missing_skills)[:5],
+            'experience': [],
+            'certifications': []
+        }
 
     return {
         'matching_skills': list(matching_skills),
         'missing_skills': list(missing_skills),
         'match_percentage': round(match_percentage, 1),
+        'semantic_similarity': round(semantic_score, 3),
+        'gap_severity': gap_severity,
         'experience_required': experience_required,
         'experience_fit': experience_fit,
-        'jd_skills_found': jd_skills
+        'jd_skills_found': jd_skills,
+        'section_gaps': section_gaps
     }
 
 def warmup_models():
@@ -1533,11 +1622,25 @@ def upload_resume():
             # Get job description from form data
             job_description = request.form.get('job_description', '').strip()
 
-            # Analyze resume-job fit if JD provided
-            job_fit_analysis = None
-            if job_description:
-                job_fit_analysis = analyze_resume_job_fit(resume_data, job_description)
-                resume_data['job_fit_analysis'] = job_fit_analysis
+            # 🔥 ENFORCE JD REQUIREMENT
+            if not job_description:
+                return jsonify({
+                    'success': False,
+                    'message': 'Job Description is required for interview preparation'
+                }), 400
+
+            # Analyze resume-job fit (now always runs)
+            job_fit_analysis = analyze_resume_job_fit(resume_data, job_description)
+            resume_data['job_fit_analysis'] = job_fit_analysis
+
+            # Store JD embedding for later use in interviews
+            try:
+                from resume_processor import store_jd_embedding
+                store_jd_embedding(job_description, g.current_user.id)
+                resume_data['jd_embedding_stored'] = True
+            except Exception as e:
+                print(f"⚠️ Failed to store JD embedding: {e}")
+                resume_data['jd_embedding_stored'] = False
 
             # Process resume with FAISS for interview questions
             try:
@@ -1553,7 +1656,8 @@ def upload_resume():
                 'success': True,
                 'message': 'Resume uploaded and analyzed successfully',
                 'data': resume_data,
-                'job_description_provided': bool(job_description)
+                'job_description_provided': bool(job_description),
+                'job_fit_analysis': job_fit_analysis
             })
         else:
             return jsonify({'success': False, 'message': 'Could not extract text from resume'})

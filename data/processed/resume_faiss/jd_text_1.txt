@@ -1,0 +1,35 @@
+Job Title
+Software Engineer - Client Technology (EY GDS, Mumbai)
+
+Key Responsibilities
+Solve complex project aspects through coding, debugging, testing, and troubleshooting across the development lifecycle.
+​
+
+Provide technical leadership to optimize solutions, infrastructure, and technologies like AI/ML, while driving continuous improvements.
+
+Collaborate with development, engineering, and architecture teams to build scalable, client-facing applications using modern stacks.
+​
+
+Required Skills and Experience
+Advanced proficiency in C#, Java, or Python; experience with CI/CD tools like GitHub, Azure DevOps (ADO).
+
+Strong background in software/platform engineering, including fine-tuning language models for tasks like text generation or summarization.
+​
+
+5+ years in delivering end-to-end solutions, agile delivery, cloud-native apps (.NET/Java/AI/ML/DevSecOps), and emerging tech (IoT/Blockchain).
+
+Qualifications
+Bachelor's degree in Computer Science, Engineering, IT, or related field.
+​
+
+Relevant experience in tech consulting or GDS teams, with focus on quality assurance and client transformations.
+​
+
+Preferred: Exposure to EY service areas like Digital, Data & Analytics, or Cyber Security.
+​
+
+Location and Perks
+Based in Mumbai, Maharashtra, with hybrid work options common at EY India.
+​
+
+Competitive salary, global exposure, and professional development in a leading Big 4 firm.

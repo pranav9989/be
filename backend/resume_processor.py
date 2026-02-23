@@ -115,6 +115,66 @@ def get_resume_chunks(user_id):
         return load_json(metas_path)
     return []
 
+def store_jd_embedding(job_description, user_id):
+    """Store job description embedding for later use in interviews"""
+    try:
+        from sentence_transformers import SentenceTransformer
+        
+        # Initialize model
+        embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        
+        # Create embedding
+        embedding = embedder.encode([job_description], normalize_embeddings=True)[0]
+        
+        # Save to file
+        jd_path = os.path.join(RESUME_DATA_DIR, f"jd_embedding_{user_id}.npy")
+        np.save(jd_path, embedding)
+        
+        # Also save the raw JD text for reference
+        jd_text_path = os.path.join(RESUME_DATA_DIR, f"jd_text_{user_id}.txt")
+        with open(jd_text_path, "w", encoding="utf-8") as f:
+            f.write(job_description)
+        
+        print(f"✅ JD embedding stored for user {user_id}")
+        return True
+    except Exception as e:
+        print(f"❌ Failed to store JD embedding: {e}")
+        return False
+
+
+def get_jd_embedding(user_id):
+    """Retrieve job description embedding for a user"""
+    jd_path = os.path.join(RESUME_DATA_DIR, f"jd_embedding_{user_id}.npy")
+    jd_text_path = os.path.join(RESUME_DATA_DIR, f"jd_text_{user_id}.txt")
+    
+    if not os.path.exists(jd_path) or not os.path.exists(jd_text_path):
+        return None, None
+    
+    try:
+        embedding = np.load(jd_path)
+        with open(jd_text_path, "r", encoding="utf-8") as f:
+            jd_text = f.read()
+        return embedding, jd_text
+    except Exception as e:
+        print(f"❌ Failed to load JD embedding: {e}")
+        return None, None
+
+
+def delete_jd_data(user_id):
+    """Delete JD embedding data for a user"""
+    jd_path = os.path.join(RESUME_DATA_DIR, f"jd_embedding_{user_id}.npy")
+    jd_text_path = os.path.join(RESUME_DATA_DIR, f"jd_text_{user_id}.txt")
+    
+    try:
+        if os.path.exists(jd_path):
+            os.remove(jd_path)
+        if os.path.exists(jd_text_path):
+            os.remove(jd_text_path)
+        return True
+    except Exception as e:
+        print(f"❌ Error deleting JD data: {e}")
+        return False
+
 def delete_resume_data(user_id):
     """Delete resume FAISS data for a user"""
     index_path = get_resume_index_path(user_id)
