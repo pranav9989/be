@@ -16,11 +16,12 @@ from .semantic_dedup import semantic_dedup
 from .subtopic_tracker import SubtopicTracker
 from models import db, UserMastery, QuestionHistory, AdaptiveInterviewSession, SubtopicMastery
 
+
 class AdaptiveInterviewController:
     """
     Longitudinal Adaptive Interview Controller
-    No session-level goals - only time/user limits
     Tracks mastery across sessions for reinforcement
+    Exactly 3 questions per subtopic, cycle through topics continuously
     """
     
     # Available topics
@@ -34,6 +35,13 @@ class AdaptiveInterviewController:
     
     def start_session(self, session_id: str, user_id: int, user_name: str = "") -> dict:
         """Start a new adaptive session with random topic order"""
+        
+        print("\n" + "="*80)
+        print("🎬 NEW ADAPTIVE INTERVIEW SESSION STARTED")
+        print("="*80)
+        print(f"   User ID:    {user_id}")
+        print(f"   User:       {user_name}")
+        print(f"   Session ID: {session_id}")
         
         # Load user's mastery from database
         masteries = UserMastery.query.filter_by(user_id=user_id).all()
@@ -66,18 +74,15 @@ class AdaptiveInterviewController:
             if weak_concepts:
                 weak_topics[m.topic] = weak_concepts
             
-            # 🔥 FIX: Evidence-based stagnation - reset concept_stagnation for fresh session
-            # Stagnation should be built from evidence during this session
-            mastery.concept_stagnation = {}  # Reset for this session
+            # Reset concept stagnation for fresh session
+            mastery.concept_stagnation = {}
             
-            # Load concept-level tracking from DB to restore concept mastery objects
+            # Load concept-level tracking from DB
             if hasattr(m, 'concept_stagnation') and m.concept_stagnation:
                 try:
                     stagnation_data = json.loads(m.concept_stagnation)
-                    # Rebuild concept mastery objects from stored data
                     for concept_name in stagnation_data.keys():
                         if concept_name not in mastery.concepts:
-                            # Create concept mastery with historical data
                             from .adaptive_state import ConceptMastery
                             mastery.concepts[concept_name] = ConceptMastery(
                                 name=concept_name,
@@ -85,7 +90,6 @@ class AdaptiveInterviewController:
                                 is_weak=(concept_name in mastery.weak_concepts),
                                 is_strong=(concept_name in mastery.strong_concepts)
                             )
-                            # Set attempts based on historical data (estimate from stagnation)
                             if concept_name in mastery.weak_concepts:
                                 mastery.concepts[concept_name].stagnation_count = stagnation_data.get(concept_name, 1)
                                 mastery.concepts[concept_name].attempts = stagnation_data.get(concept_name, 1) * 2
@@ -96,15 +100,29 @@ class AdaptiveInterviewController:
         # Store weak topics in state
         state.weak_topics_history = weak_topics
         
-        # Generate random topic order (permutation of all 3 topics)
-        import random
+        print("\n   📋 TOPIC ORDER:")
         topic_order = random.sample(self.TOPICS, len(self.TOPICS))
-        print(f"🎲 Session topic order: {topic_order}")
+        for i, topic in enumerate(topic_order, 1):
+            print(f"      {i}. {topic}")
         
         # Store order in state
         state.topic_order = topic_order
         state.current_topic_index = 0
         first_topic = topic_order[0]
+        
+        print(f"\n   📊 LOADED MASTERIES:")
+        for topic in self.TOPICS:
+            mastery = state.topic_mastery.get(topic)
+            if mastery:
+                weak = list(mastery.weak_concepts)[:3]
+                strong = list(mastery.strong_concepts)[:3]
+                print(f"      {topic}:")
+                print(f"         Level:     {mastery.mastery_level:.3f}")
+                print(f"         Questions: {mastery.total_questions}")
+                print(f"         Weak:      {weak if weak else 'None'}")
+                print(f"         Strong:    {strong if strong else 'None'}")
+            else:
+                print(f"      {topic}: NEW (no history)")
         
         # Get mastery for first topic
         mastery_for_topic = state.ensure_topic_mastery(first_topic)
@@ -117,15 +135,34 @@ class AdaptiveInterviewController:
         tracker = self.subtopic_trackers[user_id]
         
         # Use tracker to select first subtopic
+        print("\n" + "-"*80)
+        print("🎯 SUBTOPIC SELECTION")
+        print("-"*80)
+        
+        stats = tracker.get_statistics()
+        topic_stats = stats['by_topic'].get(first_topic, {})
+        
+        print(f"   Topic: {first_topic}")
+        print(f"\n   Current subtopic status:")
+        print(f"      WEAK:   {topic_stats.get('weak', 0)} subtopics")
+        print(f"      NEW:    {topic_stats.get('new', 0)} subtopics")  # 🔥 FIXED: Use 'new' directly
+        print(f"      STRONG: {topic_stats.get('strong', 0)} subtopics")
+        
         chosen_subtopic = tracker.get_next_subtopic(first_topic)
-        print(f"🎯 Selected subtopic for {first_topic}: {chosen_subtopic} (will ask 3 questions on this)")
+        print(f"\n   ✅ SELECTED: {chosen_subtopic}")
+        print("-"*80)
+        
+        # 🔥 CRITICAL: Get weak concepts for the topic
+        weak_concepts = list(mastery_for_topic.weak_concepts) if mastery_for_topic else []
+        print(f"\n   🎯 Weak concepts to target: {weak_concepts[:5]}")
         
         first_question, subtopic = self._generate_question(
             session_id=session_id,
             topic=first_topic,
             difficulty=difficulty,
             user_name=user_name,
-            force_subtopic=chosen_subtopic
+            force_subtopic=chosen_subtopic,
+            weak_concepts=weak_concepts  # 🔥 PASS WEAK CONCEPTS
         )
         
         # Update state
@@ -152,11 +189,9 @@ class AdaptiveInterviewController:
         db.session.add(db_session)
         db.session.commit()
 
-        print(f"📝 FIRST QUESTION for {first_topic}: {first_question}")
-        
-        # Log weak concepts for debugging
-        if weak_topics:
-            print(f"📊 Weak topics loaded: {weak_topics}")
+        print("\n" + "="*80)
+        print(f"✅ SESSION INITIALIZED")
+        print("="*80)
         
         return {
             "action": "START",
@@ -179,8 +214,9 @@ class AdaptiveInterviewController:
         }
     
     def _generate_question(self, session_id: str, topic: str, difficulty: str, 
-                       user_name: str = "", max_attempts: int = 5,
-                       force_subtopic: str = None) -> tuple:
+                          user_name: str = "", max_attempts: int = 5,
+                          force_subtopic: str = None,
+                          weak_concepts: list = None) -> tuple:  # 🔥 ADD weak_concepts parameter
         """
         Generate a question and return (question_text, subtopic)
         If force_subtopic is provided, use that specific subtopic
@@ -189,9 +225,17 @@ class AdaptiveInterviewController:
         asked_questions = []
         subtopic = None
         
+        # 🔥 DEBUG: Show incoming difficulty
+        print(f"🔍 [DEBUG] _generate_question received difficulty = {difficulty}")
+        
         if session_id in self.sessions:
             state = self.sessions[session_id]
             asked_questions = [record.question for record in state.history]
+            
+            # 🔥 If weak_concepts not provided, get them from state
+            if weak_concepts is None:
+                mastery = state.topic_mastery.get(topic)
+                weak_concepts = list(mastery.weak_concepts) if mastery else []
         
         # Determine which subtopic to use
         if force_subtopic:
@@ -203,21 +247,22 @@ class AdaptiveInterviewController:
             
             # If we have a current subtopic in state, try to stick with it
             if session_id in self.sessions and self.sessions[session_id].current_subtopic:
-                # Check if we should stay on same subtopic (for the 3-question sequence)
                 state = self.sessions[session_id]
                 topic_session = state.get_topic_session(topic)
                 
                 # If we've asked less than 3 questions on this topic, stay on same subtopic
                 if topic_session.questions_asked < 3 and state.current_subtopic in available_subtopics:
                     subtopic = state.current_subtopic
-                    print(f"🔄 Continuing with same subtopic: {subtopic} ({topic_session.questions_asked + 1}/3)")
+                    print(f"🎯 Continuing with current subtopic: {subtopic}")
                 else:
                     # Pick a new subtopic using tracker
                     if state.user_id in self.subtopic_trackers:
                         tracker = self.subtopic_trackers[state.user_id]
                         subtopic = tracker.get_next_subtopic(topic)
+                        print(f"🎯 Tracker selected: {subtopic}")
                     else:
                         subtopic = random.choice(available_subtopics) if available_subtopics else "core concepts"
+                        print(f"🎯 Random selected: {subtopic}")
             else:
                 # First question for this topic - pick using tracker
                 if session_id in self.sessions:
@@ -225,19 +270,27 @@ class AdaptiveInterviewController:
                     if state.user_id in self.subtopic_trackers:
                         tracker = self.subtopic_trackers[state.user_id]
                         subtopic = tracker.get_next_subtopic(topic)
+                        print(f"🎯 Tracker selected first: {subtopic}")
                     else:
                         subtopic = random.choice(available_subtopics) if available_subtopics else "core concepts"
+                        print(f"🎯 Random selected first: {subtopic}")
                 else:
                     subtopic = random.choice(available_subtopics) if available_subtopics else "core concepts"
+                    print(f"🎯 Random selected (no state): {subtopic}")
+        
+        print(f"\n   🎯 Weak concepts for this question: {weak_concepts[:5] if weak_concepts else 'None'}")
         
         for attempt in range(max_attempts):
-            # Generate question for the selected subtopic
+            # 🔥 Generate question with weak concepts
             question = self.question_bank.generate_first_question(
                 topic=topic,
                 subtopic=subtopic,
                 difficulty=difficulty,
-                user_name=user_name
+                user_name=user_name,
+                weak_concepts=weak_concepts  # 🔥 PASS WEAK CONCEPTS
             )
+            
+            print(f"🔍 [DEBUG] Question bank returned difficulty, final question: {question[:50]}...")
             
             # Check semantic uniqueness
             if not semantic_dedup.is_duplicate(session_id, question, asked_questions):
@@ -251,7 +304,7 @@ class AdaptiveInterviewController:
         return fallback_question, subtopic
 
     def _generate_question_targeting_weakness(self, session_id: str, topic: str, weak_concepts: list, 
-                                          difficulty: str, user_name: str = "") -> tuple:
+                                              difficulty: str, user_name: str = "") -> tuple:
         """Generate question specifically targeting weak concepts"""
         
         state = self.sessions.get(session_id)
@@ -272,7 +325,7 @@ class AdaptiveInterviewController:
         
         # Fallback to regular generation
         print(f"⚠️ Could not generate unique question for weak concepts, using regular generation")
-        return self._generate_question(session_id, topic, difficulty, user_name)
+        return self._generate_question(session_id, topic, difficulty, user_name, weak_concepts=weak_concepts)
     
     def handle_answer(self, session_id: str, answer: str, expected_answer: str = "") -> dict:
         """Process user answer with expected answer from RAG"""
@@ -281,15 +334,22 @@ class AdaptiveInterviewController:
         if not state:
             return {"error": "Session not found"}
 
+        print("\n" + "█"*80)
+        print(f"📊 ANSWER ANALYSIS")
+        print("█"*80)
+        print(f"   Question #{len(state.history) + 1}")
+        print(f"   Topic:     {state.current_topic}")
+        print(f"   Subtopic:  {state.current_subtopic}")
+
         # Handle silent answers properly
         if not answer or answer == "[User remained silent]" or len(answer.strip()) < 5:
-            print(f"⚠️ Silent or very short answer detected, forcing scores to 0")
+            print(f"\n   ⚠️ USER WAS SILENT")
             answer = "[User remained silent]"
             # Force scores to 0 for silent answers
             analysis = {
                 "keyword_coverage": 0.0,
                 "depth": "shallow",
-                "missing_concepts": [],  # 🔥 Empty for silent answers
+                "missing_concepts": [],
                 "covered_concepts": [],
                 "confidence": "low",
                 "key_terms_used": [],
@@ -302,22 +362,25 @@ class AdaptiveInterviewController:
             }
             semantic_score = 0.0
             keyword_score = 0.0
-            missing = []  # 🔥 Empty for silent answers
+            missing = []
             concepts_mentioned = []
         else:
-            # Normal analysis for non-silent answers - PASS SUBTOPIC AND QUESTION BANK
+            print(f"\n   Answer:    {answer[:100]}..." if len(answer) > 100 else f"   Answer:    {answer}")
+            print(f"\n   Expected:  {expected_answer[:100]}..." if expected_answer else "   Expected:  None")
+            
+            # Normal analysis for non-silent answers
             analysis = AdaptiveAnalyzer.analyze(
                 question=state.current_question,
                 answer=answer,
                 topic=state.current_topic,
-                subtopic=state.current_subtopic,  # 🔥 NEW: Pass subtopic
-                question_bank=self.question_bank,  # 🔥 NEW: Pass question bank for concept lookup
+                subtopic=state.current_subtopic,
+                question_bank=self.question_bank,
                 expected_answer=expected_answer
             )
             
             semantic_score = analysis.get("semantic_similarity", 0.0)
-            keyword_score = analysis.get("keyword_coverage", 0.0)  # Use keyword_coverage
-            missing = analysis.get("missing_concepts", [])  # 🔥 Now contains subtopic-specific concepts only
+            keyword_score = analysis.get("keyword_coverage", 0.0)
+            missing = analysis.get("missing_concepts", [])
             concepts_mentioned = analysis.get("key_terms_used", [])
         
         # Calculate response time
@@ -332,21 +395,24 @@ class AdaptiveInterviewController:
         word_count = len(answer.split())
         if word_count < 10 and semantic_score > 0:
             semantic_score *= 0.7
-            print(f"📏 Length penalty applied: {word_count} words → semantic score adjusted to {semantic_score:.3f}")
         elif word_count < 20 and semantic_score > 0:
             semantic_score *= 0.85
-            print(f"📏 Length penalty applied: {word_count} words → semantic score adjusted to {semantic_score:.3f}")
         
         semantic_score = min(0.95, semantic_score)
         
-        # Log the scores for debugging
-        print(f"\n📊 SCORES FOR ANSWER:")
-        print(f"   - Semantic similarity: {semantic_score:.3f}")
-        print(f"   - Keyword coverage: {keyword_score:.3f}")
-        print(f"   - Expected answer provided: {'Yes' if expected_answer else 'No'}")
-        if expected_answer:
-            print(f"   - Expected answer preview: {expected_answer[:100]}...")
-        print(f"   - Missing concepts: {missing[:5] if missing else 'None'}")
+        print(f"\n   📈 SCORES:")
+        print(f"      Semantic similarity: {semantic_score:.3f}")
+        print(f"      Keyword coverage:    {keyword_score:.3f}")
+        
+        if missing:
+            print(f"\n   ❌ MISSING CONCEPTS:")
+            for i, concept in enumerate(missing[:5], 1):
+                print(f"      {i}. {concept}")
+        
+        if concepts_mentioned:
+            print(f"\n   ✅ COVERED CONCEPTS:")
+            for i, concept in enumerate(concepts_mentioned[:5], 1):
+                print(f"      {i}. {concept}")
         
         # Update subtopic mastery
         if state.user_id not in self.subtopic_trackers:
@@ -355,7 +421,7 @@ class AdaptiveInterviewController:
         tracker = self.subtopic_trackers[state.user_id]
         tracker.update_subtopic_performance(topic, subtopic, semantic_score)
         
-        # Update long-term topic mastery - REMOVED COVERAGE
+        # Update long-term topic mastery
         mastery = state.ensure_topic_mastery(topic)
         mastery.update(
             semantic=semantic_score,
@@ -365,7 +431,7 @@ class AdaptiveInterviewController:
             concepts=concepts_mentioned
         )
         
-        # Update session-level topic tracking - REMOVED COVERAGE
+        # Update session-level topic tracking
         topic_session = state.get_topic_session(topic)
         topic_session.add_answer(
             semantic=semantic_score,
@@ -373,7 +439,7 @@ class AdaptiveInterviewController:
             depth=analysis.get("depth", "medium")
         )
         
-        # Create QA record with expected_answer - REMOVED COVERAGE
+        # Create QA record with expected_answer
         record = AdaptiveQARecord(
             question=question,
             topic=topic,
@@ -390,7 +456,7 @@ class AdaptiveInterviewController:
         # Add to history
         state.add_to_history(record)
         
-        # Save to database (pass expected_answer to ensure it's stored)
+        # Save to database
         self._save_to_db(state.user_id, session_id, record, mastery, expected_answer)
         
         # Decide next action
@@ -420,15 +486,10 @@ class AdaptiveInterviewController:
     
     def _calculate_next_difficulty(self, current_question_num: int, current_score: float, previous_difficulty: str) -> str:
         """
-        Calculate next question difficulty based on performance:
+        Calculate next question difficulty based on performance
         
         Question 1: Always MEDIUM
-        
         Question 2: Based on Q1 score
-        - If Q1 < 0.4 (poor) → EASY
-        - If Q1 > 0.7 (good) → HARD
-        - If Q1 0.4-0.7 (medium) → MEDIUM
-        
         Question 3: Based on Q2 score and Q2 difficulty
         """
         
@@ -476,13 +537,17 @@ class AdaptiveInterviewController:
         return "medium"
     
     def _generate_followup(self, state, analysis, session_id) -> dict:
-        """Generate appropriate follow-up question with dynamic difficulty based on performance"""
+        """Generate appropriate follow-up question with dynamic difficulty"""
         
         state.followup_count += 1
         
         missing = analysis.get("missing_concepts", [])
         topic = state.current_topic
         semantic_score = analysis.get("semantic_similarity", 0)
+        
+        # 🔥 CRITICAL: Get weak concepts from topic mastery
+        mastery = state.topic_mastery.get(topic)
+        weak_concepts = list(mastery.weak_concepts) if mastery else []
         
         # Count questions on current subtopic (1, 2, or 3)
         questions_on_subtopic = 0
@@ -492,14 +557,19 @@ class AdaptiveInterviewController:
         
         current_question_num = questions_on_subtopic + 1  # Next question number (1-3)
         
-        print(f"\n🎯 FOLLOW-UP DECISION FOR {topic} - {state.current_subtopic}:")
-        print(f"   - Question #{current_question_num}/3")
-        print(f"   - Current answer quality: {semantic_score:.2f}")
-        print(f"   - Missing concepts: {missing}")
+        print("\n" + "█"*80)
+        print(f"🎯 NEXT QUESTION DECISION")
+        print("█"*80)
+        print(f"   Topic:           {topic}")
+        print(f"   Subtopic:        {state.current_subtopic}")
+        print(f"   Question #:      {current_question_num}/3")
+        print(f"   Current quality: {semantic_score:.2f}")
+        print(f"   Missing concepts:{' ' + str(missing[:3]) if missing else ' None'}")
+        print(f"   Weak concepts:   {weak_concepts[:5]}")
         
         # Check if we've already asked 3 questions on this subtopic
         if questions_on_subtopic >= 3:
-            print(f"   → Already asked 3 questions on {state.current_subtopic}, moving to next topic")
+            print(f"\n   → Already asked 3 questions, moving to next topic")
             return self._move_to_next_topic(state, session_id)
         
         # Calculate next difficulty based on performance
@@ -509,18 +579,53 @@ class AdaptiveInterviewController:
             previous_difficulty=state.current_difficulty
         )
         
-        print(f"   → Next question difficulty: {next_difficulty}")
+        print(f"\n   📊 DIFFICULTY LOGIC:")
+        if current_question_num == 1:
+            print(f"      Rule: First question → MEDIUM")
+        elif current_question_num == 2:
+            if semantic_score < 0.4:
+                print(f"      Rule: Q1 score {semantic_score:.2f} (<0.4) → EASY")
+            elif semantic_score > 0.7:
+                print(f"      Rule: Q1 score {semantic_score:.2f} (>0.7) → HARD")
+            else:
+                print(f"      Rule: Q1 score {semantic_score:.2f} (0.4-0.7) → MEDIUM")
+        else:  # Question 3
+            if semantic_score < 0.4:
+                print(f"      Rule: Q2 score {semantic_score:.2f} (<0.4) → EASY")
+            elif semantic_score > 0.7:
+                if state.current_difficulty == "hard":
+                    print(f"      Rule: Q2 was HARD, scored well → keep HARD")
+                else:
+                    print(f"      Rule: Q2 score {semantic_score:.2f} (>0.7) → HARD")
+            else:
+                if state.current_difficulty == "hard":
+                    print(f"      Rule: Q2 was HARD, scored medium → dial back to MEDIUM")
+                elif state.current_difficulty == "easy":
+                    print(f"      Rule: Q2 was EASY, scored medium → increase to MEDIUM")
+                else:
+                    print(f"      Rule: Q2 was MEDIUM, scored medium → stay MEDIUM")
+        
+        print(f"\n   ✅ NEXT QUESTION: {next_difficulty.upper()}")
+        print("█"*80)
+        
+        # 🔥 DEBUG: Show what we're passing to question bank
+        print(f"🔍 [DEBUG] Calling generate_question_for_subtopic with:")
+        print(f"   topic = {topic}")
+        print(f"   subtopic = {state.current_subtopic}")
+        print(f"   difficulty = {next_difficulty}")
+        print(f"   weak_concepts = {weak_concepts[:5]}")
         
         # Generate question for the same subtopic with calculated difficulty
         question = None
-        subtopic = state.current_subtopic
         
         try:
             question = self.question_bank.generate_question_for_subtopic(
                 topic=topic,
                 subtopic=state.current_subtopic,
-                difficulty=next_difficulty
+                difficulty=next_difficulty,
+                weak_concepts=weak_concepts  # 🔥 PASS WEAK CONCEPTS
             )
+            print(f"🔍 [DEBUG] Question generated successfully")
         except Exception as e:
             print(f"⚠️ generate_question_for_subtopic failed: {e}")
             question = None
@@ -528,11 +633,13 @@ class AdaptiveInterviewController:
         # If that fails, try generate_first_question with forced subtopic
         if not question or len(question) < 10:
             try:
+                print(f"🔍 [DEBUG] Falling back to generate_first_question")
                 question = self.question_bank.generate_first_question(
                     topic=topic,
                     subtopic=state.current_subtopic,
                     difficulty=next_difficulty,
-                    user_name=state.user_name
+                    user_name=state.user_name,
+                    weak_concepts=weak_concepts  # 🔥 PASS WEAK CONCEPTS
                 )
             except Exception as e:
                 print(f"⚠️ generate_first_question failed: {e}")
@@ -552,7 +659,6 @@ class AdaptiveInterviewController:
         asked_questions = [r.question for r in state.history]
         from .semantic_dedup import semantic_dedup
         if semantic_dedup.is_duplicate(session_id, question, asked_questions, threshold=0.9):
-            print(f"   ⚠️ Question too similar, adding context modifier...")
             context_modifiers = [
                 f"Let's explore this further: {question}",
                 f"Building on that, {question}",
@@ -636,51 +742,75 @@ class AdaptiveInterviewController:
     def _move_to_next_topic(self, state, session_id) -> dict:
         """Move to next topic - cycle through topics continuously"""
         
+        print("\n" + "="*80)
+        print("➡️ MOVING TO NEXT TOPIC")
+        print("="*80)
+        
         # Try to advance to next topic
         if not state.advance_to_next_topic():
             # No more topics left - START A NEW CYCLE!
-            print("🔄 Completed one full cycle of all topics - starting new cycle")
+            print("\n🔄 Completed one full cycle of all topics - starting new cycle")
             
             # Reset to first topic
             state.current_topic_index = 0
             state.current_topic = state.topic_order[0]
             state.followup_count = 0
             
-            # 🔥 CRITICAL: Reset ALL topic sessions for new cycle
+            # Reset ALL topic sessions for new cycle
             for topic in list(state.topic_sessions.keys()):
                 state.topic_sessions[topic] = TopicSessionState(topic=topic)
             
-            print(f"🔄 Reset all topic sessions for new cycle")
+            print("🔄 Reset all topic sessions for new cycle")
         
         new_topic = state.current_topic
-        print(f"➡️ Moving to next topic: {new_topic} (Cycle continues...)")
+        print(f"\n➡️ New topic: {new_topic}")
         
         # Get mastery for this topic
         mastery = state.ensure_topic_mastery(new_topic)
         
-        # 🔥 Use subtopic tracker to select the next subtopic
+        # 🔥 Get weak concepts for targeting
+        weak_concepts = list(mastery.weak_concepts) if mastery else []
+        print(f"   Weak concepts to target: {weak_concepts[:5]}")
+        
+        # Use subtopic tracker to select the next subtopic
         if state.user_id not in self.subtopic_trackers:
             self.subtopic_trackers[state.user_id] = SubtopicTracker(state.user_id)
         
         tracker = self.subtopic_trackers[state.user_id]
+        
+        print("\n" + "-"*80)
+        print("🎯 SUBTOPIC SELECTION")
+        print("-"*80)
+        
+        stats = tracker.get_statistics()
+        topic_stats = stats['by_topic'].get(new_topic, {})
+        
+        print(f"   Topic: {new_topic}")
+        print(f"\n   Current subtopic status:")
+        print(f"      WEAK:   {topic_stats.get('weak', 0)} subtopics")
+        print(f"      NEW:    {topic_stats.get('new', 0)} subtopics")  # 🔥 FIXED: Use 'new' directly
+        print(f"      STRONG: {topic_stats.get('strong', 0)} subtopics")
+        
         chosen_subtopic = tracker.get_next_subtopic(new_topic)
+        print(f"\n   ✅ SELECTED: {chosen_subtopic}")
+        print("-"*80)
         
-        print(f"🎯 Selected subtopic for {new_topic}: {chosen_subtopic}")
-        
-        # 🔥 NEW SUBTOPIC - First question is ALWAYS MEDIUM
+        # NEW SUBTOPIC - First question is ALWAYS MEDIUM
         difficulty = "medium"
         state.current_difficulty = difficulty
         state.current_subtopic = chosen_subtopic
         
-        print(f"   → First question on new subtopic: MEDIUM difficulty")
+        print(f"\n   🔍 DEBUG - Setting difficulty to: {difficulty} (MUST BE MEDIUM)")
+        print(f"\n   → First question difficulty: MEDIUM")
         
-        # Generate question for chosen subtopic
+        # Generate question for chosen subtopic WITH WEAK CONCEPTS
         question, subtopic = self._generate_question(
             session_id=session_id,
             topic=new_topic,
             difficulty=difficulty,
             user_name=state.user_name,
-            force_subtopic=chosen_subtopic
+            force_subtopic=chosen_subtopic,
+            weak_concepts=weak_concepts  # 🔥 PASS WEAK CONCEPTS
         )
         
         state.current_question = question
@@ -690,6 +820,10 @@ class AdaptiveInterviewController:
         
         # Initialize fresh topic session
         state.get_topic_session(new_topic)
+        
+        print("\n" + "="*80)
+        print(f"✅ MOVED TO {new_topic}")
+        print("="*80)
         
         return {
             "action": "MOVE_TOPIC",
@@ -701,7 +835,7 @@ class AdaptiveInterviewController:
             "topic_order": state.topic_order,
             "current_topic_index": state.current_topic_index,
             "progress": f"Cycle continues - Topic: {new_topic}",
-            "weak_concepts_targeted": []
+            "weak_concepts_targeted": weak_concepts[:3]
         }
     
     def _finalize_session(self, state, session_id):
@@ -720,7 +854,7 @@ class AdaptiveInterviewController:
         if session_id in self.sessions:
             del self.sessions[session_id]
         
-        print(f"✅ Session {session_id} finalized with {len(state.history)} questions")
+        print(f"\n✅ Session {session_id} finalized with {len(state.history)} questions")
     
     def _generate_feedback(self, state) -> dict:
         """Generate end-of-session feedback"""
@@ -756,7 +890,7 @@ class AdaptiveInterviewController:
                 )
                 db.session.add(db_mastery)
             
-            # Update mastery using the already-calculated values - REMOVED COVERAGE_SCORE
+            # Update mastery using the already-calculated values
             db_mastery.update_mastery(
                 semantic_score=record.semantic_score,
                 keyword_score=record.keyword_score,
@@ -769,7 +903,7 @@ class AdaptiveInterviewController:
             db_mastery.weak_concepts = json.dumps(list(mastery.weak_concepts))
             db_mastery.strong_concepts = json.dumps(list(mastery.strong_concepts))
             
-            # Save question history with expected_answer - REMOVED COVERAGE_SCORE
+            # Save question history with expected_answer
             history = QuestionHistory(
                 user_id=user_id,
                 session_id=session_id,
@@ -787,7 +921,6 @@ class AdaptiveInterviewController:
             db.session.add(history)
             
             db.session.commit()
-            print(f"💾 Saved to DB: expected_answer length = {len(expected_answer or '')}")
             
         except Exception as e:
             print(f"Error saving to DB: {e}")

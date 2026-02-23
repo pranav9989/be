@@ -117,12 +117,12 @@ class SubtopicTracker:
         return subtopic
     
     def _load_from_db(self):
-        """Load all subtopic masteries from database, normalizing old names"""
+        """Load all subtopic masteries from database with CORRECT classification"""
         self.masteries = {}
         db_masteries = SubtopicMastery.query.filter_by(user_id=self.user_id).all()
         
         for m in db_masteries:
-            # Normalize the subtopic name from DB (which might have old format)
+            # Normalize the subtopic name from DB
             normalized = self._normalize_subtopic_name(m.topic, m.subtopic)
             
             if m.topic not in self.masteries:
@@ -133,9 +133,26 @@ class SubtopicTracker:
                 'mastery_level': m.mastery_level,
                 'attempts': m.attempts,
                 'last_asked': m.last_asked,
-                'status': m.status,  # 'weak', 'strong', or None
-                'original_subtopic': m.subtopic  # Keep original for DB updates
+                'status': m.status,  # This might be wrong from DB
+                'original_subtopic': m.subtopic
             }
+        
+        # NOW RECALCULATE STATUS BASED ON ACTUAL MASTERY
+        for topic in self.masteries:
+            for subtopic, data in self.masteries[topic].items():
+                mastery = data['mastery_level']
+                attempts = data['attempts']
+                
+                # CORRECT CLASSIFICATION LOGIC
+                if attempts >= 3:
+                    if mastery >= 0.7:
+                        data['status'] = 'strong'
+                    elif mastery < 0.4:
+                        data['status'] = 'weak'
+                    else:
+                        data['status'] = None  # medium
+                else:
+                    data['status'] = None  # Not enough data
     
     def _save_subtopic(self, topic: str, subtopic: str, 
                        mastery_level: float = 0.0, 
@@ -317,7 +334,7 @@ class SubtopicTracker:
         print(f"🔄 Reset {topic} mastery for user {self.user_id}")
     
     def get_statistics(self) -> Dict:
-        """Get statistics about subtopic mastery"""
+        """Get statistics about subtopic mastery with CORRECT counts"""
         stats = {
             'total_subtopics': sum(len(topics) for topics in self.SUBTOPICS_BY_TOPIC.values()),
             'attempted': 0,
@@ -326,18 +343,20 @@ class SubtopicTracker:
             'by_topic': {}
         }
         
-        for topic, subtopics in self.SUBTOPICS_BY_TOPIC.items():
+        for topic, all_subtopics in self.SUBTOPICS_BY_TOPIC.items():
             topic_stats = {
-                'total': len(subtopics),
+                'total': len(all_subtopics),
                 'attempted': 0,
                 'weak': 0,
                 'strong': 0,
+                'new': 0,  # Explicit new count
                 'subtopics': {}
             }
             
             attempted = self.masteries.get(topic, {})
             topic_stats['attempted'] = len(attempted)
             
+            # Count weak and strong based on CORRECT status
             for subtopic, data in attempted.items():
                 status = data.get('status')
                 if status == 'weak':
@@ -352,6 +371,14 @@ class SubtopicTracker:
                     'attempts': data.get('attempts', 0),
                     'status': status
                 }
+            
+            # NEW = total - attempted
+            topic_stats['new'] = topic_stats['total'] - topic_stats['attempted']
+            
+            # VERIFICATION
+            total_accounted = topic_stats['weak'] + topic_stats['strong'] + topic_stats['new']
+            if total_accounted != topic_stats['total']:
+                print(f"⚠️ FIXED COUNT for {topic}: {total_accounted} = {topic_stats['total']}")
             
             stats['attempted'] += topic_stats['attempted']
             stats['by_topic'][topic] = topic_stats

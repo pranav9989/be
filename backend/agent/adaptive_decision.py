@@ -2,6 +2,7 @@
 
 from .adaptive_state import AdaptiveInterviewState
 
+
 class AdaptiveDecisionEngine:
     """Intelligent decision making based on user performance"""
     
@@ -18,85 +19,124 @@ class AdaptiveDecisionEngine:
         EXACTLY 3 questions per topic, max 2 follow-ups within those 3
         """
         
+        print("\n" + "█"*80)
+        print("🎯 NEXT ACTION DECISION")
+        print("█"*80)
+        
         # Hard stops (only these cause FINALIZE)
         if state.is_time_over():
-            print("⏰ Time limit reached (30 minutes) - finalizing")
+            print(f"\n⏰ TIME LIMIT REACHED (30 minutes)")
+            print(f"\n   → DECISION: FINALIZE")
+            print("█"*80)
             return self.FINALIZE
         
         if state.total_questions_asked() >= state.max_questions_total:
-            print("📊 Question limit reached (15 questions) - finalizing")
+            print(f"\n📊 QUESTION LIMIT REACHED (15 questions)")
+            print(f"\n   → DECISION: FINALIZE")
+            print("█"*80)
             return self.FINALIZE
         
         # Get current topic and its session
         topic = state.current_topic
         topic_session = state.get_topic_session(topic)
-        mastery = state.get_topic_mastery(topic)
         
         # Extract signals
         semantic_score = analysis.get("semantic_similarity", 0)
-        coverage = analysis.get("coverage_score", 0)
         missing = analysis.get("missing_concepts", [])
-        response_length = analysis.get("response_length", 0)
-        depth = analysis.get("depth", "shallow")
-        has_example = analysis.get("has_example", False)
         
         # Track follow-ups for THIS topic
         followups_on_this_topic = state.followup_count
         MAX_FOLLOWUPS_PER_TOPIC = 2
         
-        # Log decision factors
-        print(f"\n📊 DECISION FOR {topic}:")
-        print(f"   - Questions asked on this topic: {topic_session.questions_asked}/3")
-        print(f"   - Follow-ups on this topic: {followups_on_this_topic}/{MAX_FOLLOWUPS_PER_TOPIC}")
-        print(f"   - Current answer quality: {semantic_score:.2f}")
-        print(f"   - Missing concepts: {missing[:3] if missing else 'None'}")
+        # Print decision context
+        print(f"\n   Topic:           {topic}")
+        print(f"   Subtopic:        {state.current_subtopic}")
+        print(f"   Questions asked: {topic_session.questions_asked}/3")
+        print(f"   Follow-ups used: {followups_on_this_topic}/{MAX_FOLLOWUPS_PER_TOPIC}")
+        print(f"   Answer quality:  {semantic_score:.2f}")
+        print(f"   Missing concepts:{' ' + str(missing[:3]) if missing else ' None'}")
+        
+        print(f"\n   📊 DECISION LOGIC:")
         
         # Check if we've hit the 3-question limit for this topic
         if topic_session.questions_asked >= 3:
-            print(f"   → DECISION: MOVE_TOPIC (completed 3 questions for {topic})")
+            print(f"      • Topic has reached 3 questions")
+            print(f"\n   ✅ DECISION: MOVE_TOPIC")
+            print("█"*80)
             return self.MOVE_TOPIC
         
-        # 1️⃣ VERY POOR ANSWER - Try different subtopic first, then simplify
+        # Calculate questions remaining on this topic
+        questions_remaining = 3 - topic_session.questions_asked
+        followups_remaining = MAX_FOLLOWUPS_PER_TOPIC - followups_on_this_topic
+        
+        print(f"      • Questions remaining: {questions_remaining}")
+        print(f"      • Follow-ups remaining: {followups_remaining}")
+        
+        # Decision tree
+        decision = None
+        reason = ""
+        
+        # 1️⃣ VERY POOR ANSWER
         if semantic_score < 0.3:
             if followups_on_this_topic < MAX_FOLLOWUPS_PER_TOPIC:
-                print(f"   → DECISION: FOLLOW_UP (try different subtopic, {followups_on_this_topic + 1}/{MAX_FOLLOWUPS_PER_TOPIC})")
-                return self.FOLLOW_UP
+                decision = self.FOLLOW_UP
+                reason = f"Very poor answer ({semantic_score:.2f} < 0.3) → try different subtopic"
             else:
-                print(f"   → DECISION: MOVE_TOPIC (max follow-ups reached, still struggling)")
-                return self.MOVE_TOPIC
+                decision = self.MOVE_TOPIC
+                reason = f"Very poor answer but max follow-ups ({MAX_FOLLOWUPS_PER_TOPIC}) reached → move on"
         
-        # 2️⃣ POOR ANSWER with missing concepts - Try different subtopic
-        if semantic_score < 0.5 and missing:
+        # 2️⃣ POOR ANSWER with missing concepts
+        elif semantic_score < 0.5 and missing:
             if followups_on_this_topic < MAX_FOLLOWUPS_PER_TOPIC:
-                print(f"   → DECISION: FOLLOW_UP (try different subtopic for missing concepts, {followups_on_this_topic + 1}/{MAX_FOLLOWUPS_PER_TOPIC})")
-                return self.FOLLOW_UP
+                decision = self.FOLLOW_UP
+                reason = f"Poor answer ({semantic_score:.2f}) with missing concepts → target gaps"
             else:
-                print(f"   → DECISION: MOVE_TOPIC (max follow-ups reached)")
-                return self.MOVE_TOPIC
+                decision = self.MOVE_TOPIC
+                reason = f"Poor answer but max follow-ups ({MAX_FOLLOWUPS_PER_TOPIC}) reached → move on"
         
-        # 3️⃣ GOOD ANSWER - Try different subtopic
-        if semantic_score > 0.6:
+        # 3️⃣ GOOD ANSWER
+        elif semantic_score > 0.6:
             if followups_on_this_topic < MAX_FOLLOWUPS_PER_TOPIC:
-                print(f"   → DECISION: FOLLOW_UP (good answer, try different subtopic, {followups_on_this_topic + 1}/{MAX_FOLLOWUPS_PER_TOPIC})")
-                return self.FOLLOW_UP
+                decision = self.FOLLOW_UP
+                reason = f"Good answer ({semantic_score:.2f} > 0.6) → explore deeper"
             else:
-                # If we've used both follow-ups and still have questions left, move to next topic
+                # If we've used both follow-ups but still need questions, do follow-up anyway
                 if topic_session.questions_asked < 3:
-                    print(f"   → DECISION: FOLLOW_UP (need more questions, but max follow-ups used)")
-                    return self.FOLLOW_UP
+                    decision = self.FOLLOW_UP
+                    reason = f"Good answer but need {questions_remaining} more question(s) → follow-up anyway"
                 else:
-                    return self.MOVE_TOPIC
+                    decision = self.MOVE_TOPIC
+                    reason = f"Good answer, all questions completed → move on"
         
-        # 4️⃣ DEFAULT: If we still need more questions on this topic
-        if topic_session.questions_asked < 3:
+        # 4️⃣ DEFAULT - Need more questions
+        elif topic_session.questions_asked < 3:
             if followups_on_this_topic < MAX_FOLLOWUPS_PER_TOPIC:
-                print(f"   → DECISION: FOLLOW_UP (need {3 - topic_session.questions_asked} more questions)")
-                return self.FOLLOW_UP
+                decision = self.FOLLOW_UP
+                reason = f"Need {questions_remaining} more question(s) on this subtopic"
             else:
-                # We need another question but have used follow-ups, so it must be a new main question
-                print(f"   → DECISION: MOVE_TOPIC (max follow-ups, need new question)")
-                return self.MOVE_TOPIC
+                decision = self.MOVE_TOPIC
+                reason = f"Need more questions but max follow-ups reached → new subtopic needed"
         
-        # 5️⃣ Finally, move to next topic
-        print(f"   → DECISION: MOVE_TOPIC (default)")
-        return self.MOVE_TOPIC
+        # 5️⃣ FINAL FALLBACK
+        else:
+            decision = self.MOVE_TOPIC
+            reason = "Default fallback"
+        
+        print(f"      • {reason}")
+        
+        # Print decision with appropriate emoji
+        print(f"\n   ✅ DECISION: ", end="")
+        if decision == self.FOLLOW_UP:
+            print(f"FOLLOW_UP (continue on {state.current_subtopic})")
+        elif decision == self.MOVE_TOPIC:
+            print(f"MOVE_TOPIC (next topic in cycle)")
+        elif decision == self.DEEPEN:
+            print(f"DEEPEN (more challenging question)")
+        elif decision == self.SIMPLIFY:
+            print(f"SIMPLIFY (easier question)")
+        elif decision == self.FINALIZE:
+            print(f"FINALIZE (end interview)")
+        
+        print("█"*80)
+        
+        return decision

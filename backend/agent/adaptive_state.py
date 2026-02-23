@@ -7,6 +7,7 @@ import time
 import numpy as np
 import random
 
+
 @dataclass
 class TopicSessionState:
     """Tracks per-topic state within a single session"""
@@ -19,9 +20,9 @@ class TopicSessionState:
     is_covered: bool = False
     is_weak: bool = False
     last_question_time: float = 0.0
-    silent_count: int = 0  # 🔥 Track silent answers
+    silent_count: int = 0  # Track silent answers
     
-    # 🔥 NEW: Fixed limits - exactly 3 questions per topic per session
+    # Fixed limits - exactly 3 questions per topic per session
     QUESTIONS_PER_TOPIC = 3
     
     def add_answer(self, semantic: float, keyword: float, depth: str):
@@ -55,7 +56,7 @@ class TopicSessionState:
 class AdaptiveQARecord:
     question: str
     topic: Optional[str]
-    subtopic: Optional[str]  # 🔥 NEW: Track subtopic
+    subtopic: Optional[str]  # Track subtopic
     difficulty: str
     answer: str
     analysis: Dict
@@ -103,7 +104,7 @@ class TopicMastery:
     consecutive_good: int = 0
     consecutive_poor: int = 0
     
-    # 🔥 NEW: Concept-level tracking
+    # Concept-level tracking
     concepts: Dict[str, ConceptMastery] = field(default_factory=dict)
     
     # Concept gaps (for cross-session prioritization)
@@ -117,6 +118,9 @@ class TopicMastery:
     # Recent scores for stability
     recent_scores: List[float] = field(default_factory=list)
     stability_score: float = 0.0
+    
+    # Add avg_response_time as a class attribute with default
+    avg_response_time: float = 0.0
     
     def update(self, semantic: float, keyword: float,
                response_time: float, missing: List[str] = None, 
@@ -134,7 +138,7 @@ class TopicMastery:
         self.semantic_avg = (alpha * semantic) + ((1 - alpha) * self.semantic_avg)
         self.keyword_avg = (alpha * keyword) + ((1 - alpha) * self.keyword_avg)
         
-        # 🔥 NEW FORMULA: Semantic dominant (70%), keyword (30%)
+        # NEW FORMULA: Semantic dominant (70%), keyword (30%)
         self.mastery_level = (
             self.semantic_avg * 0.7 +
             self.keyword_avg * 0.3
@@ -157,7 +161,9 @@ class TopicMastery:
         
         # Update counters
         self.total_questions += 1
-        self.avg_response_time = (alpha * response_time) + ((1 - alpha) * getattr(self, 'avg_response_time', 0.0))
+        
+        # Update response time average (ensure it exists)
+        self.avg_response_time = (alpha * response_time) + ((1 - alpha) * self.avg_response_time)
         
         # Update consecutive patterns (using weighted score)
         combined = (semantic * 0.7 + keyword * 0.3)
@@ -181,65 +187,115 @@ class TopicMastery:
         
         # ========== EVIDENCE-BASED CONCEPT STAGNATION ==========
         
-        # 🔥 STEP 1: RESET stagnation for concepts that WERE mentioned
-        if concepts:
-            for concept in concepts:
+        print("\n" + "─"*70)
+        print("📈 CONCEPT TRACKING UPDATE")
+        print("─"*70)
+        print(f"   Topic: {self.topic}")
+        
+        # Initialize concepts dictionary if needed
+        if not hasattr(self, 'concepts'):
+            self.concepts = {}
+        
+        # STEP 1: RESET stagnation for concepts that WERE mentioned
+        if concepts and len(concepts) > 0:
+            print(f"\n   ✅ Mentioned correctly:")
+            for concept in concepts[:5]:
                 if concept in self.concepts:
-                    # Concept was mentioned - reset its stagnation
+                    old_stag = self.concepts[concept].stagnation_count
                     self.concepts[concept].stagnation_count = 0
                     self.concepts[concept].last_seen = time.time()
-                    
-                    # Update mastery for mentioned concept (good)
                     self.concepts[concept].mastery_level = (alpha * 1.0) + ((1 - alpha) * self.concepts[concept].mastery_level)
+                    self.concepts[concept].attempts += 1
                     
                     # Remove from weak concepts if it was there
                     if concept in self.weak_concepts:
                         self.weak_concepts.discard(concept)
-                        print(f"✅ Concept '{concept}' removed from weak (mentioned correctly)")
+                        print(f"      ✓ {concept} - stagnation reset (was weak, now correct)")
+                    else:
+                        print(f"      ✓ {concept} - stagnation reset (was {old_stag} → 0)")
+                else:
+                    # Create new concept record for mentioned concept
+                    from .adaptive_state import ConceptMastery
+                    self.concepts[concept] = ConceptMastery(
+                        name=concept, 
+                        topic=self.topic,
+                        mastery_level=1.0,
+                        attempts=1,
+                        last_seen=time.time(),
+                        stagnation_count=0
+                    )
+                    print(f"      ✓ {concept} - new concept, mentioned correctly")
         
-        # 🔥 STEP 2: Handle missing concepts (not mentioned)
-        if missing:
-            for concept in missing:
+        # STEP 2: Handle missing concepts (not mentioned)
+        if missing and len(missing) > 0:
+            print(f"\n   ❌ Missing concepts:")
+            for concept in missing[:10]:  # Show up to 10 missing concepts
                 # Create concept if it doesn't exist
                 if concept not in self.concepts:
-                    self.concepts[concept] = ConceptMastery(name=concept, topic=self.topic)
-                    print(f"🆕 New concept tracked: '{concept}'")
-                
-                concept_m = self.concepts[concept]
-                concept_m.attempts += 1
-                concept_m.last_seen = time.time()
-                
-                # Update concept mastery (lower score for missing)
-                concept_m.mastery_level = (alpha * 0.3) + ((1 - alpha) * concept_m.mastery_level)
-                
-                # Increment stagnation count for this missing concept
-                concept_m.stagnation_count += 1
-                
-                # 🔥 STEP 3: Mark as weak ONLY after REPEATED failure
-                if concept_m.attempts >= 3:
-                    miss_ratio = concept_m.stagnation_count / concept_m.attempts
-                    if miss_ratio > 0.7:  # Missed more than 70% of the time
+                    from .adaptive_state import ConceptMastery
+                    self.concepts[concept] = ConceptMastery(
+                        name=concept, 
+                        topic=self.topic,
+                        attempts=1,
+                        last_seen=time.time(),
+                        stagnation_count=1
+                    )
+                    print(f"      {concept}: new concept, stagnation=1")
+                else:
+                    concept_m = self.concepts[concept]
+                    old_stag = concept_m.stagnation_count
+                    concept_m.attempts += 1
+                    concept_m.last_seen = time.time()
+                    
+                    # Update concept mastery (lower score for missing)
+                    concept_m.mastery_level = (alpha * 0.3) + ((1 - alpha) * concept_m.mastery_level)
+                    
+                    # Increment stagnation count
+                    concept_m.stagnation_count += 1
+                    new_stag = concept_m.stagnation_count
+                    
+                    # Calculate miss ratio
+                    miss_ratio = new_stag / concept_m.attempts if concept_m.attempts > 0 else 1.0
+                    
+                    status = ""
+                    
+                    # Mark as weak after repeated failure (3+ attempts, >70% miss ratio)
+                    if concept_m.attempts >= 3 and miss_ratio > 0.7:
                         if not concept_m.is_weak:
                             concept_m.is_weak = True
                             self.weak_concepts.add(concept)
-                            print(f"⚠️ Concept '{concept}' marked WEAK after {concept_m.attempts} attempts, miss ratio {miss_ratio:.2f}")
-                
-                # 🔥 STEP 4: Mark as strong if consistently good
-                elif concept_m.attempts >= 3 and (1 - (concept_m.stagnation_count / concept_m.attempts)) > 0.7:
-                    if not concept_m.is_strong:
-                        concept_m.is_strong = True
-                        self.strong_concepts.add(concept)
-                        print(f"💪 Concept '{concept}' marked STRONG (good in >70% of attempts)")
+                            status = " → ⚠️ WEAK (threshold crossed)"
+                    
+                    # Mark as strong if consistently good
+                    elif concept_m.attempts >= 3 and (1 - miss_ratio) > 0.7:
+                        if not concept_m.is_strong:
+                            concept_m.is_strong = True
+                            self.strong_concepts.add(concept)
+                            status = " → 💪 STRONG"
+                    
+                    print(f"      {concept}: stagnation {old_stag}→{new_stag} (missed {new_stag}/{concept_m.attempts} times, ratio {miss_ratio:.2f}){status}")
         
-        # 🔥 Update missing_concepts set (for backward compatibility)
+        # If neither mentioned nor missing concepts, show appropriate message
+        if (not concepts or len(concepts) == 0) and (not missing or len(missing) == 0):
+            print(f"\n   No concept updates for this answer")
+        
+        # Update missing_concepts set (for backward compatibility)
         self.missing_concepts = set(missing) if missing else set()
         
-        # 🔥 Update concept_stagnation dictionary (for backward compatibility)
+        # Update concept_stagnation dictionary (for backward compatibility)
         self.concept_stagnation = {
             name: cm.stagnation_count 
             for name, cm in self.concepts.items() 
             if cm.stagnation_count > 0
         }
+        
+        # Show summary of weak/strong concepts
+        if self.weak_concepts:
+            print(f"\n   ⚠️ Current weak concepts: {', '.join(list(self.weak_concepts)[:5])}")
+        if self.strong_concepts:
+            print(f"   💪 Current strong concepts: {', '.join(list(self.strong_concepts)[:5])}")
+        
+        print("─"*70)
     
     def get_priority_score(self) -> float:
         """
@@ -249,10 +305,10 @@ class TopicMastery:
         # Base priority on low mastery
         priority = 1.0 - self.mastery_level
         
-        # 🔥 REDUCED STAGNATION PENALTY - Only count concepts with >2 stagnation
+        # REDUCED STAGNATION PENALTY - Only count concepts with >2 stagnation
         # These are concepts that have been missed multiple times
         stagnant_concepts = len([c for c in self.concepts.values() if c.stagnation_count > 2])
-        stagnation_penalty = min(stagnant_concepts * 0.05, 0.2)  # Max 0.2 instead of 0.3
+        stagnation_penalty = min(stagnant_concepts * 0.05, 0.2)  # Max 0.2
         
         # Add weak concepts penalty
         weak_penalty = len(self.weak_concepts) * 0.1
@@ -282,23 +338,23 @@ class AdaptiveInterviewState:
     user_name: str = ""
     start_time: float = field(default_factory=time.time)
 
-    # 🔥 NEW: Topic order for this session (random permutation)
+    # Topic order for this session (random permutation)
     topic_order: List[str] = field(default_factory=list)
     current_topic_index: int = 0
     
-    # 🔥 NEW: Track weak topics from previous sessions
+    # Track weak topics from previous sessions
     weak_topics_history: Dict[str, List[str]] = field(default_factory=dict)  # topic -> list of weak concepts
     
-    # 🔥 NEW: Track topics covered in this session
+    # Track topics covered in this session
     topics_covered_this_session: List[str] = field(default_factory=list)
     
-    # 🔥 NEW: Topic session tracking
+    # Topic session tracking
     topic_sessions: Dict[str, TopicSessionState] = field(default_factory=dict)
     
     # Current context
     current_question: Optional[str] = None
     current_topic: Optional[str] = None
-    current_subtopic: Optional[str] = None  # 🔥 NEW
+    current_subtopic: Optional[str] = None
     current_difficulty: str = "medium"
     followup_count: int = 0
     question_start_time: Optional[float] = None
