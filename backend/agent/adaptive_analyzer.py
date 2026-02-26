@@ -54,6 +54,47 @@ class AdaptiveAnalyzer:
     ]
     
     @classmethod
+    def _concept_in_answer(cls, concept: str, answer_lower: str) -> bool:
+        """
+        INVARIANT 1: Detect concept with synonym support
+        Used for concept mastery tracking
+        """
+        concept_lower = concept.lower()
+        
+        # Direct match
+        if concept_lower in answer_lower:
+            return True
+        
+        # Multi-word concept without spaces
+        if ' ' in concept_lower:
+            concept_no_space = concept_lower.replace(' ', '')
+            answer_no_space = answer_lower.replace(' ', '')
+            if concept_no_space in answer_no_space:
+                return True
+        
+        # Synonym mapping
+        synonyms = {
+            'mutex': ['mutex', 'mutual exclusion', 'lock'],
+            'semaphore': ['semaphore', 'counting semaphore', 'binary semaphore'],
+            'critical section': ['critical section', 'critical region'],
+            'deadlock': ['deadlock', 'deadly embrace'],
+            'process': ['process', 'task'],
+            'thread': ['thread', 'lightweight process'],
+            'primary key': ['primary key', 'primary-key', 'pk'],
+            'foreign key': ['foreign key', 'foreign-key', 'fk'],
+            'avoidance': ['banker', 'safe state', 'avoidance'],
+            'prevention': ['prevention', 'prevent'],
+            'detection': ['detection', 'detect', 'wait-for graph']
+        }
+        
+        if concept_lower in synonyms:
+            for synonym in synonyms[concept_lower]:
+                if synonym in answer_lower:
+                    return True
+        
+        return False
+    
+    @classmethod
     def extract_keywords(cls, text: str, topic: str = None) -> Set[str]:
         """Extract important keywords, optionally filtered by topic"""
         words = set(re.findall(r'\b[a-zA-Z]{3,}\b', text.lower()))
@@ -149,18 +190,19 @@ class AdaptiveAnalyzer:
 
     @classmethod
     def analyze(cls, question: str, answer: str, topic: str = None, 
-                subtopic: str = None, question_bank = None,  # 🔥 NEW: Add subtopic and question_bank params
+                subtopic: str = None, question_bank = None,
                 expected_answer: str = None) -> dict:
         """
         Comprehensive analysis with adaptive learning signals
         ALL metrics are RAW values (0.0 to 1.0) - NO SCALING
+        INVARIANT 1: Concept detection uses synonym support
         """
         if not answer or not answer.strip() or len(answer.strip()) < 5:
             print(f"⚠️ Empty or very short answer detected, returning zeros")
             return {
                 "keyword_coverage": 0.0,
                 "depth": "shallow",
-                "missing_concepts": [],  # 🔥 Empty for short answers
+                "missing_concepts": [],
                 "covered_concepts": [],
                 "confidence": "low",
                 "key_terms_used": [],
@@ -183,7 +225,7 @@ class AdaptiveAnalyzer:
         depth = cls.assess_depth(answer)
         confidence = cls.assess_confidence(answer)
         
-        # 🔥 FIX: Use subtopic-specific concepts for missing concepts, not broad topic keywords
+        # 🔥 FIX: Use subtopic-specific concepts for missing concepts with synonym support
         missing = []
         covered = []
         
@@ -194,13 +236,20 @@ class AdaptiveAnalyzer:
             if subtopic_concepts:
                 answer_lower = answer.lower()
                 for concept in subtopic_concepts:
-                    if concept in answer_lower:
+                    # Use the enhanced concept detection with synonyms
+                    if cls._concept_in_answer(concept, answer_lower):
                         covered.append(concept)
                     else:
                         missing.append(concept)
                 
                 print(f"🎯 Subtopic concepts for {topic} - {subtopic}: {len(subtopic_concepts)} concepts")
                 print(f"   Covered: {len(covered)}, Missing: {len(missing)}")
+                
+                # Show which specific concepts were detected
+                if covered:
+                    print(f"   ✓ Detected: {covered[:5]}")
+                if missing:
+                    print(f"   ✗ Missing: {missing[:5]}")
             else:
                 # Fallback to old method if subtopic concepts not found
                 missing = cls.identify_missing_concepts(answer, expected_keywords)

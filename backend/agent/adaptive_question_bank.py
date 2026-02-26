@@ -1,20 +1,45 @@
 # backend/agent/adaptive_question_bank.py
 
-from rag import generate_technical_explanation as generate_rag_response
 import random
 import re
-import numpy as np
-from typing import Dict, List, Set, Optional
+from typing import Dict, List, Set, Optional, Tuple
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 
 
-class AdaptiveQuestionBank:
-    """Advanced adaptive question bank with intent-based rotation and duplicate prevention"""
+class SemanticDeduplicator:
+    """Simple semantic deduplication for questions"""
     
-    MAX_CHARS = 400
+    def __init__(self):
+        self.embedder = SentenceTransformer('all-MiniLM-L6-v2')
+        self.similarity_threshold = 0.85
+    
+    def is_duplicate(self, session_id: str, new_question: str, existing_questions: List[str]) -> bool:
+        """Check if question is semantically similar to existing ones"""
+        if not existing_questions:
+            return False
+        
+        new_emb = self.embedder.encode([new_question])[0]
+        
+        for existing in existing_questions:
+            existing_emb = self.embedder.encode([existing])[0]
+            similarity = cosine_similarity([new_emb], [existing_emb])[0][0]
+            if similarity > self.similarity_threshold:
+                return True
+        
+        return False
+
+
+class AdaptiveQuestionBank:
+    """
+    Advanced adaptive question bank with priority-based concept sampling
+    INVARIANT 2: Questions MUST contain sampled concepts
+    INVARIANT 3: Concept sampling uses priority_score sorting (never random)
+    """
+    
     MAX_RETRIES = 5
-    DUP_THRESHOLD = 0.82  # Slightly lower than semantic_dedup for more variety
+    MAX_CHARS = 400
+    DUP_THRESHOLD = 0.85  # For semantic duplicate detection
     
     # Intent-Based Question Rotation
     INTENTS = [
@@ -30,6 +55,13 @@ class AdaptiveQuestionBank:
         "misconception_check"
     ]
     
+    # Intent progression for 3-question sequence
+    INTENT_PROGRESSION = {
+        1: "core_definition",      # Q1: Establish foundation
+        2: "mechanism_flow",        # Q2: Test understanding of how it works
+        3: "conceptual_difference"  # Q3: Deepen with comparisons
+    }
+    
     # Question types for dynamic prompting
     QUESTION_TYPES = [
         "definition",
@@ -40,67 +72,10 @@ class AdaptiveQuestionBank:
         "optimization"
     ]
     
-    # Subtopic Normalization (concept clusters)
-    SUBTOPIC_CLUSTERS = {
-        "Polymorphism": [
-            "Polymorphism",
-            "method overloading",
-            "method overriding",
-            "runtime binding",
-            "compile-time binding",
-            "dynamic dispatch"
-        ],
-        "Memory Management": [
-            "Memory Management",
-            "paging",
-            "segmentation",
-            "Virtual Memory",
-            "page replacement"
-        ],
-        "Process Management": [
-            "Processes",
-            "Threads",
-            "process states",
-            "PCB",
-            "Context Switching"
-        ],
-        "Synchronization": [
-            "Synchronization",
-            "mutex",
-            "semaphore",
-            "monitor",
-            "critical section"
-        ],
-        "Database Design": [
-            "Normalization",
-            "Keys",
-            "functional dependency",
-            "anomalies"
-        ],
-        "Query Optimization": [
-            "Indexing",
-            "Joins",
-            "SQL Aggregation",
-            "query optimization"
-        ],
-        "Transaction Management": [
-            "ACID",
-            "Transactions",
-            "Concurrency Control",
-            "Isolation Levels",
-            "Locking",
-            "Deadlocks"
-        ]
-    }
-    
-    # Intent progression mapping for 3-question sequence
-    INTENT_PROGRESSION = {
-        1: "core_definition",
-        2: "mechanism_flow",
-        3: "conceptual_difference"
-    }
-    
     def __init__(self):
+        # Initialize deduplicator
+        self.dedup = SemanticDeduplicator()
+        
         # Initialize sentence transformer for semantic duplicate detection
         self.embedder = SentenceTransformer("all-MiniLM-L6-v2")
         
@@ -276,7 +251,7 @@ class AdaptiveQuestionBank:
         for topic_name in ["DBMS", "OOPS", "OS"]:
             subtopics = self.subtopics_by_topic.get(topic_name, [])
             print(f"   - {topic_name}: {len(subtopics)} atomic subtopics")
-            
+        
         # Hard Duplicate Avoidance Memory
         # Stores last 3 semantic embeddings per subtopic
         self.embedding_history = {}  # {topic: {subtopic: [embeddings]}}
@@ -297,10 +272,48 @@ class AdaptiveQuestionBank:
             r"diagram": "describe"
         }
     
-    def _get_concepts_for_subtopic(self, topic: str, subtopic: str) -> list:
+    def get_concepts_for_subtopic(self, topic: str, subtopic: str) -> list:
         """Get the internal concepts for a given topic and subtopic"""
         key = f"{topic}:{subtopic}"
         return self.subtopic_concepts.get(key, [])
+    
+    def _get_concepts_for_subtopic(self, topic: str, subtopic: str) -> list:
+        """Internal method to get concepts (alias for get_concepts_for_subtopic)"""
+        return self.get_concepts_for_subtopic(topic, subtopic)
+    
+    def sample_concepts_by_priority(self, topic: str, subtopic: str, mastery_state) -> list:
+        """
+        INVARIANT 3: Sample exactly 2 concepts using priority scores
+        - Higher priority concepts are ALWAYS selected first
+        - No randomness - purely deterministic based on priority
+        """
+        all_concepts = self.get_concepts_for_subtopic(topic, subtopic)
+        
+        if len(all_concepts) < 2:
+            # Not enough concepts, pad with subtopic name
+            print(f"   ⚠️ Not enough concepts ({len(all_concepts)}), padding with subtopic")
+            return all_concepts + [subtopic] * (2 - len(all_concepts))
+        
+        # Score each concept
+        concept_scores = []
+        for concept in all_concepts:
+            if concept in mastery_state.concepts:
+                # Use existing concept's priority score
+                score = mastery_state.concepts[concept].priority_score
+                print(f"      📊 {concept}: priority={score:.2f}")
+            else:
+                # New concept - medium priority
+                score = 1.5
+                print(f"      📊 {concept}: NEW (priority=1.5)")
+            concept_scores.append((concept, score))
+        
+        # INVARIANT 3: Sort by priority (highest first) - NO RANDOM
+        concept_scores.sort(key=lambda x: x[1], reverse=True)
+        
+        # Take top 2 concepts
+        sampled = [c[0] for c in concept_scores[:2]]
+        print(f"      ✅ Selected by priority: {sampled}")
+        return sampled
     
     def _get_question_number(self, topic: str, subtopic: str) -> int:
         """Get the current question number (1-3) for this subtopic based on intent tracker"""
@@ -308,16 +321,13 @@ class AdaptiveQuestionBank:
             return len(self.intent_tracker[topic][subtopic]) + 1
         return 1
     
-    def _normalize_subtopic(self, topic: str, subtopic: str) -> str:
-        """Map detailed subtopic to its conceptual cluster"""
-        for cluster_name, members in self.SUBTOPIC_CLUSTERS.items():
-            if subtopic in members or any(m in subtopic for m in members):
-                return cluster_name
-        return subtopic
-    
     def _get_next_intent(self, topic: str, subtopic: str) -> str:
-        """Get next intent ensuring variety and progression"""
-        
+        """
+        Enforce intent progression per rules:
+        Q1: core_definition
+        Q2: mechanism_flow
+        Q3: conceptual_difference
+        """
         # Initialize tracker
         if topic not in self.intent_tracker:
             self.intent_tracker[topic] = {}
@@ -328,28 +338,35 @@ class AdaptiveQuestionBank:
         used_intents = self.intent_tracker[topic][subtopic]
         question_number = len(used_intents) + 1
         
-        # Force progression for first 3 questions
-        if question_number <= 3:
-            return self.INTENT_PROGRESSION[question_number]
-        
-        # If we've used all intents, reset and start over
-        if len(used_intents) >= len(self.INTENTS):
-            used_intents = []
-            self.intent_tracker[topic][subtopic] = []
-        
-        # Available intents (not used yet)
-        available = [i for i in self.INTENTS if i not in used_intents]
-        
-        # For beyond 3 questions, use deep intents
-        deep_intents = [i for i in available if i in ["edge_case", "debugging_case", "misconception_check", "optimization_reasoning"]]
-        if deep_intents:
-            chosen = random.choice(deep_intents)
+        # INTENT PROGRESSION per rules (EXACTLY)
+        if question_number == 1:
+            intent = "core_definition"
+        elif question_number == 2:
+            intent = "mechanism_flow"
+        elif question_number == 3:
+            intent = "conceptual_difference"
         else:
-            chosen = random.choice(available) if available else random.choice(self.INTENTS)
+            # Beyond 3 questions (rare), use advanced intents
+            advanced_intents = ["edge_case", "debugging_case", "misconception_check", 
+                              "optimization_reasoning", "tradeoff_analysis"]
+            # Reset if we've used all
+            if len(used_intents) >= len(self.INTENTS):
+                self.intent_tracker[topic][subtopic] = []
+                used_intents = []
+            
+            available = [i for i in advanced_intents if i not in used_intents]
+            if available:
+                intent = random.choice(available)
+            else:
+                # If all advanced used, pick any not used
+                all_available = [i for i in self.INTENTS if i not in used_intents]
+                intent = random.choice(all_available) if all_available else random.choice(self.INTENTS)
         
         # Record this intent
-        self.intent_tracker[topic][subtopic].append(chosen)
-        return chosen
+        self.intent_tracker[topic][subtopic].append(intent)
+        
+        print(f"   📍 Intent for Q{question_number}: {intent}")
+        return intent
     
     def _get_next_question_type(self, topic: str, subtopic: str) -> str:
         """Get next question type for variety"""
@@ -412,89 +429,61 @@ class AdaptiveQuestionBank:
     
     def _make_verbal_safe(self, question: str) -> str:
         """Convert to verbal-friendly phrasing"""
-        import re
-        
         # Replace visual/action phrases with verbal ones
         for pattern, replacement in self.verbal_phrases.items():
             question = re.sub(pattern, replacement, question, flags=re.IGNORECASE)
         
         return question
     
-    def _build_prompt(self, topic: str, subtopic: str, intent: str, 
-                     difficulty: str = "medium", user_name: str = "",
-                     weak_concepts: list = None, question_type: str = None,
-                     user_context: str = "") -> str:
+    def _build_prompt_strict(self, topic: str, subtopic: str, intent: str, 
+                            difficulty: str = "medium", user_name: str = "",
+                            weak_concepts: list = None, question_type: str = None,
+                            user_context: str = "", sampled_concepts: list = None) -> str:
         """
-        Build prompt with intent, concepts, and user context
-        Uses at most 2 concepts for sharper, more focused questions
+        STRICT prompt builder - MUST include both sampled concepts
         """
-        
         personalization = f" for {user_name}" if user_name else ""
         
-        # Get internal concepts for this subtopic
-        concepts = self._get_concepts_for_subtopic(topic, subtopic)
-        
-        # CRITICAL: Use at most 2 concepts for sharp focus
-        focus_concepts = []
-        concepts_str = ""
-        
-        if concepts:
-            # If we have weak concepts, prioritize those
-            if weak_concepts and len(weak_concepts) > 0:
-                # Find which weak concepts are in our concept list
-                relevant_weak = [c for c in weak_concepts if c in concepts]
-                if relevant_weak:
-                    # Use up to 2 weak concepts
-                    focus_concepts = relevant_weak[:2]
-                    concepts_str = ", ".join(focus_concepts)
-                    print(f"      📍 Targeting weak concepts in prompt: {focus_concepts}")
-                else:
-                    # No relevant weak concepts, sample randomly
-                    sample_size = min(2, len(concepts))
-                    focus_concepts = random.sample(concepts, sample_size)
-                    concepts_str = ", ".join(focus_concepts)
-                    print(f"      🎲 Random sampling (no weak match): {focus_concepts}")
+        # CRITICAL: Must have sampled concepts
+        if not sampled_concepts or len(sampled_concepts) < 2:
+            # Fallback - should never happen in production
+            concepts = self.get_concepts_for_subtopic(topic, subtopic)
+            if len(concepts) >= 2:
+                sampled_concepts = concepts[:2]
             else:
-                # No weak concepts, sample randomly (max 2)
-                sample_size = min(2, len(concepts))
-                focus_concepts = random.sample(concepts, sample_size)
-                concepts_str = ", ".join(focus_concepts)
-                print(f"      🎲 Random sampling (no weak concepts): {focus_concepts}")
-        else:
-            concepts_str = subtopic
-            focus_concepts = [subtopic]
-            print(f"      ⚠️ No concepts found for {topic}:{subtopic}")
+                sampled_concepts = concepts + [subtopic] * (2 - len(concepts))
         
-        # Determine question type if not provided
-        if not question_type:
-            question_type = self._get_next_question_type(topic, subtopic)
+        concept1 = sampled_concepts[0]
+        concept2 = sampled_concepts[1]
+        
+        print(f"      📍 Building STRICT prompt for: {concept1} and {concept2}")
         
         intent_descriptions = {
-            "core_definition": f"Ask for the fundamental definition or core concept of {subtopic}",
-            "conceptual_difference": f"Ask how concepts within {subtopic} differ from each other or from related concepts",
-            "mechanism_flow": f"Ask about the internal mechanism or workflow of {subtopic}",
-            "real_world_scenario": f"Ask for a real-world application scenario using {subtopic}",
-            "problem_case": f"Present a problem that requires understanding of {subtopic} to solve",
-            "edge_case": f"Ask about edge cases or unusual situations related to {subtopic}",
-            "tradeoff_analysis": f"Ask about tradeoffs, pros and cons in {subtopic}",
-            "debugging_case": f"Present a debugging scenario related to {subtopic}",
-            "optimization_reasoning": f"Ask about optimization strategies for {subtopic}",
-            "misconception_check": f"Address a common misconception about {subtopic}"
+            "core_definition": f"Ask for definition of {concept1} and {concept2}",
+            "conceptual_difference": f"Ask how {concept1} differs from {concept2}",
+            "mechanism_flow": f"Ask how {concept1} and {concept2} work together",
+            "real_world_scenario": f"Ask for scenario using {concept1} and {concept2}",
+            "problem_case": f"Present problem involving {concept1} and {concept2}",
+            "edge_case": f"Ask about edge cases with {concept1} and {concept2}",
+            "tradeoff_analysis": f"Ask about tradeoffs between {concept1} and {concept2}",
+            "debugging_case": f"Present debugging scenario with {concept1} and {concept2}",
+            "optimization_reasoning": f"Ask about optimizing {concept1} and {concept2}",
+            "misconception_check": f"Address misconception about {concept1} and {concept2}"
         }
         
-        intent_desc = intent_descriptions.get(intent, f"Ask a technical question about {subtopic}")
+        intent_desc = intent_descriptions.get(intent, f"Ask about {concept1} and {concept2}")
         
         # Question type guidance
         question_type_guidance = {
-            "definition": "Focus on definitions and core concepts",
-            "comparison": "Ask to compare different concepts or approaches",
-            "scenario": "Present a real-world scenario and ask how to apply the concept",
-            "code": "Ask for code or pseudo-code implementation",
-            "debugging": "Present broken code or scenario and ask to debug",
-            "optimization": "Focus on performance and optimization"
+            "definition": f"Focus on definitions of {concept1} and {concept2}",
+            "comparison": f"Compare and contrast {concept1} and {concept2}",
+            "scenario": f"Present a real-world scenario involving {concept1} and {concept2}",
+            "code": f"Ask for code example demonstrating {concept1} and {concept2}",
+            "debugging": f"Present a debugging scenario involving {concept1} and {concept2}",
+            "optimization": f"Focus on performance and optimization of {concept1} and {concept2}"
         }
         
-        type_guidance = question_type_guidance.get(question_type, "")
+        type_guidance = question_type_guidance.get(question_type, f"Focus on {concept1} and {concept2}")
         
         # Add user context if available (weak concepts, previous mistakes)
         context_section = ""
@@ -503,36 +492,48 @@ class AdaptiveQuestionBank:
         elif user_context:
             context_section = f"\n{user_context}"
         
+        # STRICT RULES - MUST include both concepts
         prompt = f"""
 You are a technical interviewer conducting a job interview{personalization}.
 
-Generate ONE interview question about:
+STRICT REQUIREMENTS - MUST FOLLOW EXACTLY:
+
+1. The question MUST explicitly mention BOTH of these concepts:
+   - "{concept1}"
+   - "{concept2}"
+
+2. The question MUST directly test understanding of how these concepts relate
+
+3. Do NOT ask about other concepts - focus ONLY on {concept1} and {concept2}
+
 Topic: {topic}
 Subtopic: {subtopic}
-Key concepts within this subtopic: {concepts_str}
-Intent: {intent}
-Question Type: {question_type}
+Intent: {intent} - {intent_desc}
+Question Type: {question_type} - {type_guidance}
 Difficulty: {difficulty}{context_section}
 
-INTENT GUIDANCE:
-{intent_desc}
+Generate ONE technical interview question that:
+- Explicitly includes "{concept1}" and "{concept2}" in the text
+- Tests understanding of both concepts
+- Is answerable verbally in an interview
+- Is under {self.MAX_CHARS} characters
 
-QUESTION TYPE GUIDANCE:
-{type_guidance}
-
-STRICT RULES:
-- Ask ONLY the question - NO introductions, NO commentary, NO explanations
-- NO phrases like "let's talk about", "I'd like to ask", "here's a question"
-- NO "show me" - use "describe" or "explain" instead
-- Question must be answerable VERBALLY in an interview
-- Question must be UNDER {self.MAX_CHARS} characters
-- Focus specifically on {subtopic} and its concepts: {concepts_str}
-- Be direct and conversational, like a real interviewer
-- Do NOT simply list the concepts - create a meaningful question around them
-
-Generate ONLY the question text:
+Question:
 """
         return prompt
+    
+    def _build_prompt(self, topic: str, subtopic: str, intent: str, 
+                     difficulty: str = "medium", user_name: str = "",
+                     weak_concepts: list = None, question_type: str = None,
+                     user_context: str = "", sampled_concepts: list = None) -> str:
+        """
+        Legacy prompt builder - kept for backward compatibility
+        Delegates to strict version
+        """
+        return self._build_prompt_strict(
+            topic, subtopic, intent, difficulty, user_name,
+            weak_concepts, question_type, user_context, sampled_concepts
+        )
     
     def _enforce_length(self, question: str) -> str:
         """Enforce length limit - reject if too long, don't truncate"""
@@ -541,9 +542,10 @@ Generate ONLY the question text:
         return None  # Signal to retry
     
     def _clean_question(self, text: str) -> str:
-        """Clean question text"""
+        """Clean question text - aggressively remove any non-question content"""
         # Remove common prefixes
-        text = re.sub(r"^(Question:|Interviewer:|AI:|Assistant:)", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"^(Question:|Interviewer:|AI:|Assistant:|Here'?s (a|the) question:)", "", text, flags=re.IGNORECASE)
+        text = re.sub(r"^(Okay|Alright|Sure|Let me|I'll|Let's).*?[:.]", "", text, flags=re.IGNORECASE)
         text = text.strip()
         
         # Remove markdown
@@ -552,31 +554,68 @@ Generate ONLY the question text:
         # Remove quotes
         text = text.strip('"\'')
         
-        # Ensure it's a question
+        # Find the first question mark and take everything up to it
         if "?" in text:
-            # Take everything up to and including first question mark
-            text = text[:text.index("?")+1]
+            # Find the position of the first '?'
+            q_pos = text.index('?')
+            # Find the start of that sentence (previous '.', '!', or start of string)
+            start = max(text.rfind('.', 0, q_pos), text.rfind('!', 0, q_pos), text.rfind('\n', 0, q_pos)) + 1
+            if start > 0:
+                text = text[start:q_pos+1].strip()
+            else:
+                text = text[:q_pos+1].strip()
         else:
             # Add question mark if missing
             text += "?"
         
         return text
     
-    def generate_question(self, topic: str, subtopic: str, difficulty: str = "medium", 
-                         user_name: str = "", weak_concepts: list = None,
-                         user_context: str = "") -> str:
+    def validate_question(self, question: str, concepts: List[str]) -> bool:
         """
-        Main question generation method with full pipeline:
-        1. Intent selection with progression
-        2. Question type selection for variety
-        3. Prompt building with internal concepts
-        4. RAG generation
-        5. Duplicate check
-        6. Length enforcement
-        7. Verbal-safe conversion
+        INVARIANT 2: Validate that question contains both concepts
+        Returns True if valid, False if invalid
+        """
+        question_lower = question.lower()
         
-        Now uses atomic subtopics with internal concepts for better questions
+        for concept in concepts:
+            concept_lower = concept.lower()
+            
+            # Direct match
+            if concept_lower in question_lower:
+                continue
+            
+            # For multi-word concepts, check without spaces
+            if ' ' in concept_lower:
+                concept_no_space = concept_lower.replace(' ', '')
+                if concept_no_space in question_lower.replace(' ', ''):
+                    continue
+            
+            # Concept missing
+            print(f"   ❌ Missing concept: '{concept}'")
+            return False
+        
+        return True
+    
+    def generate_question_with_sampled_concepts(self, session_id: str = None, topic: str = None, 
+                                           subtopic: str = None, difficulty: str = "medium", 
+                                           user_name: str = "", weak_concepts: list = None,
+                                           user_context: str = "", history: List[str] = None) -> Tuple[str, list]:
         """
+        Generate question AND return the sampled concepts
+        Returns (question_text, sampled_concepts)
+        
+        Args:
+            session_id: Not used (kept for backward compatibility)
+            topic: The topic (DBMS, OS, OOPS)
+            subtopic: The subtopic within the topic
+            difficulty: easy/medium/hard
+            user_name: For personalization
+            weak_concepts: Concepts to target (may be None)
+            user_context: Additional context
+            history: List of questions already asked in this session (for duplicate prevention)
+        """
+        if history is None:
+            history = []
         
         print("\n" + "─"*70)
         print("📝 QUESTION GENERATION")
@@ -585,113 +624,227 @@ Generate ONLY the question text:
         print(f"   Subtopic:  {subtopic}")
         print(f"   Difficulty:{difficulty.upper()}")
         
-        # 🔥 CRITICAL DEBUG: Show if weak concepts are received
-        if weak_concepts:
-            print(f"   🎯 Weak concepts provided: {weak_concepts[:5]}")
-        else:
-            print(f"   ⚠️ No weak concepts provided")
-        
         question_number = self._get_question_number(topic, subtopic)
         print(f"   Question #:{question_number}/3")
         
-        # Show concept pool
-        concepts = self._get_concepts_for_subtopic(topic, subtopic)
-        print(f"\n   Concept pool:")
-        for i, concept in enumerate(concepts, 1):
-            print(f"      {i}. {concept}")
+        # Get concept pool
+        concepts = self.get_concepts_for_subtopic(topic, subtopic)
+        print(f"\n   Concept pool: {concepts}")
         
-        # Show concept sampling logic
-        focus_concepts = []
-        if weak_concepts:
-            relevant_weak = [c for c in weak_concepts if c in concepts]
-            if relevant_weak:
-                focus_concepts = relevant_weak[:2]
-                print(f"\n   🎯 Targeting weaknesses:")
-                for concept in focus_concepts:
-                    print(f"      - {concept} (weak)")
-            else:
-                sample_size = min(2, len(concepts))
-                focus_concepts = random.sample(concepts, sample_size)
-                print(f"\n   🎲 Random sampling (no weak concepts in this subtopic):")
-                for concept in focus_concepts:
-                    print(f"      - {concept}")
+        # Use provided weak_concepts if available, otherwise generate by priority
+        if weak_concepts and len(weak_concepts) >= 2:
+            sampled_concepts = weak_concepts[:2]
+            print(f"\n   🎯 Using provided weak concepts: {sampled_concepts}")
         else:
-            sample_size = min(2, len(concepts))
-            focus_concepts = random.sample(concepts, sample_size)
-            print(f"\n   🎲 Random sampling:")
-            for concept in focus_concepts:
-                print(f"      - {concept}")
+            # We need mastery state for priority sampling, but if not available,
+            # just use first two concepts as fallback
+            if len(concepts) >= 2:
+                sampled_concepts = concepts[:2]
+                print(f"\n   ⚠️ No mastery state, using first concepts: {sampled_concepts}")
+            else:
+                sampled_concepts = concepts + [subtopic] * (2 - len(concepts))
+                print(f"\n   ⚠️ Fallback with padding: {sampled_concepts}")
         
-        # Show intent progression
+        # Get intent
         intent = self._get_next_intent(topic, subtopic)
-        intent_map = {
-            "core_definition": "1️⃣ DEFINITION (What is it?)",
-            "mechanism_flow": "2️⃣ MECHANISM (How does it work?)",
-            "conceptual_difference": "3️⃣ COMPARISON (How are they different?)",
-            "real_world_scenario": "🌍 REAL-WORLD SCENARIO",
-            "problem_case": "🔧 PROBLEM CASE",
-            "edge_case": "⚠️ EDGE CASE",
-            "tradeoff_analysis": "⚖️ TRADEOFF ANALYSIS",
-            "debugging_case": "🐛 DEBUGGING CASE",
-            "optimization_reasoning": "⚡ OPTIMIZATION REASONING",
-            "misconception_check": "❓ MISCONCEPTION CHECK"
-        }
+        print(f"   📍 Intent: {intent}")
         
-        print(f"\n   Intent:    {intent_map.get(intent, intent)}")
-        
+        # Generate question for these concepts
         for attempt in range(self.MAX_RETRIES):
-            # Get question type for variety
             question_type = self._get_next_question_type(topic, subtopic)
             
-            # Build prompt with internal concepts AND WEAK CONCEPTS
-            prompt = self._build_prompt(
+            # Use the strict prompt builder
+            prompt = self._build_prompt_strict(
                 topic, subtopic, intent, difficulty, 
                 user_name, weak_concepts, question_type,
-                user_context
+                user_context, sampled_concepts
             )
             
             try:
-                # Generate with RAG
-                from rag import generate_technical_explanation as generate_rag_response
-                raw = generate_rag_response("question", prompt)
+                # Use the dedicated interview question generator
+                from rag import generate_interview_question as generate_rag_response
+                raw = generate_rag_response(prompt, topic)
                 
-                # Clean
-                question = self._clean_question(raw)
-                
-                # Make verbal-safe
-                question = self._make_verbal_safe(question)
-                
-                # Check length (reject if too long)
-                question = self._enforce_length(question)
-                if question is None:
-                    print(f"   ⚠️ Attempt {attempt + 1}: Question too long, retrying...")
+                if not raw:
+                    print(f"   ⚠️ Attempt {attempt + 1}: No response, retrying...")
                     continue
                 
-                # Check for duplicates
-                if not self._is_duplicate(topic, subtopic, question):
-                    print(f"\n   ✅ Generated: {question}")
-                    print("─"*70)
-                    return question
-                else:
-                    print(f"   🔄 Attempt {attempt + 1}: Duplicate detected, retrying with different intent...")
+                # Clean the question
+                question = self._clean_question(raw)
+                
+                # If question is too long, try to extract just the question part
+                if len(question) > 300:
+                    # Look for lines that might contain the question
+                    lines = question.split('\n')
+                    for line in lines:
+                        line = line.strip()
+                        if '?' in line and len(line) < 200:
+                            # This might be the actual question
+                            question = line
+                            break
+                
+                question = self._make_verbal_safe(question)
+                
+                # Check length
+                if len(question) > self.MAX_CHARS:
+                    print(f"   ⚠️ Attempt {attempt + 1}: Question too long ({len(question)} chars), retrying...")
+                    continue
+                
+                # INVARIANT 2: Validate concept inclusion
+                if not self.validate_question(question, sampled_concepts):
+                    print(f"   ⚠️ Attempt {attempt + 1}: Missing concepts, retrying...")
+                    continue
+                
+                # Check for duplicates using history (current session)
+                if question in history:
+                    print(f"   ⚠️ Attempt {attempt + 1}: Exact duplicate in session, retrying...")
+                    continue
+                
+                # Check for semantic duplicates within this subtopic (cross-session)
+                if self._is_duplicate(topic, subtopic, question):
+                    print(f"   ⚠️ Attempt {attempt + 1}: Semantic duplicate found, retrying...")
+                    continue
+                
+                print(f"\n   ✅ Generated: {question}")
+                print(f"   🎯 Sampled concepts: {sampled_concepts}")
+                print(f"   ✓ Concept verification: Both present")
+                print("─"*70)
+                return question, sampled_concepts
                     
             except Exception as e:
-                print(f"   ⚠️ Generation attempt {attempt + 1} failed: {e}")
+                print(f"   ⚠️ Attempt {attempt + 1} failed: {e}")
                 continue
         
-        # Hard fallback - simple template question using concepts
-        if concepts:
-            concept_sample = random.choice(concepts)
-            fallback = f"Can you explain {concept_sample} and how it applies to {subtopic} in {topic}?"
+        # Fallback
+        if concepts and sampled_concepts:
+            fallback = f"Explain how {sampled_concepts[0]} and {sampled_concepts[1]} work together in {subtopic}?"
         else:
-            fallback = f"What are the key concepts and practical applications of {subtopic} in {topic}?"
+            fallback = f"What are the key concepts of {subtopic} in {topic}?"
         
-        print(f"   ⚠️ All {self.MAX_RETRIES} attempts failed, using fallback")
-        print(f"\n   ✅ Generated (fallback): {fallback}")
+        print(f"   ⚠️ Using fallback after {self.MAX_RETRIES} attempts")
+        print(f"\n   ✅ Generated: {fallback}")
+        print(f"   🎯 Sampled concepts: {sampled_concepts}")
+        print("─"*70)
+        return fallback, sampled_concepts
+    
+    def generate_question(self, topic: str, subtopic: str, concepts: List[str], 
+                         difficulty: str = "medium", user_name: str = "", 
+                         history: List[str] = None) -> str:
+        """
+        Generate a question that MUST include both sampled concepts
+        This is the main method called by the controller
+        
+        Args:
+            topic: The topic (DBMS, OS, OOPS)
+            subtopic: The subtopic within the topic
+            concepts: List of 2 concepts that MUST appear in the question
+            difficulty: easy/medium/hard
+            user_name: For personalization
+            history: List of questions already asked in this session
+        """
+        if history is None:
+            history = []
+        
+        print("\n" + "─"*70)
+        print("📝 GENERATE QUESTION (DIRECT)")
+        print("─"*70)
+        print(f"   Topic:     {topic}")
+        print(f"   Subtopic:  {subtopic}")
+        print(f"   Concepts:  {concepts[0]}, {concepts[1]}")
+        print(f"   Difficulty:{difficulty.upper()}")
+        
+        concept1, concept2 = concepts[0], concepts[1]
+        
+        # Get intent based on question number
+        intent = self._get_next_intent(topic, subtopic)
+        print(f"   📍 Intent: {intent}")
+        
+        # Generate question using RAG with strict prompt
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                # Build strict prompt
+                prompt = self._build_prompt_strict(
+                    topic=topic,
+                    subtopic=subtopic,
+                    intent=intent,
+                    difficulty=difficulty,
+                    user_name=user_name,
+                    weak_concepts=None,
+                    question_type=None,
+                    user_context="",
+                    sampled_concepts=concepts
+                )
+                
+                # Generate using RAG
+                from rag import generate_interview_question
+                raw = generate_interview_question(prompt, topic)
+                
+                if not raw:
+                    print(f"   ⚠️ Attempt {attempt + 1}: No response, retrying...")
+                    continue
+                
+                # Clean the question
+                question = self._clean_question(raw)
+                question = self._make_verbal_safe(question)
+                
+                # Check length
+                if len(question) > self.MAX_CHARS:
+                    print(f"   ⚠️ Attempt {attempt + 1}: Question too long ({len(question)} chars), retrying...")
+                    continue
+                
+                # INVARIANT 2: Validate concept inclusion
+                if not self.validate_question(question, concepts):
+                    print(f"   ⚠️ Attempt {attempt + 1}: Missing concepts, retrying...")
+                    continue
+                
+                # Check for duplicates in current session
+                if question in history:
+                    print(f"   ⚠️ Attempt {attempt + 1}: Duplicate in session, retrying...")
+                    continue
+                
+                # Check for semantic duplicates across sessions
+                if self._is_duplicate(topic, subtopic, question):
+                    print(f"   ⚠️ Attempt {attempt + 1}: Semantic duplicate found, retrying...")
+                    continue
+                
+                print(f"\n   ✅ Generated: {question}")
+                print("─"*70)
+                return question
+                
+            except Exception as e:
+                print(f"   ⚠️ Attempt {attempt + 1} failed: {e}")
+                continue
+        
+        # Fallback - should rarely happen
+        fallback = f"Explain how {concept1} and {concept2} work together in {subtopic}?"
+        print(f"   ⚠️ Using fallback after {self.MAX_RETRIES} attempts")
+        print(f"   ✅ Generated: {fallback}")
         print("─"*70)
         return fallback
     
-    # 🔥 FIXED: All wrappers now accept and pass weak_concepts
+    # Legacy method for backward compatibility
+    def generate_question_legacy(self, topic: str, subtopic: str, difficulty: str = "medium", 
+                                user_name: str = "", weak_concepts: list = None,
+                                user_context: str = "") -> str:
+        """
+        Legacy method - kept for backward compatibility
+        """
+        # For legacy calls, we need to get concepts somehow
+        concepts = self.get_concepts_for_subtopic(topic, subtopic)
+        if len(concepts) >= 2:
+            sampled = concepts[:2]
+        else:
+            sampled = concepts + [subtopic] * (2 - len(concepts))
+        
+        return self.generate_question(
+            topic=topic,
+            subtopic=subtopic,
+            concepts=sampled,
+            difficulty=difficulty,
+            user_name=user_name,
+            history=[]
+        )
+    
     def generate_first_question(self, topic: str, subtopic: str = None, 
                                difficulty: str = "medium", user_name: str = "",
                                weak_concepts: list = None) -> str:
@@ -700,18 +853,45 @@ Generate ONLY the question text:
             subtopics = self.subtopics_by_topic.get(topic, [])
             subtopic = random.choice(subtopics) if subtopics else "core concepts"
         
+        # For first question, we need concepts
+        if weak_concepts and len(weak_concepts) >= 2:
+            concepts = weak_concepts[:2]
+        else:
+            concepts = self.get_concepts_for_subtopic(topic, subtopic)
+            if len(concepts) >= 2:
+                concepts = concepts[:2]
+            else:
+                concepts = concepts + [subtopic] * (2 - len(concepts))
+        
         return self.generate_question(
-            topic, subtopic, difficulty, user_name, 
-            weak_concepts=weak_concepts
+            topic=topic,
+            subtopic=subtopic,
+            concepts=concepts,
+            difficulty=difficulty,
+            user_name=user_name,
+            history=[]
         )
     
     def generate_question_for_subtopic(self, topic: str, subtopic: str, 
                                       difficulty: str = "medium",
                                       weak_concepts: list = None) -> str:
         """Wrapper for subtopic-specific question with weak concept targeting"""
+        if weak_concepts and len(weak_concepts) >= 2:
+            concepts = weak_concepts[:2]
+        else:
+            concepts = self.get_concepts_for_subtopic(topic, subtopic)
+            if len(concepts) >= 2:
+                concepts = concepts[:2]
+            else:
+                concepts = concepts + [subtopic] * (2 - len(concepts))
+        
         return self.generate_question(
-            topic, subtopic, difficulty, 
-            weak_concepts=weak_concepts
+            topic=topic,
+            subtopic=subtopic,
+            concepts=concepts,
+            difficulty=difficulty,
+            user_name="",
+            history=[]
         )
     
     def generate_gap_followup(self, topic: str, missing_concepts: list, 
@@ -726,19 +906,20 @@ Generate ONLY the question text:
             intent = random.choice(forced_intents)
             
             # Pass missing concepts as weak concepts
-            prompt = self._build_prompt(
+            prompt = self._build_prompt_strict(
                 topic, current_subtopic, intent, difficulty,
-                weak_concepts=missing_concepts
+                weak_concepts=missing_concepts, sampled_concepts=missing_concepts[:2]
             )
             try:
-                from rag import generate_technical_explanation as generate_rag_response
-                raw = generate_rag_response("gap followup", prompt)
-                question = self._clean_question(raw)
-                question = self._make_verbal_safe(question)
-                
-                if question and len(question) <= self.MAX_CHARS:
-                    if not self._is_duplicate(topic, current_subtopic, question):
-                        return question
+                from rag import generate_interview_question as generate_rag_response
+                raw = generate_rag_response(prompt, topic)
+                if raw:
+                    question = self._clean_question(raw)
+                    question = self._make_verbal_safe(question)
+                    
+                    if question and len(question) <= self.MAX_CHARS:
+                        if not self._is_duplicate(topic, current_subtopic, question):
+                            return question
             except:
                 pass
             
@@ -756,7 +937,7 @@ Generate ONLY the question text:
         subtopic = missing_concepts[0] if missing_concepts else topic
         
         # Get concepts for simpler targeting
-        concepts = self._get_concepts_for_subtopic(topic, subtopic)
+        concepts = self.get_concepts_for_subtopic(topic, subtopic)
         simple_concept = concepts[0] if concepts else subtopic
         
         prompt = f"""
@@ -767,13 +948,14 @@ Question must be under {self.MAX_CHARS} characters.
 Return ONLY the question.
 """
         try:
-            from rag import generate_technical_explanation as generate_rag_response
-            raw = generate_rag_response("simplified", prompt)
-            question = self._clean_question(raw)
-            question = self._make_verbal_safe(question)
-            
-            if question and len(question) <= self.MAX_CHARS:
-                return question
+            from rag import generate_interview_question as generate_rag_response
+            raw = generate_rag_response(prompt, topic)
+            if raw:
+                question = self._clean_question(raw)
+                question = self._make_verbal_safe(question)
+                
+                if question and len(question) <= self.MAX_CHARS:
+                    return question
         except:
             pass
         
@@ -795,21 +977,54 @@ Return ONLY the question.
         else:
             subtopic = random.choice(subtopics) if subtopics else topic
         
-        return self.generate_question(topic, subtopic, "hard")
+        # Get concepts for this subtopic
+        concepts = self.get_concepts_for_subtopic(topic, subtopic)
+        if len(concepts) >= 2:
+            sampled = concepts[:2]
+        else:
+            sampled = concepts + [subtopic] * (2 - len(concepts))
+        
+        return self.generate_question(
+            topic=topic,
+            subtopic=subtopic,
+            concepts=sampled,
+            difficulty="hard",
+            user_name="",
+            history=[]
+        )
     
     def generate_question_with_context(self, topic: str, subtopic: str, 
                                       user_context: str, difficulty: str = "medium") -> str:
         """Generate question with specific user context (previous mistakes, weak areas)"""
-        return self.generate_question(topic, subtopic, difficulty, 
-                                     user_context=user_context)
+        concepts = self.get_concepts_for_subtopic(topic, subtopic)
+        if len(concepts) >= 2:
+            sampled = concepts[:2]
+        else:
+            sampled = concepts + [subtopic] * (2 - len(concepts))
+        
+        # For context, we need to build a custom prompt
+        intent = self._get_next_intent(topic, subtopic)
+        prompt = self._build_prompt_strict(
+            topic, subtopic, intent, difficulty,
+            user_context=user_context, sampled_concepts=sampled
+        )
+        
+        try:
+            from rag import generate_interview_question as generate_rag_response
+            raw = generate_rag_response(prompt, topic)
+            if raw:
+                question = self._clean_question(raw)
+                question = self._make_verbal_safe(question)
+                if question and len(question) <= self.MAX_CHARS:
+                    return question
+        except:
+            pass
+        
+        return f"Explain {subtopic} in {topic} focusing on {sampled[0]} and {sampled[1]}."
     
     def _get_subtopics(self, topic: str) -> list:
         """Get subtopics for a topic"""
         return self.subtopics_by_topic.get(topic, [])
-    
-    def get_concepts_for_subtopic(self, topic: str, subtopic: str) -> list:
-        """Public method to get concepts for a subtopic"""
-        return self._get_concepts_for_subtopic(topic, subtopic)
     
     def reset_tracker(self, user_id: int = None):
         """Reset intent and embedding trackers (useful for testing or reset)"""

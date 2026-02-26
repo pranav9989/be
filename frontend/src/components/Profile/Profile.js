@@ -85,7 +85,7 @@ const Profile = ({ user, onLogout }) => {
     setSelectedSubtopic({ topic, name: subtopicName });
 
     // Get subtopic details from subtopicStats
-    let details = { mastery: 0, attempts: 0, status: 'new' };
+    let details = { mastery: 0, attempts: 0, status: 'not_started' };
     if (subtopicStats?.by_topic?.[topic]?.subtopics?.[subtopicName]) {
       details = subtopicStats.by_topic[topic].subtopics[subtopicName];
     }
@@ -130,24 +130,68 @@ const Profile = ({ user, onLogout }) => {
     setTimeout(() => setMessage({ type: '', text: '' }), 5000);
   };
 
+  // ========== MASTERY COLOR FUNCTIONS ==========
   const getMasteryColor = (level) => {
     if (level >= 0.7) return '#10B981'; // Strong - Green
     if (level >= 0.4) return '#F59E0B'; // Medium - Orange
     return '#EF4444'; // Weak - Red
   };
 
-  const getMasteryStatus = (level, stability) => {
-    if (level >= 0.7 && stability >= 0.6) return 'strong';
-    if (level < 0.4 || stability < 0.3) return 'weak';
+  const getMasteryStatus = (level) => {
+    if (level >= 0.7) return 'strong';
+    if (level < 0.4) return 'weak';
     return 'medium';
   };
 
-  const getSubtopicStatus = (mastery, status) => {
-    if (status === 'weak') return 'weak';
-    if (status === 'strong') return 'strong';
-    if (mastery >= 0.7) return 'strong';
-    if (mastery >= 0.4) return 'medium';
-    return 'weak';
+  // ========== SUBTOPIC STATUS FUNCTIONS ==========
+  const getSubtopicStatusDisplay = (status, mastery) => {
+    if (status === 'mastered') return 'mastered';
+    if (status === 'ongoing') return 'ongoing';
+    if (status === 'not_started') return 'not_started';
+    // Fallback to mastery-based if status not available
+    return getMasteryStatus(mastery);
+  };
+
+  const getSubtopicStatusColor = (status, mastery) => {
+    const displayStatus = getSubtopicStatusDisplay(status, mastery);
+    if (displayStatus === 'mastered' || displayStatus === 'strong') return '#10B981';
+    if (displayStatus === 'ongoing' || displayStatus === 'medium') return '#F59E0B';
+    if (displayStatus === 'weak') return '#EF4444';
+    return '#94A3B8'; // not_started - gray
+  };
+
+  const getSubtopicStatusIcon = (status, mastery) => {
+    const displayStatus = getSubtopicStatusDisplay(status, mastery);
+    if (displayStatus === 'mastered') return '✅';
+    if (displayStatus === 'strong') return '💪';
+    if (displayStatus === 'ongoing') return '📚';
+    if (displayStatus === 'weak') return '⚠️';
+    return '🆕'; // not_started
+  };
+
+  const getSubtopicStatusText = (status, mastery) => {
+    const displayStatus = getSubtopicStatusDisplay(status, mastery);
+    if (displayStatus === 'mastered') return 'Mastered (3+ Q, ≥70%)';
+    if (displayStatus === 'strong') return 'Strong Subtopic';
+    if (displayStatus === 'ongoing') return 'In Progress';
+    if (displayStatus === 'weak') return 'Needs Practice';
+    return 'Not Started';
+  };
+
+  // ========== CONCEPT STATUS FUNCTIONS ==========
+  const getConceptStatus = (conceptData) => {
+    if (!conceptData) return 'new';
+    if (conceptData.attempts < 3) return 'new';
+    if (conceptData.is_weak) return 'weak';
+    if (conceptData.is_strong) return 'strong';
+    return 'medium';
+  };
+
+  const getConceptStatusColor = (status) => {
+    if (status === 'strong') return '#10B981';
+    if (status === 'weak') return '#EF4444';
+    if (status === 'medium') return '#F59E0B';
+    return '#94A3B8'; // new
   };
 
   const formatMastery = (level) => {
@@ -267,8 +311,8 @@ const Profile = ({ user, onLogout }) => {
               <h3><i className="fas fa-chart-line"></i> Learning Progress</h3>
               <div className="progress-summary">
                 <span className="avg-mastery">
-                  Avg Mastery: <strong style={{ color: getMasteryColor(progress.overall.avg_mastery) }}>
-                    {formatMastery(progress.overall.avg_mastery)}
+                  Avg Mastery: <strong style={{ color: getMasteryColor(progress.overall?.avg_mastery || 0) }}>
+                    {formatMastery(progress.overall?.avg_mastery || 0)}
                   </strong>
                 </span>
               </div>
@@ -279,8 +323,9 @@ const Profile = ({ user, onLogout }) => {
               <p><strong>📊 True Scores (No Inflation):</strong></p>
               <ul>
                 <li><span className="color-dot strong"></span> <strong>Strong Subtopics:</strong> Mastery ≥ 70%</li>
-                <li><span className="color-dot weak"></span> <strong>Weak Subtopics:</strong> Mastery &lt; 40%</li>
                 <li><span className="color-dot medium"></span> <strong>In Progress:</strong> 40% ≤ Mastery &lt; 70%</li>
+                <li><span className="color-dot weak"></span> <strong>Weak Subtopics:</strong> Mastery &lt; 40%</li>
+                <li><span className="color-dot mastered"></span> <strong>Mastered:</strong> 3+ questions & mastery ≥ 70%</li>
               </ul>
             </div>
 
@@ -298,155 +343,144 @@ const Profile = ({ user, onLogout }) => {
               </button>
             </div>
 
-            {/* Strengths, Weaknesses & In Progress */}
-            <div className="sections-grid">
-              {/* Strengths Section */}
-              <div className="strength-card">
-                <h4 className="section-header">
-                  <i className="fas fa-trophy" style={{ color: '#10B981' }}></i>
-                  Your Strengths
-                </h4>
-                {progress.strengths && progress.strengths.length > 0 ? (
-                  <div className="subtopic-section">
-                    {progress.strengths.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="topic-chip strong"
-                        onClick={() => handleSubtopicClick(item.topic, item.subtopic)}
-                      >
-                        <span>{item.topic} → <strong>{item.subtopic}</strong></span>
-                        <div>
-                          <span className="chip-value">{(item.mastery * 100).toFixed(1)}%</span>
-                          <span className="chip-count">{item.attempts} Q</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="no-data">No strong subtopics yet. Keep practicing!</p>
-                )}
-              </div>
+            {/* Subtopics by Status */}
+            {subtopicStats && (
+              <>
+                {/* Mastered Subtopics */}
+                {subtopicStats.by_topic && Object.entries(subtopicStats.by_topic).map(([topicName, topicData]) => {
+                  const mastered = Object.entries(topicData.subtopics || {}).filter(
+                    ([_, data]) => data.status === 'mastered'
+                  );
 
-              {/* Weaknesses Section */}
-              <div className="weakness-card">
-                <h4 className="section-header">
-                  <i className="fas fa-exclamation-triangle" style={{ color: '#EF4444' }}></i>
-                  Areas to Improve
-                </h4>
-                {progress.weak_subtopics && progress.weak_subtopics.length > 0 ? (
-                  <div className="subtopic-section">
-                    {progress.weak_subtopics.map((item, idx) => (
-                      <div
-                        key={idx}
-                        className="topic-chip weak"
-                        onClick={() => handleSubtopicClick(item.topic, item.subtopic)}
-                      >
-                        <span>{item.topic} → <strong>{item.subtopic}</strong></span>
-                        <div>
-                          <span className="chip-value">{(item.mastery * 100).toFixed(1)}%</span>
-                          <span className="chip-count">{item.attempts} Q</span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="no-data">No weak subtopics! Great job!</p>
-                )}
-              </div>
-            </div>
+                  if (mastered.length === 0) return null;
 
-            {/* In Progress Section */}
-            {progress.medium_subtopics && progress.medium_subtopics.length > 0 && (
-              <div className="inprogress-card" style={{ marginTop: '1.5rem' }}>
-                <h4 className="section-header">
-                  <i className="fas fa-spinner" style={{ color: '#F59E0B' }}></i>
-                  In Progress (40% - 70%)
-                </h4>
-                <div className="subtopic-section">
-                  {progress.medium_subtopics.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className="topic-chip medium"
-                      onClick={() => handleSubtopicClick(item.topic, item.subtopic)}
-                    >
-                      <span>{item.topic} → <strong>{item.subtopic}</strong></span>
-                      <div>
-                        <span className="chip-value">{(item.mastery * 100).toFixed(1)}%</span>
-                        <span className="chip-count">{item.attempts} Q</span>
+                  return (
+                    <div key={topicName} className="mastered-section">
+                      <h4 className="section-header">
+                        <i className="fas fa-check-circle" style={{ color: '#10B981' }}></i>
+                        Mastered Subtopics - {topicName}
+                      </h4>
+                      <div className="subtopic-section">
+                        {mastered.map(([name, data]) => (
+                          <div
+                            key={name}
+                            className="topic-chip mastered"
+                            onClick={() => handleSubtopicClick(topicName, name)}
+                          >
+                            <span><strong>{name}</strong></span>
+                            <div>
+                              <span className="chip-value">{formatMastery(data.mastery)}</span>
+                              <span className="chip-count">{data.attempts} Q</span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                  ))}
-                </div>
-              </div>
-            )}
+                  );
+                })}
 
-            {/* All Attempted Subtopics Section */}
-            {progress.all_subtopics && progress.all_subtopics.length > 0 && (
-              <div className="all-subtopics-section">
-                <h4 style={{ marginTop: '2rem', color: '#1E3A8A' }}>
-                  <i className="fas fa-list"></i> All Attempted Subtopics
-                </h4>
-                <div className="subtopic-grid" style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))',
-                  gap: '0.75rem',
-                  marginTop: '1rem'
-                }}>
-                  {progress.all_subtopics.map((item, idx) => {
-                    const masteryColor = getMasteryColor(item.mastery);
-                    return (
-                      <div
-                        key={idx}
-                        className="subtopic-card"
-                        onClick={() => handleSubtopicClick(item.topic, item.subtopic)}
-                        style={{
-                          background: '#F8FAFC',
-                          padding: '0.75rem',
-                          borderRadius: '8px',
-                          border: '1px solid #E2E8F0',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span style={{ fontWeight: 500, color: '#1E3A8A' }}>
-                            {item.topic} → {item.subtopic}
-                          </span>
-                          <span style={{
-                            fontWeight: 600,
-                            color: masteryColor,
-                            background: '#FFFFFF',
-                            padding: '2px 8px',
-                            borderRadius: '12px',
-                            fontSize: '0.75rem'
-                          }}>
-                            {(item.mastery * 100).toFixed(1)}%
-                          </span>
-                        </div>
-                        <div style={{ fontSize: '0.7rem', color: '#64748B', marginTop: '4px' }}>
-                          {item.attempts} question{item.attempts !== 1 ? 's' : ''}
-                        </div>
+                {/* Weak Subtopics */}
+                {subtopicStats.by_topic && Object.entries(subtopicStats.by_topic).map(([topicName, topicData]) => {
+                  const weak = Object.entries(topicData.subtopics || {}).filter(
+                    ([_, data]) => data.status === 'weak'
+                  );
+
+                  if (weak.length === 0) return null;
+
+                  return (
+                    <div key={topicName} className="weak-section">
+                      <h4 className="section-header">
+                        <i className="fas fa-exclamation-triangle" style={{ color: '#EF4444' }}></i>
+                        Need Practice - {topicName}
+                      </h4>
+                      <div className="subtopic-section">
+                        {weak.map(([name, data]) => (
+                          <div
+                            key={name}
+                            className="topic-chip weak"
+                            onClick={() => handleSubtopicClick(topicName, name)}
+                          >
+                            <span><strong>{name}</strong></span>
+                            <div>
+                              <span className="chip-value">{formatMastery(data.mastery)}</span>
+                              <span className="chip-count">{data.attempts} Q</span>
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
+                    </div>
+                  );
+                })}
+
+                {/* Ongoing Subtopics */}
+                {subtopicStats.by_topic && Object.entries(subtopicStats.by_topic).map(([topicName, topicData]) => {
+                  const ongoing = Object.entries(topicData.subtopics || {}).filter(
+                    ([_, data]) => data.status === 'ongoing'
+                  );
+
+                  if (ongoing.length === 0) return null;
+
+                  return (
+                    <div key={topicName} className="ongoing-section">
+                      <h4 className="section-header">
+                        <i className="fas fa-spinner" style={{ color: '#F59E0B' }}></i>
+                        In Progress - {topicName}
+                      </h4>
+                      <div className="subtopic-section">
+                        {ongoing.map(([name, data]) => (
+                          <div
+                            key={name}
+                            className="topic-chip ongoing"
+                            onClick={() => handleSubtopicClick(topicName, name)}
+                          >
+                            <span><strong>{name}</strong></span>
+                            <div>
+                              <span className="chip-value">{formatMastery(data.mastery)}</span>
+                              <span className="chip-count">{data.attempts} Q</span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+
+                {/* Not Started Subtopics */}
+                {subtopicStats.by_topic && Object.entries(subtopicStats.by_topic).map(([topicName, topicData]) => {
+                  const notStarted = topicData.not_started || 0;
+                  if (notStarted === 0) return null;
+
+                  return (
+                    <div key={topicName} className="not-started-section">
+                      <h4 className="section-header">
+                        <i className="fas fa-clock" style={{ color: '#94A3B8' }}></i>
+                        Not Started - {topicName}
+                      </h4>
+                      <div className="subtopic-section">
+                        <span className="not-started-count">{notStarted} subtopics available</span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </>
             )}
 
             {/* Topic Mastery Grid */}
             <h4 className="topics-title">Topic Mastery (Overview)</h4>
             <div className="topics-grid">
-              {Object.entries(progress.topics).map(([topic, data]) => (
+              {Object.entries(progress.topics || {}).map(([topic, data]) => (
                 <div
                   key={topic}
                   className="topic-card minimal"
+                  onClick={() => loadTopicDetails(topic)}
+                  style={{ cursor: 'pointer' }}
                 >
                   <div className="topic-name">
                     {topic}
                   </div>
 
                   <div className="topic-simple-stats">
-                    <span className="topic-mastery">
+                    <span className="topic-mastery" style={{ color: getMasteryColor(data.mastery_level) }}>
                       {formatMastery(data.mastery_level)}
                     </span>
                     <span className="topic-questions">
@@ -456,7 +490,8 @@ const Profile = ({ user, onLogout }) => {
 
                   <button
                     className="reset-btn"
-                    onClick={() => {
+                    onClick={(e) => {
+                      e.stopPropagation();
                       setResetTopic(topic);
                       setShowResetConfirm(true);
                     }}
@@ -477,11 +512,14 @@ const Profile = ({ user, onLogout }) => {
 
               <h3>{selectedSubtopic.topic} - {selectedSubtopic.name}</h3>
 
-              <div className={`topic-status-badge ${subtopicDetails?.status || 'medium'}`}>
-                {subtopicDetails?.status === 'strong' && '💪 Strong Subtopic'}
-                {subtopicDetails?.status === 'weak' && '⚠️ Weak Subtopic - Needs Practice'}
-                {(!subtopicDetails?.status || subtopicDetails.status === 'medium') && '📚 Subtopic In Progress'}
-                {subtopicDetails?.status === 'new' && '🆕 New Subtopic'}
+              <div
+                className="topic-status-badge"
+                style={{
+                  background: getSubtopicStatusColor(subtopicDetails?.status, subtopicDetails?.mastery),
+                  color: 'white'
+                }}
+              >
+                {getSubtopicStatusIcon(subtopicDetails?.status, subtopicDetails?.mastery)} {getSubtopicStatusText(subtopicDetails?.status, subtopicDetails?.mastery)}
               </div>
 
               <div className="mastery-details">
@@ -498,12 +536,22 @@ const Profile = ({ user, onLogout }) => {
                 <div className="detail-item">
                   <span>Status</span>
                   <strong style={{
-                    color: subtopicDetails?.status === 'strong' ? '#10B981' :
-                      subtopicDetails?.status === 'weak' ? '#EF4444' : '#F59E0B'
+                    color: getSubtopicStatusColor(subtopicDetails?.status, subtopicDetails?.mastery)
                   }}>
-                    {subtopicDetails?.status || 'medium'}
+                    {subtopicDetails?.status || 'not_started'}
                   </strong>
                 </div>
+              </div>
+
+              {/* Concept Status Explanation */}
+              <div className="concept-explanation" style={{ margin: '1rem 0', fontSize: '0.85rem', background: '#F1F5F9', padding: '0.75rem', borderRadius: '8px' }}>
+                <p><strong>📊 Concept Status (after 3 attempts):</strong></p>
+                <ul style={{ margin: '0.5rem 0 0 1.5rem' }}>
+                  <li><span style={{ color: '#10B981' }}>Strong</span> = correct ratio {'>'} 70%</li>
+                  <li><span style={{ color: '#EF4444' }}>Weak</span> = miss ratio {'>'} 70%</li>
+                  <li><span style={{ color: '#F59E0B' }}>Medium</span> = between thresholds</li>
+                  <li><span style={{ color: '#94A3B8' }}>New</span> = {'<'} 3 attempts</li>
+                </ul>
               </div>
 
               {/* Recent Questions for this Subtopic */}
@@ -517,6 +565,12 @@ const Profile = ({ user, onLogout }) => {
                       {q.expected_answer && (
                         <div className="expected-answer">
                           <strong>Expected:</strong> {q.expected_answer}
+                        </div>
+                      )}
+                      {/* Show sampled concepts if available */}
+                      {q.sampled_concepts && q.sampled_concepts.length > 0 && (
+                        <div className="sampled-concepts">
+                          <strong>Concepts asked:</strong> {q.sampled_concepts.join(', ')}
                         </div>
                       )}
                       <div className="question-scores">
@@ -554,79 +608,93 @@ const Profile = ({ user, onLogout }) => {
 
               <h3>{selectedTopic} - Detailed Analysis</h3>
 
-              <div className={`topic-status-badge ${getMasteryStatus(
-                topicDetails.mastery.mastery_level,
-                topicDetails.mastery.stability || 0
-              )}`}>
-                {getMasteryStatus(topicDetails.mastery.mastery_level, topicDetails.mastery.stability || 0) === 'strong' && '💪 Strong Topic'}
-                {getMasteryStatus(topicDetails.mastery.mastery_level, topicDetails.mastery.stability || 0) === 'weak' && '⚠️ Weak Topic - Needs Practice'}
-                {getMasteryStatus(topicDetails.mastery.mastery_level, topicDetails.mastery.stability || 0) === 'medium' && '📚 Topic In Progress'}
-              </div>
-
               <div className="mastery-details">
                 <div className="detail-item">
                   <span>Mastery Level</span>
-                  <strong style={{ color: getMasteryColor(topicDetails.mastery.mastery_level) }}>
-                    {formatMastery(topicDetails.mastery.mastery_level)}
+                  <strong style={{ color: getMasteryColor(topicDetails.mastery?.mastery_level || 0) }}>
+                    {formatMastery(topicDetails.mastery?.mastery_level || 0)}
                   </strong>
                 </div>
-                {topicDetails.mastery.stability > 0 && (
-                  <div className="detail-item">
-                    <span>Stability</span>
-                    <strong>{(topicDetails.mastery.stability * 100).toFixed(1)}%</strong>
-                  </div>
-                )}
                 <div className="detail-item">
                   <span>Current Difficulty</span>
-                  <strong className={`difficulty-${topicDetails.mastery.current_difficulty}`}>
-                    {topicDetails.mastery.current_difficulty}
+                  <strong className={`difficulty-${topicDetails.mastery?.current_difficulty || 'medium'}`}>
+                    {topicDetails.mastery?.current_difficulty || 'medium'}
                   </strong>
                 </div>
                 <div className="detail-item">
                   <span>Questions Attempted</span>
-                  <strong>{topicDetails.mastery.questions_attempted}</strong>
+                  <strong>{topicDetails.mastery?.questions_attempted || 0}</strong>
                 </div>
                 <div className="detail-item">
                   <span>Learning Velocity</span>
-                  <strong style={{ color: topicDetails.mastery.learning_velocity > 0 ? '#10B981' : '#EF4444' }}>
-                    {(topicDetails.mastery.learning_velocity * 100).toFixed(1)}%
+                  <strong style={{ color: (topicDetails.mastery?.learning_velocity || 0) > 0 ? '#10B981' : '#EF4444' }}>
+                    {((topicDetails.mastery?.learning_velocity || 0) * 100).toFixed(1)}%
                   </strong>
                 </div>
               </div>
 
-              {/* Weak Concepts Section */}
-              {topicDetails.mastery.weak_concepts?.length > 0 && (
-                <div className="missing-section weak">
-                  <h4>⚠️ Concepts to Improve</h4>
-                  <div className="concept-list">
-                    {topicDetails.mastery.weak_concepts.map(concept => (
-                      <span key={concept} className="concept-tag weak">{concept}</span>
-                    ))}
+              {/* Concept-Level Data */}
+              {topicDetails.mastery?.concept_masteries && (
+                <div className="concept-masteries">
+                  <h4>📚 Concept Mastery (True scores)</h4>
+                  <div className="concept-grid">
+                    {Object.entries(topicDetails.mastery.concept_masteries).map(([conceptName, data]) => {
+                      const status = getConceptStatus(data);
+                      return (
+                        <div key={conceptName} className="concept-item">
+                          <div className="concept-header">
+                            <span className="concept-name">{conceptName}</span>
+                            <span className="concept-status" style={{
+                              background: getConceptStatusColor(status),
+                              color: 'white',
+                              padding: '2px 8px',
+                              borderRadius: '12px',
+                              fontSize: '0.7rem'
+                            }}>
+                              {status}
+                            </span>
+                          </div>
+                          <div className="concept-stats">
+                            <div>Attempts: {data.attempts || 0}</div>
+                            <div>Mentioned: {data.times_mentioned || 0}</div>
+                            <div>Missed: {data.times_missed_when_sampled || 0}</div>
+                            <div>Mastery: {((data.mastery_level || 0) * 100).toFixed(1)}%</div>
+                            {data.stagnation_count > 0 && (
+                              <div className="stagnation">Stagnation: {data.stagnation_count}</div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
               )}
 
-              {/* Strong Concepts Section */}
-              {topicDetails.mastery.strong_concepts?.length > 0 && (
-                <div className="missing-section strong">
-                  <h4>💪 Mastered Concepts</h4>
-                  <div className="concept-list">
-                    {topicDetails.mastery.strong_concepts.map(concept => (
-                      <span key={concept} className="concept-tag strong">{concept}</span>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Missing Concepts */}
-              {topicDetails.mastery.missing_concepts?.length > 0 && (
-                <div className="missing-section">
-                  <h4>📝 Recently Missed</h4>
-                  <div className="concept-list">
-                    {topicDetails.mastery.missing_concepts.map(concept => (
-                      <span key={concept} className="concept-tag">{concept}</span>
-                    ))}
-                  </div>
+              {/* Recent Questions */}
+              {topicDetails.recent_questions?.length > 0 && (
+                <div className="recent-questions">
+                  <h4>Recent Questions</h4>
+                  {topicDetails.recent_questions.map((q, idx) => (
+                    <div key={idx} className="recent-question">
+                      <p className="question-text"><strong>Q:</strong> {q.question}</p>
+                      {q.answer && <p className="answer-text"><strong>A:</strong> {q.answer}</p>}
+                      {q.expected_answer && (
+                        <div className="expected-answer">
+                          <strong>Expected:</strong> {q.expected_answer}
+                        </div>
+                      )}
+                      {/* Show sampled concepts */}
+                      {q.sampled_concepts && q.sampled_concepts.length > 0 && (
+                        <div className="sampled-concepts">
+                          <strong>Concepts asked:</strong> {q.sampled_concepts.join(', ')}
+                        </div>
+                      )}
+                      <div className="question-scores">
+                        <span className="score semantic">Semantic: {(q.semantic_score * 100).toFixed(1)}%</span>
+                        <span className="score keyword">Keyword: {(q.keyword_score * 100).toFixed(1)}%</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -644,27 +712,6 @@ const Profile = ({ user, onLogout }) => {
                   <i className="fas fa-redo-alt"></i> Reset {selectedTopic} Mastery
                 </button>
               </div>
-
-              {topicDetails.recent_questions?.length > 0 && (
-                <div className="recent-questions">
-                  <h4>Recent Questions (True Scores)</h4>
-                  {topicDetails.recent_questions.map((q, idx) => (
-                    <div key={idx} className="recent-question">
-                      <p className="question-text"><strong>Q:</strong> {q.question}</p>
-                      {q.answer && <p className="answer-text"><strong>A:</strong> {q.answer}</p>}
-                      {q.expected_answer && (
-                        <div className="expected-answer">
-                          <strong>Expected:</strong> {q.expected_answer}
-                        </div>
-                      )}
-                      <div className="question-scores">
-                        <span className="score semantic">Semantic: {(q.semantic_score * 100).toFixed(1)}%</span>
-                        <span className="score keyword">Keyword: {(q.keyword_score * 100).toFixed(1)}%</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         )}

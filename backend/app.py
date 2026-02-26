@@ -90,12 +90,27 @@ def ollama_generate(prompt, timeout=60):
         print("Ollama error:", e)
         return None
 
-
+class SpeechMetrics:
+    """
+    Tracks true speech and silence metrics for research-grade analysis.
+    """
+    def __init__(self):
+        self.session_start = time.time()
+        self.session_end = None
+        
+        self.speaking_time = 0.0
+        self.current_silence = 0.0
+        
+        self.long_pause_count = 0
+        self.last_audio_timestamp = None
+        
+        self.questions_answered = 0
+        self.last_speech_end_time = None  # When last speech segment ended
 
 class MockAssemblyAIStreamer:
     """
     Mock streamer for testing without AssemblyAI API key.
-    Accumulates audio chunks and provides basic transcription on stop.
+    This version does NOT use Whisper.
     """
     def __init__(self, on_partial, on_final, on_error=None):
         self.on_partial = on_partial
@@ -107,15 +122,15 @@ class MockAssemblyAIStreamer:
     def start(self):
         """Mock start - just set active flag"""
         self.is_active = True
-        print("🎭 Mock AssemblyAI streamer started (no API key required)")
+        print("🎭 Mock AssemblyAI streamer started (no transcription)")
 
     def send_audio(self, audio_bytes):
-        """Accumulate audio chunks for later transcription"""
+        """Accumulate audio chunks (no transcription)"""
         if self.is_active:
             self.audio_chunks.append(audio_bytes)
 
     def stop(self):
-        """Mock stop - transcribe accumulated audio"""
+        """Mock stop - notify that audio was received but no transcription"""
         if not self.is_active:
             return
 
@@ -124,28 +139,9 @@ class MockAssemblyAIStreamer:
             print(f"🎭 Mock streamer stopping with {len(self.audio_chunks)} audio chunks")
 
             if self.audio_chunks:
-                # Combine all audio chunks
-                full_audio_bytes = b"".join(self.audio_chunks)
-
-                # Save as temporary WAV file for transcription
-                temp_path = f"temp_mock_audio_{int(time.time())}.wav"
-                save_pcm_as_wav(full_audio_bytes, temp_path)
-
-                # Transcribe using local Whisper
-                transcript = speech_to_text(temp_path)
-
-                if transcript:
-                    # Simulate final transcript (we don't have partials in mock mode)
-                    self.on_final(transcript)
-                    print(f"🎭 Mock transcription complete: {len(transcript)} characters")
-                else:
-                    print("🎭 Mock transcription failed - no text returned")
-
-                # Clean up temp file
-                try:
-                    os.remove(temp_path)
-                except:
-                    pass
+                # Just notify that audio was received but don't transcribe
+                self.on_final("[Audio received but transcription disabled]")
+                print(f"🎭 Mock notification sent")
 
         except Exception as e:
             print(f"🎭 Mock streamer error: {e}")
@@ -296,6 +292,18 @@ def finalize_user_answer(session_key):
 
     print(f"✅ FINAL USER ANSWER (Triggered by Silence): {final_answer}")
 
+     # ----- ADJUST TOTAL DURATION FOR FINAL SILENCE -----
+    if "stats" in session:
+        last_voice = session.get("last_voice_time")
+        if last_voice:
+            final_silence = time.time() - last_voice
+            if final_silence > 0:
+                old_duration = session["stats"].total_duration
+                session["stats"].total_duration = max(0, old_duration - final_silence)
+                print(f"⏱️ Removed final wait {final_silence:.1f}s from total duration "
+                      f"({old_duration:.1f}s → {session['stats'].total_duration:.1f}s)")
+    # --------------------------------------------------------
+
     # 3. Call the AI Agent (USE ADAPTIVE CONTROLLER)
     try:
         room = session["room"]
@@ -310,8 +318,10 @@ def finalize_user_answer(session_key):
         expected_answer = None
         try:
             from rag import agentic_expected_answer
-            expected_answer, _ = agentic_expected_answer(question)
+            sampled_concepts = session.get("current_sampled_concepts", []) if session else []
+            expected_answer, _ = agentic_expected_answer(question, sampled_concepts)
             print(f"📝 Generated expected answer: {expected_answer[:100]}...")
+
         except Exception as e:
             print(f"⚠️ Could not get expected answer: {e}")
             expected_answer = question  # Simple fallback
@@ -363,6 +373,9 @@ def finalize_user_answer(session_key):
             # Record in stats with expected answer
             session["stats"].record_qa_pair(question, final_answer, expected_answer, semantic_score, keyword_score)
             
+            # 🔥 DON'T INCREMENT HERE - IT'S ALREADY INCREMENTED IN SILENCE_WATCHER
+            # session["questions_answered"] = session.get("questions_answered", 0) + 1
+
             print(f"📊 Q&A Scores - Semantic: {semantic_score:.3f}, Keyword: {keyword_score:.3f}")
             print(f"   Expected answer used: {expected_answer[:100]}...")
             
@@ -379,6 +392,9 @@ def finalize_user_answer(session_key):
             # Record the next question before emitting
             if "stats" in session:
                 session["stats"].record_question(next_question)
+                # 🔥 Record question end time for latency tracking
+                session["stats"].record_question_end()
+                session["first_voice_recorded"] = False
             
             socketio.emit(
                 "agent_next_question",
@@ -397,7 +413,6 @@ def finalize_user_answer(session_key):
 
     # 5. Clean up thread flags
     session["silence_thread_started"] = False
-
 
 def silence_watcher(session_key, timeout=15):
     """
@@ -436,19 +451,39 @@ def silence_watcher(session_key, timeout=15):
 
         elapsed = time.time() - last_voice
         
-        # Log every 2 seconds instead of 5 for better visibility
+        # Log every 2 seconds for better visibility
         if time.time() - last_log_time >= 2:
             print(f"⏰ Silence elapsed: {elapsed:.1f}s")
             last_log_time = time.time()
-            
-            # 🔥 LONG PAUSE DETECTION (5s) - just for logging
-            if elapsed > 5.0 and elapsed < 5.5:
-                print(f"⚠️ LONG PAUSE DETECTED: {elapsed:.1f}s (will be counted in final stats)")
+        
+        # 🔥 Send timer update to frontend every second
+        try:
+            # Calculate time remaining in the overall session (30 minutes total)
+            if "start_time" in session:
+                session_start = session.get("start_time", time.time())
+                elapsed_total = time.time() - session_start
+                time_remaining = max(0, 30 * 60 - int(elapsed_total))  # 30 minutes in seconds
+                
+                socketio.emit('timer_update', {
+                    'time_remaining': time_remaining,
+                    'turn_time_elapsed': elapsed  # Time spent on current turn
+                }, room=session.get("room"))
+        except Exception as e:
+            print(f"⚠️ Error sending timer update: {e}")
 
         # 4. THE DECISION POINT
         if elapsed >= timeout:
             print(f"🛑 Silence limit ({timeout}s) reached. Finalizing.")
-            finalize_user_answer(session_key)  # ✅ Now this function exists!
+            
+            # 🔥 DON'T COUNT THIS FINAL 15s AS SILENCE
+            # Just finalize and increment question counter
+            metrics = session.get("speech_metrics")
+            if metrics:
+                metrics.questions_answered += 1
+                metrics.current_silence = 0  # Reset silence
+                print(f"📊 Question #{metrics.questions_answered} completed")
+            
+            finalize_user_answer(session_key)
             return  # Thread ends here
 
 def flush_early_buffer(session_key):
@@ -981,10 +1016,80 @@ def stop_interview(data, sid=None):
         
         # 4️⃣ Get incremental statistics
         stats = session_data.get('stats', RunningStatistics())
+        
+        # 🔥 FIX #1: Calculate TRUE wall-clock total duration with speech metrics
+        start_time = session_data.get("session_start_time")
+        end_time = time.time()
+        
+        if start_time:
+            # Total wall-clock session time
+            wall_clock_duration = end_time - start_time
+            
+            # Get number of questions answered from speech_metrics (NEW)
+            speech_metrics = session_data.get("speech_metrics")
+            if speech_metrics:
+                questions_answered = speech_metrics.questions_answered
+                print(f"📊 Using speech_metrics.questions_answered: {questions_answered}")
+            else:
+                questions_answered = session_data.get("questions_answered", 0)
+                print(f"⚠️ No speech_metrics found, using session questions_answered: {questions_answered}")
+            
+            # Subtract forced 15-second waits (one per answered question)
+            forced_silence = 15 * questions_answered
+            
+            # TRUE effective duration (excludes system-imposed waiting)
+            true_total_duration = max(0, wall_clock_duration - forced_silence)
+            
+            # 🔥 GET TRUE SPEAKING TIME FROM SPEECH METRICS (NEW)
+            if speech_metrics:
+                true_speaking_time = speech_metrics.speaking_time
+                long_pause_count = speech_metrics.long_pause_count
+                
+                # Calculate pause time
+                pause_time = max(0, true_total_duration - true_speaking_time)
+                pause_ratio = pause_time / true_total_duration if true_total_duration > 0 else 0
+                speaking_ratio = true_speaking_time / true_total_duration if true_total_duration > 0 else 0
+                
+                # Calculate pause frequency (pauses per minute of speaking)
+                if true_speaking_time > 0:
+                    pause_frequency = long_pause_count / (true_speaking_time / 60)
+                else:
+                    pause_frequency = 0
+                
+                print(f"\n⏱️ DURATION CALCULATION (with speech metrics):")
+                print(f"   Wall-clock session: {wall_clock_duration:.1f}s")
+                print(f"   Questions answered: {questions_answered}")
+                print(f"   Forced silence removed: {forced_silence:.1f}s")
+                print(f"   Effective duration: {true_total_duration:.1f}s")
+                print(f"   True speaking time: {true_speaking_time:.1f}s")
+                print(f"   Pause time: {pause_time:.1f}s")
+                print(f"   Speaking ratio: {speaking_ratio:.3f}")
+                print(f"   Pause ratio: {pause_ratio:.3f}")
+                print(f"   Long pauses (>5s blocks): {long_pause_count}")
+                print(f"   Pause frequency: {pause_frequency:.2f}/min")
+                
+                # Override stats with correct values
+                stats.total_duration = true_total_duration
+                stats.speaking_time = true_speaking_time
+                stats.long_pause_count = long_pause_count
+            else:
+                # Fallback to original calculation
+                print(f"⏱️ DURATION CALCULATION (legacy):")
+                print(f"   Wall-clock session: {wall_clock_duration:.1f}s")
+                print(f"   Questions answered: {questions_answered}")
+                print(f"   Forced silence removed: {forced_silence:.1f}s")
+                print(f"   Effective duration: {true_total_duration:.1f}s")
+                
+                # 🔥 CRITICAL: Override the stats.total_duration with wall-clock based value
+                stats.total_duration = true_total_duration
+        else:
+            print(f"⚠️ No session_start_time found, using stats.total_duration = {stats.total_duration:.1f}s")
+        
+        # Get final stats after duration correction
         final_stats = stats.get_current_stats()
 
         print(
-            f"📊 Final aggregated stats | "
+            f"\n📊 Final aggregated stats | "
             f"WPM={final_stats.get('wpm', 0):.1f}, "
             f"PauseRatio={final_stats.get('pause_ratio', 0):.3f}, "
             f"TotalWords={final_stats.get('total_words', 0)}"
@@ -1093,7 +1198,11 @@ def start_interview(data):
         "ready": False,
         "primed": False,
         "buffer_count": 0,
-        "adaptive_session_id": session_id  # Store for later use
+        "adaptive_session_id": session_id,  # Store for later use
+        "first_voice_recorded": False,
+        "session_start_time": time.time(),  # 🔥 CRITICAL: Wall-clock start time
+        "questions_answered": 0,
+        "speech_metrics": SpeechMetrics()
     }
 
     # Get timestamp for audio file
@@ -1141,7 +1250,48 @@ def start_interview(data):
         if not text: 
             return
 
-        print(f"📝 Buffered Final: {text}")
+        print(f"📝 Final transcript received: {text}")
+        
+        # Get speech metrics
+        metrics = session.get("speech_metrics")
+        if not metrics:
+            metrics = SpeechMetrics()
+            session["speech_metrics"] = metrics
+        
+        now = time.time()
+        
+        # 🔥 SPEECH TRACKING LOGIC
+        if metrics.last_audio_timestamp is None:
+            # First speech in this user turn
+            metrics.last_audio_timestamp = now
+            metrics.last_speech_end_time = now
+            print(f"🎤 First speech detected at {now:.1f}s")
+        else:
+            # Calculate time since last speech
+            delta = now - metrics.last_audio_timestamp
+            
+            if delta < 2.0:  # Small gap = continuous speech
+                # Add the delta to speaking time (this is speech duration)
+                metrics.speaking_time += delta
+                print(f"🗣️ Speech continued: +{delta:.2f}s (total speaking: {metrics.speaking_time:.1f}s)")
+            else:
+                # Large gap = silence occurred between speech segments
+                silence_segment = delta
+                
+                # 🔥 COUNT LONG PAUSES IN 5-SECOND BLOCKS
+                long_pauses = int(silence_segment // 5)
+                if long_pauses > 0:
+                    metrics.long_pause_count += long_pauses
+                    print(f"⏸️ SILENCE SEGMENT: {silence_segment:.1f}s → {long_pauses} long pause(s) (total: {metrics.long_pause_count})")
+                
+                # For the speech that just happened, we need to add the duration
+                # But we don't have the exact speech duration here - we'll approximate
+                # The actual speech duration is captured in audio_chunk handler
+                # This is just for cross-segment silence tracking
+            
+            # Update last audio timestamp
+            metrics.last_audio_timestamp = now
+            metrics.last_speech_end_time = now
         
         # Append to final_text list
         if "final_text" not in session:
@@ -1149,11 +1299,11 @@ def start_interview(data):
         
         session["final_text"].append(text)
         
-        # Also update stats
+        # Also update stats (legacy)
         if "stats" in session:
             session["stats"].update_transcript(text)
         
-        # ✅ Reset timer on final sentence completion
+        # Reset silence timer
         session["last_voice_time"] = time.time()
 
     streaming_sessions[session_key]["on_final"] = on_final
@@ -1252,6 +1402,11 @@ def interviewer_done(data):
     
     # 2. Start Clock B (Silence Timer)
     session["last_voice_time"] = time.time() 
+    
+    # 🔥 NEW: Record question end for latency tracking
+    if "stats" in session:
+        session["stats"].record_question_end()
+        session["first_voice_recorded"] = False
 
     # 3. Start the Watcher Thread
     if not session.get("silence_thread_started"):
@@ -1321,64 +1476,115 @@ def receive_audio(data):
         # ---- Ensure buffers exist ----
         session.setdefault("user_audio_chunks", [])
         session.setdefault("stats", RunningStatistics())
+        
+        # ---- Ensure speech_metrics exists ----
+        if "speech_metrics" not in session:
+            from app import SpeechMetrics  # Import if needed
+            session["speech_metrics"] = SpeechMetrics()
 
         # ---- 1️⃣ AssemblyAI (safe) ----
         session["user_audio_chunks"].append(audio_bytes)
         if session.get("session"):
             session["session"].send_audio(audio_bytes)
 
-        # ---- 2️⃣ Fast incremental analysis ----
+        # ---- 2️⃣ Fast incremental analysis with SPEECH METRICS ----
         pcm = np.frombuffer(audio_bytes, dtype=np.int16)
 
-        # 🔥 FIXED: Use the OLD analyze_audio_chunk_fast but with FIXED silence detection
-        from interview_analyzer import analyze_audio_chunk_fast as old_analyze
-        
-        # Temporary fix: modify the function parameters
+        # Import librosa for VAD
         import librosa
         
         # Convert for analysis
         audio_float = pcm.astype(np.float32) / 32768.0
         duration = len(audio_float) / 16000
         
-        # 🔥 FIX THE BUG: Use proper VAD parameters (changed from 30 to 25 for better sensitivity)
+        # Use VAD to detect speech intervals
         intervals = librosa.effects.split(
             audio_float, 
-            top_db=25,  # 🔥 CHANGED: More sensitive to speech
+            top_db=20,  # More sensitive to silence
             frame_length=2048,
             hop_length=512
         )
         
-        # Calculate REALISTIC speaking time
-        speaking_time = sum((e - s) / 16000 for s, e in intervals)
+        # Calculate speaking time in this chunk
+        speaking_time_chunk = sum((e - s) / 16000 for s, e in intervals)
         
-        # 🔥 REMOVED: Artificial 85% cap that was causing undercounting
-        # speaking_time = min(speaking_time, duration * 0.85)  # This line is removed
-        
-        # Update stats manually
+        # 🔥 UPDATE SPEECH METRICS WITH CONTINUOUS SPEECH
+        metrics = session.get("speech_metrics")
+        if metrics:
+            # This chunk contains speech
+            if speaking_time_chunk > 0.1:
+                # Add this chunk's speaking time to total
+                metrics.speaking_time += speaking_time_chunk
+                print(f"🎤 Chunk speech: +{speaking_time_chunk:.2f}s (total: {metrics.speaking_time:.1f}s)")
+                
+                # Update last audio timestamp for silence tracking
+                now = time.time()
+                if metrics.last_audio_timestamp is None:
+                    metrics.last_audio_timestamp = now
+                    metrics.last_speech_end_time = now
+                else:
+                    # Check for gap since last speech
+                    delta = now - metrics.last_audio_timestamp
+                    if delta > 2.0:  # Significant gap detected
+                        # This gap will be handled by on_final when next transcript arrives
+                        print(f"⏸️ Gap detected: {delta:.1f}s (will be counted as silence when speech resumes)")
+                    
+                    metrics.last_audio_timestamp = now
+                    metrics.last_speech_end_time = now
+
+        # Get stats object
         stats = session["stats"]
-        stats.update_time_stats(duration, speaking_time)
         
-        # Update pauses - changed threshold from 0.1 to 0.3 to match your function
+        # Calculate chunk start time based on session start
+        session_start = session.get("session_start_time", time.time())
+        chunk_start_time = time.time() - session_start  # Elapsed seconds since session start
+        
+        # Now update stats with this chunk's duration
+        stats.update_time_stats(duration, speaking_time_chunk)
+        
+        # Update pauses - count pauses within this chunk
         pauses = []
         if len(intervals) > 1:
             for i in range(len(intervals) - 1):
                 pause = (intervals[i+1][0] - intervals[i][1]) / 16000
-                if pause > 0.3:  # 🔥 CHANGED: Only count pauses > 300ms (reduces noise)
+                if pause > 0.3:
                     pauses.append(pause)
         stats.update_pause_stats(pauses)
         
+        # Handle chunk boundary for pause tracking
+        if hasattr(stats, "handle_chunk_boundary"):
+            stats.handle_chunk_boundary(chunk_start_time, chunk_start_time + duration, len(intervals) > 0)
+        
         # Still call old function for pitch/voice quality
+        from interview_analyzer import analyze_audio_chunk_fast as old_analyze
         old_analyze(pcm_chunk=pcm, sample_rate=16000, stats=stats)
-
+        
         # Update silence clock
-        before = stats.speaking_time - (duration * 0.3)  # Estimate
+        before = stats.speaking_time - (duration * 0.3)
         after = stats.speaking_time
         if after > before + 0.05:
             session["last_voice_time"] = time.time()
+            
+            # Record first voice for latency tracking
+            try:
+                if not session.get("first_voice_recorded") and stats.speaking_time > 0.5:
+                    if hasattr(stats, "record_first_voice"):
+                        stats.record_first_voice()
+                        session["first_voice_recorded"] = True
+            except Exception as e:
+                print(f"⚠️ Error recording first voice: {e}")
+        
+        # ========== Track chunk timing for debugging ==========
+        chunk_index = session.get("chunk_index", 0)
+        session["last_chunk_start"] = chunk_start_time
+        session["last_chunk_duration"] = duration
+        session["chunk_index"] = chunk_index + 1
+        # =====================================================
 
     except Exception as e:
         print(f"⚠️ audio_chunk handler error: {e}")
-
+        import traceback
+        traceback.print_exc()
         
 @socketio.on('interviewer_audio_chunk')
 def receive_interviewer_audio(data):
@@ -1666,115 +1872,67 @@ def upload_resume():
 @app.route('/api/user/progress', methods=['GET'])
 @jwt_required
 def get_user_progress():
-    """Get user's learning progress - PURELY subtopic-based classification"""
+    """Get user's learning progress - CLEAR distinction between subtopic and concept status"""
     user_id = g.current_user.id
     
-    # Get topic-level masteries (for topic cards only, NOT for strength/weak classification)
+    # Get topic-level masteries
     masteries = UserMastery.query.filter_by(user_id=user_id).all()
     
-    # Get subtopic-level masteries (source of truth for strengths/weaknesses)
+    # Get subtopic-level masteries
     subtopic_masteries = SubtopicMastery.query.filter_by(user_id=user_id).all()
     
     result = {
-        'topics': {},  # Only for topic cards display
-        'strengths': [],  # ONLY strong subtopics
-        'weak_subtopics': [],  # ONLY weak subtopics
-        'medium_subtopics': [],  # Medium subtopics
-        'all_subtopics': [],  # All attempted subtopics
-        'overall': {
-            'total_questions': 0,
-            'avg_mastery': 0,
-            'weakest_topics': [],  # Keep for backward compatibility
-            'strongest_topics': []  # Keep for backward compatibility
+        'topics': {},  # Topic-level summary
+        'subtopics': {},  # Organized by topic
+        'concepts': {},  # Concept-level details (can be large, maybe load on demand)
+        'statistics': {
+            'total_subtopics': 0,
+            'not_started': 0,
+            'ongoing': 0,
+            'mastered': 0,
+            'weak_concepts': 0,
+            'strong_concepts': 0,
+            'total_questions': 0
         }
     }
     
-    total_mastery = 0
-    topics_list = []
-    
-    # Process topic-level masteries (for topic cards only)
+    # Process topic-level masteries
     for m in masteries:
         data = m.to_dict()
         result['topics'][m.topic] = data
-        total_mastery += m.mastery_level
-        topics_list.append((m.topic, m.mastery_level))
+        result['statistics']['total_questions'] += m.questions_attempted
+        
+        # Get concept counts
+        concepts = m.get_concept_masteries()
+        for cname, cdata in concepts.items():
+            if cdata.get('is_weak'):
+                result['statistics']['weak_concepts'] += 1
+            if cdata.get('is_strong'):
+                result['statistics']['strong_concepts'] += 1
     
-    # 🔥 FIX: Process subtopic masteries - PURE CLASSIFICATION
-    strengths = []
-    weaknesses = []
-    medium = []
-    all_subtopics = []
-    
-    # First, aggregate by subtopic (in case of multiple records)
-    subtopic_aggregator = {}  # {(topic, subtopic): {'total_mastery': 0, 'count': 0, 'attempts': 0}}
-    
+    # Process subtopic masteries
     for sm in subtopic_masteries:
-        key = (sm.topic, sm.subtopic)
-        if key not in subtopic_aggregator:
-            subtopic_aggregator[key] = {
-                'total_mastery': 0,
-                'count': 0,
-                'attempts': sm.attempts
-            }
+        if sm.topic not in result['subtopics']:
+            result['subtopics'][sm.topic] = []
         
-        subtopic_aggregator[key]['total_mastery'] += sm.mastery_level
-        subtopic_aggregator[key]['count'] += 1
-    
-    # Now classify each subtopic based ONLY on its mastery
-    for (topic, subtopic), data in subtopic_aggregator.items():
-        # Calculate average mastery
-        avg_mastery = data['total_mastery'] / data['count']
-        
-        subtopic_entry = {
-            'topic': topic,
-            'subtopic': subtopic,
-            'mastery': round(avg_mastery, 3),
-            'attempts': data['attempts']
+        subtopic_data = {
+            'name': sm.subtopic,
+            'mastery': round(sm.mastery_level, 3),
+            'attempts': sm.attempts,
+            'status': sm.subtopic_status,  # 'not_started', 'ongoing', 'mastered'
+            'last_asked': sm.last_asked.isoformat() if sm.last_asked else None
         }
         
-        # 🔥 CRITICAL: Classify based ONLY on subtopic mastery, NOT topic mastery
-        if avg_mastery >= 0.7:
-            strengths.append(subtopic_entry)
-        elif avg_mastery < 0.4:
-            weaknesses.append(subtopic_entry)
-        else:
-            medium.append(subtopic_entry)
-        
-        all_subtopics.append(subtopic_entry)
+        result['subtopics'][sm.topic].append(subtopic_data)
+        result['statistics'][sm.subtopic_status] += 1
+        result['statistics']['total_subtopics'] += 1
     
-    # Sort strengths by mastery (highest first)
-    strengths.sort(key=lambda x: x['mastery'], reverse=True)
-    
-    # Sort weaknesses by mastery (lowest first)
-    weaknesses.sort(key=lambda x: x['mastery'])
-    
-    # Sort medium by mastery (highest first)
-    medium.sort(key=lambda x: x['mastery'], reverse=True)
-    
-    # Sort all_subtopics by mastery (highest first)
-    all_subtopics.sort(key=lambda x: x['mastery'], reverse=True)
-    
-    # Assign to result
-    result['strengths'] = strengths[:10]  # Top 10
-    result['weak_subtopics'] = weaknesses[:10]  # Top 10
-    result['medium_subtopics'] = medium[:10]  # Top 10
-    result['all_subtopics'] = all_subtopics
-    
-    # Calculate overall stats for topics (for backward compatibility)
-    if topics_list:
-        result['overall']['avg_mastery'] = total_mastery / len(topics_list)
-        topics_list.sort(key=lambda x: x[1])
-        result['overall']['weakest_topics'] = [t[0] for t in topics_list[:3]]
-        result['overall']['strongest_topics'] = [t[0] for t in topics_list[-3:]]
-    
-    # Calculate total questions
-    total_questions = QuestionHistory.query.filter_by(user_id=user_id).count()
-    result['overall']['total_questions'] = total_questions
-    
-    print(f"📊 Progress data loaded: {len(all_subtopics)} subtopics")
-    print(f"   Strengths: {len(strengths)}")
-    print(f"   Weaknesses: {len(weaknesses)}")
-    print(f"   Medium: {len(medium)}")
+    print(f"📊 Progress data loaded:")
+    print(f"   Subtopics - Not started: {result['statistics']['not_started']}, "
+          f"Ongoing: {result['statistics']['ongoing']}, "
+          f"Mastered: {result['statistics']['mastered']}")
+    print(f"   Concepts - Weak: {result['statistics']['weak_concepts']}, "
+          f"Strong: {result['statistics']['strong_concepts']}")
     
     return jsonify({'success': True, 'data': result})
 
@@ -2287,19 +2445,9 @@ def analyze_audio_final():
         if not audio_path or not os.path.exists(audio_path):
             return jsonify({"success": False, "error": "Audio file not found"}), 404
 
-        # Optional: Whisper transcript (for display only)
-        from interview_analyzer import speech_to_text
-
-        try:
-            transcript = speech_to_text(
-                audio_path,
-                model_name="medium.en",
-                use_vad=True,
-                min_speech_duration=1000
-            )
-            transcript = transcript.strip() or live_transcript
-        except Exception:
-            transcript = live_transcript or "[Transcription unavailable]"
+        # REMOVE THE WHISPER TRANSCRIPTION ATTEMPT
+        # Just use the live transcript from the session
+        transcript = live_transcript or "[Transcription only available from AssemblyAI live stream]"
 
         # 🚫 NO METRICS COMPUTED HERE
         # Metrics must ONLY come from streaming analyzer
@@ -2378,14 +2526,6 @@ if __name__ == '__main__':
         time.sleep(1)  # Give time for warmup to complete
     except Exception as e:
         print(f"⚠️ AssemblyAI warmup failed: {e}")
-    
-    # Warm up other models
-    try:
-        print("\n🔥 Stage 2: Warming up ML models...")
-        warmup_models()
-        print("✅ ML models warmed up")
-    except Exception as e:
-        print(f"⚠️ Model warmup failed: {e}")
     
     # Preload Sentence Transformer embeddings
     try:

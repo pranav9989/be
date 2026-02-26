@@ -3,16 +3,27 @@
 import json
 import random
 from datetime import datetime
-from typing import List, Dict, Set, Tuple
+from typing import List, Dict, Set, Tuple, Optional
 from models import db, SubtopicMastery
 
 class SubtopicTracker:
     """
     Tracks mastery of individual subtopics across sessions
-    Priority order: WEAK → NEW → STRONG
+    CLEAR DISTINCTION: Subtopic status vs Concept status
+    
+    Subtopic status (for the subtopic itself):
+        - not_started: never attempted
+        - ongoing: attempted but not mastered (any attempts, mastery < 0.7)
+        - mastered: 3+ attempts and mastery >= 0.7
+    
+    Concept status (inside subtopic) - handled by ConceptMastery class:
+        - weak: miss_ratio > 70% (3+ attempts)
+        - strong: correct_ratio > 70% (3+ attempts)
+        - medium: between thresholds (3+ attempts)
+        - new: <3 attempts
     """
     
-    # 🔥 UPDATED: Atomic subtopics (no parentheses, no comparisons)
+    # Atomic subtopics
     SUBTOPICS_BY_TOPIC = {
         "DBMS": [
             "Normalization",
@@ -52,9 +63,8 @@ class SubtopicTracker:
         ]
     }
     
-    # 🔥 NEW: Mapping from old to new names (for backward compatibility with DB)
+    # Legacy name mapping
     OLD_TO_NEW_MAPPING = {
-        # OS mappings
         "Process vs Thread": "Processes",
         "Process States & PCB": "Processes",
         "Context Switching": "Context Switching",
@@ -65,8 +75,6 @@ class SubtopicTracker:
         "Virtual Memory": "Virtual Memory",
         "Demand Paging & Page Replacement (LRU, FIFO)": "Page Replacement",
         "System Calls": "System Calls",
-        
-        # DBMS mappings
         "Normalization (1NF, 2NF, 3NF, BCNF)": "Normalization",
         "Keys (Primary, Foreign, Candidate, Composite)": "Keys",
         "ACID Properties": "ACID",
@@ -77,8 +85,6 @@ class SubtopicTracker:
         "SQL Queries (GROUP BY, HAVING, Subqueries)": "SQL Aggregation",
         "Locking (Shared, Exclusive Locks)": "Locking",
         "Deadlocks in DBMS": "Deadlocks",
-        
-        # OOPS mappings
         "Classes & Objects": "Classes",
         "Encapsulation": "Encapsulation",
         "Abstraction": "Abstraction",
@@ -93,73 +99,71 @@ class SubtopicTracker:
     
     def __init__(self, user_id: int):
         self.user_id = user_id
+        self.subtopics = {}  # topic -> {subtopic: data}
         self._load_from_db()
     
     def _normalize_subtopic_name(self, topic: str, subtopic: str) -> str:
         """Convert old subtopic names to atomic ones"""
-        # If it's already atomic, return as-is
         if subtopic in self.SUBTOPICS_BY_TOPIC.get(topic, []):
             return subtopic
         
-        # Check mapping
         if subtopic in self.OLD_TO_NEW_MAPPING:
             new_name = self.OLD_TO_NEW_MAPPING[subtopic]
             print(f"🔄 Normalizing '{subtopic}' -> '{new_name}'")
             return new_name
         
-        # Fallback: try to extract base name (before any parenthesis)
         if "(" in subtopic:
             base = subtopic.split("(")[0].strip()
             if base in self.SUBTOPICS_BY_TOPIC.get(topic, []):
-                print(f"🔄 Extracted base name: '{subtopic}' -> '{base}'")
+                print(f"🔄 Extracted base: '{subtopic}' -> '{base}'")
                 return base
         
         return subtopic
     
+    def _calculate_subtopic_status(self, attempts: int, mastery: float) -> str:
+        """
+        🔥 FIXED: Calculate status for the SUBTOPIC itself
+        Returns: 'not_started', 'ongoing', 'mastered'
+        """
+        if attempts == 0:
+            return 'not_started'
+        
+        if attempts >= 3 and mastery >= 0.7:
+            return 'mastered'
+        
+        return 'ongoing'
+    
     def _load_from_db(self):
-        """Load all subtopic masteries from database with CORRECT classification"""
-        self.masteries = {}
+        """Load all subtopic masteries from database"""
+        self.subtopics = {}
         db_masteries = SubtopicMastery.query.filter_by(user_id=self.user_id).all()
         
         for m in db_masteries:
-            # Normalize the subtopic name from DB
             normalized = self._normalize_subtopic_name(m.topic, m.subtopic)
             
-            if m.topic not in self.masteries:
-                self.masteries[m.topic] = {}
+            if m.topic not in self.subtopics:
+                self.subtopics[m.topic] = {}
             
-            # Store with normalized name
-            self.masteries[m.topic][normalized] = {
+            # Store with normalized name - INCLUDE ALL FIELDS
+            self.subtopics[m.topic][normalized] = {
+                'name': normalized,
+                'topic': m.topic,
                 'mastery_level': m.mastery_level,
                 'attempts': m.attempts,
+                'total_score': m.mastery_level * m.attempts if m.attempts > 0 else 0.0,
+                'scores': [],  # 🔥 CRITICAL: Initialize empty scores list
                 'last_asked': m.last_asked,
-                'status': m.status,  # This might be wrong from DB
-                'original_subtopic': m.subtopic
+                'original_name': m.subtopic,
+                'subtopic_status': self._calculate_subtopic_status(
+                    attempts=m.attempts,
+                    mastery=m.mastery_level
+                )
             }
-        
-        # NOW RECALCULATE STATUS BASED ON ACTUAL MASTERY
-        for topic in self.masteries:
-            for subtopic, data in self.masteries[topic].items():
-                mastery = data['mastery_level']
-                attempts = data['attempts']
-                
-                # CORRECT CLASSIFICATION LOGIC
-                if attempts >= 3:
-                    if mastery >= 0.7:
-                        data['status'] = 'strong'
-                    elif mastery < 0.4:
-                        data['status'] = 'weak'
-                    else:
-                        data['status'] = None  # medium
-                else:
-                    data['status'] = None  # Not enough data
     
     def _save_subtopic(self, topic: str, subtopic: str, 
                        mastery_level: float = 0.0, 
-                       attempts: int = 0,
-                       status: str = None):
+                       attempts: int = 0):
         """Save or update a subtopic mastery in database"""
-        # Always store the normalized name in DB from now on
         db_subtopic = subtopic
         
         db_mastery = SubtopicMastery.query.filter_by(
@@ -179,147 +183,247 @@ class SubtopicTracker:
         db_mastery.mastery_level = mastery_level
         db_mastery.attempts = attempts
         db_mastery.last_asked = datetime.utcnow()
-        db_mastery.status = status
+        
+        # 🔥 FIXED: Set subtopic status correctly
+        db_mastery.subtopic_status = self._calculate_subtopic_status(attempts, mastery_level)
         
         db.session.commit()
         
-        # Update in-memory cache with normalized name
-        if topic not in self.masteries:
-            self.masteries[topic] = {}
-        self.masteries[topic][subtopic] = {
+        # Update in-memory cache
+        if topic not in self.subtopics:
+            self.subtopics[topic] = {}
+        
+        self.subtopics[topic][subtopic] = {
             'mastery_level': mastery_level,
             'attempts': attempts,
             'last_asked': db_mastery.last_asked,
-            'status': status
+            'subtopic_status': db_mastery.subtopic_status
         }
     
+    # ================== FIXED: update_subtopic_performance with proper initialization ==================
+    
     def update_subtopic_performance(self, topic: str, subtopic: str, 
-                                   semantic_score: float):
+                                semantic_score: float):
         """
         Update subtopic mastery based on answer quality
-        - semantic_score > 0.7 → strong
-        - semantic_score < 0.4 → weak
-        - otherwise → medium (no status)
+        CORRECT: Simple average of all semantic scores
+        FIXED: Safely handles both new and existing subtopics
         """
-        # Normalize the subtopic name first
-        normalized_subtopic = self._normalize_subtopic_name(topic, subtopic)
+        # Normalize name
+        normalized = self._normalize_subtopic_name(topic, subtopic)
         
-        # Get current mastery or create new
-        current = self.masteries.get(topic, {}).get(normalized_subtopic, {})
-        attempts = current.get('attempts', 0) + 1
+        # Ensure topic exists
+        if topic not in self.subtopics:
+            self.subtopics[topic] = {}
         
-        # Calculate new mastery level (EMA)
-        alpha = 0.3
-        old_mastery = current.get('mastery_level', 0.0)
-        new_mastery = (alpha * semantic_score) + ((1 - alpha) * old_mastery)
+        # Ensure subtopic exists with all required fields
+        if normalized not in self.subtopics[topic]:
+            self.subtopics[topic][normalized] = {
+                'mastery_level': 0.0,
+                'attempts': 0,
+                'total_score': 0.0,
+                'scores': [],
+                'last_asked': datetime.utcnow(),
+                'subtopic_status': 'not_started'
+            }
         
-        # Determine status
-        if semantic_score > 0.7:
-            status = 'strong'
-        elif semantic_score < 0.4:
-            status = 'weak'
-        else:
-            status = None  # Medium - no special status
+        current = self.subtopics[topic][normalized]
         
-        # Save to database with normalized name
-        self._save_subtopic(
-            topic=topic,
-            subtopic=normalized_subtopic,
-            mastery_level=new_mastery,
-            attempts=attempts,
-            status=status
+        # SAFETY: Ensure 'scores' exists (for data loaded from DB)
+        if 'scores' not in current:
+            current['scores'] = []
+        
+        # Add new score
+        current['scores'].append(semantic_score)
+        current['attempts'] = len(current['scores'])
+        current['total_score'] = sum(current['scores'])
+        
+        # Calculate new mastery - SIMPLE AVERAGE (NOT EMA)
+        if current['attempts'] > 0:
+            current['mastery_level'] = current['total_score'] / current['attempts']
+            print(f"   Mastery calculation: total={current['total_score']:.2f}, "
+                  f"count={current['attempts']}, avg={current['mastery_level']:.3f}")
+        
+        # Compute subtopic status
+        current['subtopic_status'] = self._calculate_subtopic_status(
+            attempts=current['attempts'],
+            mastery=current['mastery_level']
         )
         
-        print(f"📊 Updated subtopic {topic} - {normalized_subtopic}:")
-        print(f"   Score: {semantic_score:.2f} → Mastery: {new_mastery:.2f}")
-        print(f"   Status: {status if status else 'medium'}")
-        print(f"   Attempts: {attempts}")
+        current['last_asked'] = datetime.utcnow()
+        
+        # Save to database
+        self._save_subtopic(
+            topic=topic,
+            subtopic=normalized,
+            mastery_level=current['mastery_level'],
+            attempts=current['attempts']
+        )
+        
+        print(f"\n📊 SUBTOPIC UPDATE: {topic} - {normalized}")
+        print(f"   Attempts: {current['attempts']}")
+        print(f"   Mastery: {current['mastery_level']:.2f}")
+        print(f"   Status: {current['subtopic_status']}")
     
-    def get_next_subtopic(self, topic: str) -> str:
+    # ================== 🔥 FIXED: get_next_subtopic with weak_concepts parameter ==================
+    
+    def get_next_subtopic(self, topic: str, weak_concepts: Optional[list] = None) -> str:
         """
-        Select next subtopic with priority:
-        1. WEAK subtopics (highest priority)
-        2. NEW subtopics (never attempted)
-        3. STRONG subtopics (lowest priority)
-        
-        Uses probability: 80% weak/new, 20% strong when weak/new exist
+        🔥 COMPLETE FIX: Strict priority order per rules:
+        1. WEAK SUBTOPICS (any subtopic containing weak concepts) → ALWAYS FIRST
+        2. EXPLORE POOL (ongoing + not_started) → 80% probability
+        3. MASTERED SUBTOPICS → 20% probability
         """
-        # Get all subtopics for this topic (atomic names)
-        all_subtopics = set(self.SUBTOPICS_BY_TOPIC.get(topic, []))
+        all_subtopics = list(self.SUBTOPICS_BY_TOPIC.get(topic, []))
+        if not all_subtopics:
+            print(f"⚠️ No subtopics found for {topic}")
+            return "core concepts"
         
-        # Get attempted subtopics with their status (already normalized)
-        attempted = self.masteries.get(topic, {})
+        # Get attempted subtopics
+        attempted = self.subtopics.get(topic, {})
         
-        # Categorize subtopics
-        weak_subtopics = []
-        strong_subtopics = []
-        new_subtopics = []
+        # Categorize subtopics with strict priority
+        weak_subtopics = []      # Contain weak concepts - PRIORITY 1
+        explore_pool = []         # ongoing + not_started (no weak concepts) - PRIORITY 2
+        mastered_subtopics = []   # mastered with no weak concepts - PRIORITY 3
+        
+        print(f"\n🔍 Analyzing subtopics for {topic} with weak concepts: {weak_concepts}")
         
         for subtopic in all_subtopics:
-            if subtopic in attempted:
-                status = attempted[subtopic].get('status')
-                if status == 'weak':
+            # Check if this subtopic has any weak concepts
+            has_weak = False
+            if weak_concepts:
+                # Get concepts for this subtopic
+                subtopic_concepts = self._get_concepts_for_subtopic(topic, subtopic)
+                # Check if any weak concept matches any concept in this subtopic
+                if any(wc.lower() in [c.lower() for c in subtopic_concepts] for wc in weak_concepts):
+                    has_weak = True
                     weak_subtopics.append(subtopic)
-                elif status == 'strong':
-                    strong_subtopics.append(subtopic)
-                else:
-                    # Attempted but medium - treat as new for selection purposes
-                    new_subtopics.append(subtopic)
+                    print(f"   ⚠️ Weak subtopic detected: {subtopic}")
+                    continue
+            
+            if subtopic in attempted:
+                data = attempted[subtopic]
+                status = data.get('subtopic_status', 'ongoing')
+                
+                if status == 'mastered' and not has_weak:
+                    mastered_subtopics.append(subtopic)
+                    print(f"   ✅ Mastered: {subtopic}")
+                else:  # ongoing
+                    if not has_weak:
+                        explore_pool.append(subtopic)
+                        print(f"   📚 Ongoing: {subtopic}")
             else:
-                # Never attempted
-                new_subtopics.append(subtopic)
+                # not_started
+                if not has_weak:
+                    explore_pool.append(subtopic)
+                    print(f"   🆕 Not started: {subtopic}")
         
         print(f"\n🎯 Subtopic selection for {topic}:")
-        print(f"   Weak: {weak_subtopics}")
-        print(f"   New: {new_subtopics[:5]}... (total: {len(new_subtopics)})")
-        print(f"   Strong: {strong_subtopics}")
+        print(f"   Priority 1 - Weak subtopics: {weak_subtopics}")
+        print(f"   Priority 2 - Explore pool: {explore_pool[:5]}... (total: {len(explore_pool)})")
+        print(f"   Priority 3 - Mastered: {mastered_subtopics}")
         
-        # PRIORITY 1: Weak subtopics (always ask first)
+        # PRIORITY 1: Weak subtopics (ALWAYS first)
         if weak_subtopics:
             chosen = random.choice(weak_subtopics)
-            print(f"   ✅ Selected WEAK subtopic: {chosen}")
+            print(f"   ✅ SELECTED (WEAK - Priority 1): {chosen}")
             return chosen
         
-        # If we have both new and strong subtopics, use probability
-        if new_subtopics and strong_subtopics:
-            # 80% chance to pick new, 20% chance to pick strong
-            if random.random() < 0.8:  # 80% for new
-                chosen = random.choice(new_subtopics)
-                print(f"   🆕 Selected NEW subtopic (80% probability): {chosen}")
+        # PRIORITY 2: Explore pool (ongoing + not_started)
+        if explore_pool and mastered_subtopics:
+            # 80% explore, 20% mastered
+            if random.random() < 0.8:
+                chosen = random.choice(explore_pool)
+                source = "ONGOING" if chosen in attempted else "NOT_STARTED"
+                print(f"   ✅ SELECTED ({source} - Priority 2, 80% explore): {chosen}")
                 return chosen
-            else:  # 20% for strong
-                chosen = random.choice(strong_subtopics)
-                print(f"   💪 Selected STRONG subtopic (20% probability): {chosen}")
+            else:
+                chosen = random.choice(mastered_subtopics)
+                print(f"   ✅ SELECTED (MASTERED - Priority 3, 20% reinforcement): {chosen}")
                 return chosen
         
-        # Only new subtopics left
-        if new_subtopics:
-            chosen = random.choice(new_subtopics)
-            print(f"   🆕 Selected NEW subtopic: {chosen}")
+        if explore_pool:
+            chosen = random.choice(explore_pool)
+            source = "ONGOING" if chosen in attempted else "NOT_STARTED"
+            print(f"   ✅ SELECTED ({source} - Priority 2): {chosen}")
             return chosen
         
-        # Only strong subtopics left
-        if strong_subtopics:
-            chosen = random.choice(strong_subtopics)
-            print(f"   💪 Selected STRONG subtopic (only option): {chosen}")
+        if mastered_subtopics:
+            chosen = random.choice(mastered_subtopics)
+            print(f"   ✅ SELECTED (MASTERED - Priority 3): {chosen}")
             return chosen
         
-        # Fallback (should never happen with your hardcoded topics)
-        fallback = random.choice(list(all_subtopics))
-        print(f"   ⚠️ Fallback selected: {fallback}")
+        # Fallback
+        fallback = random.choice(all_subtopics)
+        print(f"   ⚠️ Fallback: {fallback}")
         return fallback
+    
+    # ================== Helper method to get concepts for a subtopic ==================
+    
+    def _get_concepts_for_subtopic(self, topic: str, subtopic: str) -> list:
+        """
+        Get concepts for a subtopic from the question bank
+        Falls back to hardcoded mapping if question bank not available
+        """
+        try:
+            # Try to import question bank dynamically to avoid circular imports
+            from .adaptive_question_bank import AdaptiveQuestionBank
+            qb = AdaptiveQuestionBank()
+            return qb.get_concepts_for_subtopic(topic, subtopic)
+        except (ImportError, AttributeError) as e:
+            # Fallback to hardcoded mapping if question bank not available
+            concept_map = {
+                "DBMS": {
+                    "Normalization": ["1NF", "2NF", "3NF", "BCNF", "functional dependency", "anomalies"],
+                    "Keys": ["Primary Key", "Foreign Key", "Candidate Key", "Composite Key", "Super Key"],
+                    "ACID": ["Atomicity", "Consistency", "Isolation", "Durability"],
+                    "Transactions": ["commit", "rollback", "transaction states", "savepoint"],
+                    "Concurrency Control": ["2PL", "timestamp ordering", "optimistic locking", "pessimistic locking"],
+                    "Isolation Levels": ["Read Uncommitted", "Read Committed", "Repeatable Read", "Serializable"],
+                    "Indexing": ["B+ Tree", "Hash Index", "clustered index", "non-clustered index"],
+                    "Joins": ["Inner Join", "Left Join", "Right Join", "Full Join"],
+                    "SQL Aggregation": ["GROUP BY", "HAVING", "Subqueries", "COUNT", "SUM"],
+                    "Locking": ["Shared Lock", "Exclusive Lock", "Lock Granularity"],
+                    "Deadlocks": ["Wait-for graph", "detection", "prevention", "avoidance"]
+                },
+                "OOPS": {
+                    "Classes": ["class", "object", "constructor", "attributes", "methods"],
+                    "Objects": ["instantiation", "state", "behavior", "identity"],
+                    "Encapsulation": ["data hiding", "getters/setters", "access control"],
+                    "Abstraction": ["abstract classes", "interfaces", "implementation hiding"],
+                    "Inheritance": ["single inheritance", "multiple inheritance", "diamond problem"],
+                    "Polymorphism": ["method overloading", "method overriding", "dynamic dispatch"],
+                    "Constructors": ["default constructor", "parameterized constructor", "copy constructor"],
+                    "Access Modifiers": ["public", "private", "protected"],
+                    "SOLID Principles": ["Single Responsibility", "Open/Closed", "Liskov Substitution"]
+                },
+                "OS": {
+                    "Processes": ["process states", "PCB", "process creation", "zombie process"],
+                    "Threads": ["user threads", "kernel threads", "multithreading"],
+                    "Context Switching": ["CPU state saving", "overhead", "dispatch latency"],
+                    "CPU Scheduling": ["FCFS", "SJF", "Round Robin", "Priority"],
+                    "Synchronization": ["mutex", "semaphore", "monitor", "critical section"],
+                    "Deadlocks": ["mutual exclusion", "hold and wait", "circular wait"],
+                    "Memory Management": ["paging", "segmentation", "fragmentation"],
+                    "Virtual Memory": ["demand paging", "page faults", "thrashing"],
+                    "Page Replacement": ["LRU", "FIFO", "Optimal", "clock algorithm"],
+                    "System Calls": ["fork", "exec", "wait", "open", "read", "write"]
+                }
+            }
+            return concept_map.get(topic, {}).get(subtopic, [])
     
     def get_all_attempted_subtopics(self, topic: str = None) -> Dict:
         """Get all attempted subtopics, optionally filtered by topic"""
         if topic:
-            return self.masteries.get(topic, {})
-        return self.masteries
+            return self.subtopics.get(topic, {})
+        return self.subtopics
     
     def reset_all_mastery(self):
-        """Reset ALL subtopic mastery (for starting over)"""
+        """Reset ALL subtopic mastery"""
         SubtopicMastery.query.filter_by(user_id=self.user_id).delete()
         db.session.commit()
-        self.masteries = {}
+        self.subtopics = {}
         print(f"🔄 Reset all subtopic mastery for user {self.user_id}")
     
     def reset_topic_mastery(self, topic: str):
@@ -329,58 +433,47 @@ class SubtopicTracker:
             topic=topic
         ).delete()
         db.session.commit()
-        if topic in self.masteries:
-            del self.masteries[topic]
+        if topic in self.subtopics:
+            del self.subtopics[topic]
         print(f"🔄 Reset {topic} mastery for user {self.user_id}")
     
     def get_statistics(self) -> Dict:
-        """Get statistics about subtopic mastery with CORRECT counts"""
+        """Get statistics about subtopic mastery"""
         stats = {
             'total_subtopics': sum(len(topics) for topics in self.SUBTOPICS_BY_TOPIC.values()),
-            'attempted': 0,
-            'weak': 0,
-            'strong': 0,
+            'not_started': 0,
+            'ongoing': 0,
+            'mastered': 0,
             'by_topic': {}
         }
         
         for topic, all_subtopics in self.SUBTOPICS_BY_TOPIC.items():
             topic_stats = {
                 'total': len(all_subtopics),
-                'attempted': 0,
-                'weak': 0,
-                'strong': 0,
-                'new': 0,  # Explicit new count
+                'not_started': 0,
+                'ongoing': 0,
+                'mastered': 0,
                 'subtopics': {}
             }
             
-            attempted = self.masteries.get(topic, {})
-            topic_stats['attempted'] = len(attempted)
+            attempted = self.subtopics.get(topic, {})
             
-            # Count weak and strong based on CORRECT status
-            for subtopic, data in attempted.items():
-                status = data.get('status')
-                if status == 'weak':
-                    topic_stats['weak'] += 1
-                    stats['weak'] += 1
-                elif status == 'strong':
-                    topic_stats['strong'] += 1
-                    stats['strong'] += 1
-                
-                topic_stats['subtopics'][subtopic] = {
-                    'mastery': round(data.get('mastery_level', 0), 3),
-                    'attempts': data.get('attempts', 0),
-                    'status': status
-                }
+            for subtopic in all_subtopics:
+                if subtopic in attempted:
+                    data = attempted[subtopic]
+                    status = data.get('subtopic_status', 'ongoing')
+                    topic_stats[status] += 1
+                    stats[status] += 1
+                    
+                    topic_stats['subtopics'][subtopic] = {
+                        'mastery': round(data.get('mastery_level', 0), 3),
+                        'attempts': data.get('attempts', 0),
+                        'status': status
+                    }
+                else:
+                    topic_stats['not_started'] += 1
+                    stats['not_started'] += 1
             
-            # NEW = total - attempted
-            topic_stats['new'] = topic_stats['total'] - topic_stats['attempted']
-            
-            # VERIFICATION
-            total_accounted = topic_stats['weak'] + topic_stats['strong'] + topic_stats['new']
-            if total_accounted != topic_stats['total']:
-                print(f"⚠️ FIXED COUNT for {topic}: {total_accounted} = {topic_stats['total']}")
-            
-            stats['attempted'] += topic_stats['attempted']
             stats['by_topic'][topic] = topic_stats
         
         return stats

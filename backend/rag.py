@@ -1,6 +1,7 @@
 import os
 import json
 import faiss
+import time
 from sentence_transformers import SentenceTransformer
 
 # ================== ENV SETUP ==================
@@ -32,13 +33,25 @@ def load_json(path):
 
 
 def load_index_and_metas():
+    print(f"📚 Loading FAISS index from {INDEX_PATH}")
     index = faiss.read_index(INDEX_PATH)
     metas = load_json(METAS_PATH)
+    
+    # Count topics for better debugging
+    topic_counts = {}
+    for meta in metas:
+        topic = meta.get('topic', 'Unknown')
+        topic_counts[topic] = topic_counts.get(topic, 0) + 1
+    
+    print(f"   Loaded {len(metas)} total chunks")
+    for topic, count in topic_counts.items():
+        print(f"      - {topic}: {count} chunks")
     return index, metas
 
 
 def build_kb_lookup():
     kb = load_json(KB_CLEAN_PATH)
+    print(f"📚 Loaded knowledge base with {len(kb)} items")
     return {item["id"]: item for item in kb}
 
 
@@ -48,100 +61,59 @@ def get_topic_and_subtopic_from_query(query, topic_rules):
     for rule in topic_rules:
         for kw in rule["keywords"]:
             if kw in q:
+                print(f"   Detected topic: {rule['topic']} -> {rule['subtopic']}")
                 return rule["topic"], rule["subtopic"]
+    print(f"   No topic detected")
     return None, None
 
 
 # ================== STRICT TOPIC FILTERING ==================
 def get_relevant_chunks_strict(query, index, metas, model, topic=None, k=5):
-    """
-    Vector search + STRICT topic filtering - ONLY return chunks from specified topic
-    Used for technical interview chatbot to ensure topic relevance
-    """
-    query_embedding = model.encode(
-        [query],
-        normalize_embeddings=True
-    )
-
-    # Search more than needed (k * 8) to ensure we find enough of the right topic
-    _, I = index.search(query_embedding, k * 8)
-
-    results = []
-    seen_ids = set()  # Avoid duplicates
+    print(f"\n🔍 Searching for relevant chunks (k={k})...")
     
-    for idx in I[0]:
+    query_embedding = model.encode([query], normalize_embeddings=True)
+    start_time = time.time()
+    scores, I = index.search(query_embedding, k * 8)  # Search more to filter
+    search_time = time.time() - start_time
+    
+    print(f"   Search completed in {search_time:.3f}s, found {len(I[0])} candidates")
+    
+    results = []
+    seen_ids = set()
+    
+    for idx, score in zip(I[0], scores[0]):
+        if idx < 0 or idx >= len(metas):
+            continue
+            
         meta = metas[idx]
         
-        # 🔥 STRICT FILTER: If topic specified, ONLY return chunks with that topic
-        if topic is not None:
-            if meta["topic"] != topic:
-                continue
+        if topic is not None and meta["topic"] != topic:
+            continue
         
-        # Avoid duplicate chunks
         if meta["id"] in seen_ids:
             continue
             
         seen_ids.add(meta["id"])
-        results.append(meta)
+        
+        # Add similarity score to meta
+        meta_copy = meta.copy()
+        meta_copy["_score"] = float(score)
+        results.append(meta_copy)
         
         if len(results) == k:
             break
     
-    # 🔥 If we didn't find enough chunks, log warning
-    if len(results) < k and topic:
-        print(f"⚠️ WARNING: Only found {len(results)}/{k} chunks for topic '{topic}'")
-        
-    return results
-
-
-# ================== RELAXED FILTERING (for agentic) ==================
-def get_relevant_chunks_relaxed(query, index, metas, model, topic=None, k=5):
-    """
-    Vector search + RELAXED topic filtering - prefer same topic but accept others
-    Used for agentic interview expected answers
-    """
-    query_embedding = model.encode(
-        [query],
-        normalize_embeddings=True
-    )
-
-    # Search more than needed
-    _, I = index.search(query_embedding, k * 3)
-
-    results = []
-    seen_ids = set()
-    
-    # First pass: collect same-topic chunks
-    for idx in I[0]:
-        meta = metas[idx]
-        
-        if meta["id"] in seen_ids:
-            continue
-            
-        # If topic matches, add it
-        if topic and meta["topic"] == topic:
-            seen_ids.add(meta["id"])
-            results.append(meta)
-            if len(results) == k:
-                return results
-    
-    # Second pass: if we need more chunks, add any relevant ones
-    if len(results) < k:
-        for idx in I[0]:
-            meta = metas[idx]
-            
-            if meta["id"] in seen_ids:
-                continue
-                
-            seen_ids.add(meta["id"])
-            results.append(meta)
-            if len(results) == k:
-                break
+    print(f"   Retrieved {len(results)} relevant chunks:")
+    for i, r in enumerate(results):
+        # Truncate text for display
+        text_preview = r.get("text", "")[:80] + "..." if len(r.get("text", "")) > 80 else r.get("text", "")
+        print(f"      {i+1}. [{r.get('topic')}/{r.get('subtopic')}] score={r['_score']:.3f}")
+        print(f"         {text_preview}")
     
     return results
 
 
-# ================== GENERATE TECHNICAL EXPLANATION (DETAILED) ==================
+# ================== GENERATE TECHNICAL EXPLANATION ==================
 def generate_technical_explanation(query, context, topic=None):
     """
     Generate an IN-DEPTH technical explanation for learning purposes.
@@ -173,214 +145,279 @@ Student Question: {query}
 Detailed Educational Answer:
 """
 
-    try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False
-            },
-            timeout=60
-        )
-
-        if response.status_code == 200:
-            return response.json()["response"].strip()
-        else:
-            return f"❌ Ollama error: {response.text}"
-
-    except Exception as e:
-        return f"❌ Ollama connection error: {str(e)}"
-
-
-# ================== GENERATE EXPECTED ANSWER (CONCISE) ==================
-def generate_expected_answer(query, context, topic=None):
-    """
-    Generate a CONCISE expected answer (what a human would say).
-    Used by the Agentic Interview for comparison.
-    """
-    topic_instruction = ""
-    if topic:
-        topic_instruction = f"The question is about {topic}."
+    print(f"\n🤖 Generating detailed explanation for: {query[:50]}...")
+    start_time = time.time()
     
-    prompt = f"""
-You are an expert in {topic if topic else 'Computer Science'} providing a MODEL ANSWER.
-This is what a knowledgeable person would say in an interview.
-
-RULES:
-- Keep it VERY BRIEF - 2-3 sentences maximum
-- Sound like a knowledgeable person, not a textbook
-- Include key technical terms naturally
-- DO NOT use markdown or formatting
-- DO NOT explain concepts in depth - just state the core answer
-- Be conversational, not academic
-
-Context for reference:
-{context}
-
-Interview Question: {query}
-
-Expected answer (concise, 2-3 sentences, human-like):
-"""
-
     try:
         response = requests.post(
             OLLAMA_URL,
             json={
                 "model": OLLAMA_MODEL,
                 "prompt": prompt,
-                "stream": False
+                "stream": False,
+                "options": {
+                    "temperature": 0.3,
+                    "num_predict": 1024
+                }
             },
-            timeout=60
+            timeout=120
         )
 
+        elapsed = time.time() - start_time
+        
         if response.status_code == 200:
-            return response.json()["response"].strip()
+            answer = response.json()["response"].strip()
+            print(f"✅ Generated answer in {elapsed:.1f}s ({len(answer)} chars)")
+            
+            # Log the answer (first few lines)
+            print("\n📝 ANSWER PREVIEW:")
+            preview_lines = answer.split('\n')[:5]
+            for line in preview_lines:
+                if line.strip():
+                    print(f"   {line[:100]}")
+            if len(answer.split('\n')) > 5:
+                print("   ...")
+            
+            return answer
         else:
-            return f"❌ Ollama error: {response.text}"
-
+            print(f"❌ Ollama error: {response.status_code} - {response.text}")
+            return f"❌ Ollama error: {response.status_code}"
+            
+    except requests.exceptions.Timeout:
+        print(f"❌ Ollama timeout after {time.time() - start_time:.1f}s")
+        return "❌ Ollama timeout - please try again"
     except Exception as e:
-        return f"❌ Ollama connection error: {str(e)}"
+        print(f"❌ Error calling Ollama: {e}")
+        return f"❌ Error: {str(e)}"
 
 
-# ================== MAIN ENTRY POINT FOR TECHNICAL INTERVIEW ==================
+# ================== GENERATE INTERVIEW QUESTION ==================
+def generate_interview_question(prompt, topic=None):
+    """
+    Generate a SINGLE interview question based on the prompt.
+    STRICT: Returns ONLY the question text, no explanations, no introductions.
+    Used by the adaptive question bank.
+    """
+    # Add strict instruction to the prompt
+    full_prompt = f"""{prompt}
+
+CRITICAL INSTRUCTION - FOLLOW EXACTLY:
+- Return ONLY the question text - nothing else
+- NO introductions like "Here's a question:" or "Interviewer:"
+- NO explanations or commentary
+- NO markdown formatting
+- NO bullet points or numbering
+- Just the question itself, ending with a question mark
+- Maximum 400 characters
+
+Question:"""
+
+    print(f"\n🤖 Generating interview question...")
+    start_time = time.time()
+    
+    try:
+        response = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": full_prompt,
+                "stream": False,
+                "options": {
+                    "temperature": 0.3,
+                    "num_predict": 300
+                }
+            },
+            timeout=30
+        )
+        
+        elapsed = time.time() - start_time
+        
+        if response.status_code == 200:
+            question = response.json()["response"].strip()
+            print(f"✅ Generated question in {elapsed:.1f}s ({len(question)} chars)")
+            print(f"   Preview: {question[:100]}...")
+            return question
+        else:
+            print(f"❌ Ollama error: {response.status_code}")
+            return None
+    except Exception as e:
+        print(f"❌ Error generating question: {e}")
+        return None
+
+# ================== MAIN ENTRY POINT ==================
 def technical_interview_query(user_query):
     """
-    Main function for Technical Interview Chatbot.
-    If topic detected → Return DETAILED RAG explanation
-    If no topic detected → Let LLM answer naturally
+    Main function for technical interview chatbot
+    Returns DETAILED educational explanation
     """
-    # Load resources
+    print("\n" + "="*80)
+    print(f"📝 TECHNICAL QUERY: {user_query}")
+    print("="*80)
+    
+    # Load all required data
     topic_rules = load_json(TOPIC_RULES_PATH)
     index, metas = load_index_and_metas()
     kb_lookup = build_kb_lookup()
     embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
-    # Topic detection
+    # Detect topic
     topic, subtopic = get_topic_and_subtopic_from_query(user_query, topic_rules)
 
-    # 🔥 NO TOPIC DETECTED - Let LLM answer naturally
     if not topic:
-        print("🧠 No topic detected - letting LLM respond naturally")
-        
-        prompt = f"""
-You are a helpful Computer Science educator. The user said: "{user_query}"
+        print("⚠️ No specific topic detected")
+        return "I can help with technical topics like DBMS, OOPS, and OS. Please ask a specific question.", []
 
-Respond naturally and conversationally. If it's a question, answer it. If it's a greeting, greet back.
-Be friendly and helpful.
-"""
-        try:
-            response = requests.post(
-                OLLAMA_URL,
-                json={
-                    "model": OLLAMA_MODEL,
-                    "prompt": prompt,
-                    "stream": False
-                },
-                timeout=30
-            )
-            
-            if response.status_code == 200:
-                answer = response.json()["response"].strip()
-                return answer, []  # No sources
-        except:
-            return "Hi! I'm here to help with Computer Science topics. Ask me about DBMS, OS, or OOPs!", []
-
-    # 🔥 TOPIC DETECTED - Use RAG for detailed explanation
-    print(f"🧠 Detected Topic: {topic} | Subtopic: {subtopic}")
-    augmented_query = f"{topic} {subtopic}: {user_query}"
-    
     # Retrieve relevant chunks
     retrieved = get_relevant_chunks_strict(
-        augmented_query,
+        user_query,
         index,
         metas,
         embedder,
         topic=topic,
-        k=5
+        k=5  # Get more chunks for better context
     )
 
-    # Build context
+    # Build context from retrieved chunks
     context_blocks = []
     for meta in retrieved:
         item = kb_lookup.get(meta["id"])
-        if item:
-            context_blocks.append(f"Q: {item['question']}\nA: {item['answer']}")
+        if item and item.get("topic") == topic:
+            # Add the answer text to context
+            answer_text = item.get("answer", "")
+            if answer_text:
+                context_blocks.append(answer_text)
     
     context_text = "\n\n".join(context_blocks)
+    
+    print(f"\n📚 Context built from {len(context_blocks)} chunks ({len(context_text)} chars)")
+    
+    # Generate detailed answer
+    answer = generate_technical_explanation(
+        user_query, 
+        context_text, 
+        topic
+    )
 
-    # Generate detailed explanation
-    answer = generate_technical_explanation(user_query, context_text, topic)
+    if not answer:
+        # Fallback to simpler response
+        answer = f"I can help you learn about {topic}. Please try rephrasing your question or ask about a specific concept."
+        print(f"⚠️ Using fallback response")
 
-    print("\n================ TECHNICAL EXPLANATION ================\n")
-    print(answer)
-    print("\n================ SOURCES ===================\n")
-    for meta in retrieved:
-        print(f"- {meta['id']} | {meta['topic']} > {meta['subtopic']}")
-
+    print("="*80 + "\n")
+    
     return answer, retrieved
 
 
-# ================== MAIN ENTRY POINT FOR AGENTIC INTERVIEW ==================
-def agentic_expected_answer(user_query):
+# ================== AGENTIC INTERVIEW ==================
+# ================== AGENTIC INTERVIEW ==================
+def agentic_expected_answer(user_query, sampled_concepts=None):
     """
-    Main function for Agentic Interview.
-    Returns CONCISE expected answers for comparison.
+    Generate concise expected answer for adaptive interviews
+    This is used for scoring, so it should be focused and concise
+    STRICT: Must explicitly mention the sampled concepts
     """
-    # Load resources
+    print(f"\n📝 GENERATING EXPECTED ANSWER for: {user_query[:50]}...")
+    if sampled_concepts:
+        print(f"   Sampled concepts: {sampled_concepts}")
+    
     topic_rules = load_json(TOPIC_RULES_PATH)
     index, metas = load_index_and_metas()
-    kb_lookup = build_kb_lookup()
-
     embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
-    # Topic detection
     topic, subtopic = get_topic_and_subtopic_from_query(user_query, topic_rules)
 
-    if topic:
-        print(f"🧠 Detected Topic: {topic} | Subtopic: {subtopic}")
-        augmented_query = f"{topic} {subtopic}: {user_query}"
-    else:
-        print("🧠 Topic not detected → semantic search only")
-        augmented_query = user_query
-
-    # Retrieve with RELAXED filtering (prefer same topic, accept others if needed)
-    retrieved = get_relevant_chunks_relaxed(
-        augmented_query,
+    retrieved = get_relevant_chunks_strict(
+        user_query,
         index,
         metas,
         embedder,
         topic=topic,
-        k=3  # Need fewer sources for concise answer
+        k=3
     )
 
     # Build context
     context_blocks = []
     for meta in retrieved:
-        item = kb_lookup.get(meta["id"])
-        if not item:
-            continue
-        context_blocks.append(
-            f"Q: {item['question']}\nA: {item['answer']}"
+        item = None
+        # Try to get from kb_lookup if available
+        try:
+            kb_lookup = build_kb_lookup()
+            item = kb_lookup.get(meta["id"])
+        except:
+            pass
+        
+        if item and item.get("answer"):
+            context_blocks.append(item["answer"])
+        else:
+            context_blocks.append(meta.get("text", ""))
+    
+    context_text = "\n".join(context_blocks)
+    
+    # ========== STRICT PROMPT WITH CONCEPT ENFORCEMENT ==========
+    concept_hint = ""
+    concept_list_str = ""
+    if sampled_concepts and len(sampled_concepts) > 0:
+        concept_list = ", ".join(sampled_concepts)
+        concept_hint = f"\nCRITICAL REQUIREMENT: Your answer MUST explicitly address these concepts: {concept_list}"
+        concept_list_str = concept_list
+    else:
+        concept_list_str = "the key concepts"
+    
+    prompt = f"""Question: {user_query}{concept_hint}
+
+Context information:
+{context_text}
+
+STRICT REQUIREMENTS - MUST FOLLOW EXACTLY:
+
+1. Your answer MUST explicitly mention and explain: {concept_list_str}
+
+2. Be concise (2-3 sentences)
+
+3. Be technically accurate
+
+4. Focus ONLY on the required concepts
+
+Expected answer:"""
+
+    try:
+        response = requests.post(
+            OLLAMA_URL,
+            json={
+                "model": OLLAMA_MODEL,
+                "prompt": prompt,
+                "stream": False,
+                "options": {"temperature": 0.2, "num_predict": 200}
+            },
+            timeout=30
         )
+        
+        if response.status_code == 200:
+            answer = response.json()["response"].strip()
+            print(f"✅ Generated expected answer ({len(answer)} chars)")
+            print(f"   Preview: {answer[:100]}...")
+            
+            # Verify the answer contains the required concepts
+            if sampled_concepts and len(sampled_concepts) > 0:
+                answer_lower = answer.lower()
+                missing_concepts = []
+                for concept in sampled_concepts:
+                    if concept.lower() not in answer_lower:
+                        missing_concepts.append(concept)
+                
+                if missing_concepts:
+                    print(f"   ⚠️ Warning: Expected answer missing concepts: {missing_concepts}")
+                else:
+                    print(f"   ✓ All required concepts present")
+            
+            return answer, retrieved
+        else:
+            print(f"❌ Failed to generate expected answer: {response.status_code}")
+            return "", retrieved
+            
+    except Exception as e:
+        print(f"❌ Error generating expected answer: {e}")
+        return "", retrieved
 
-    context_text = "\n\n".join(context_blocks)
-
-    # Generate CONCISE expected answer
-    answer = generate_expected_answer(user_query, context_text, topic)
-
-    print("\n================ EXPECTED ANSWER (Concise) ================\n")
-    print(answer)
-
-    print("\n================ SOURCES ===================\n")
-    for meta in retrieved:
-        print(f"- {meta['id']} | {meta['topic']} > {meta['subtopic']}")
-
-    return answer, retrieved
-
-
-# ================== BACKWARD COMPATIBILITY ==================
-# Keep original main for existing code that might call it
-def main(user_query):
-    """Legacy function - defaults to technical explanation"""
-    return technical_interview_query(user_query)
+if __name__ == '__main__':
+    print("RAG module loaded and ready.")

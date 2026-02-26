@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 import spacy
 from faster_whisper import WhisperModel
 import re
-import os
+import time
 from sklearn.metrics.pairwise import cosine_similarity
 from pydub import AudioSegment
 import concurrent.futures
@@ -21,49 +21,6 @@ except OSError:
     nlp = spacy.load("en_core_web_sm")
 
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
-
-# Check if GPU is available and use it
-device = "cuda" if torch.cuda.is_available() else "cpu"
-compute_type = "float16" if device == "cuda" else "int8"  # Use int8 for CPU (faster)
-print(f"Using device: {device} for Faster-Whisper models (compute_type: {compute_type})")
-
-# Model manager for different use cases
-class WhisperModelManager:
-    def __init__(self):
-        self.models = {}
-
-    def get_model(self, model_name="medium.en"):
-        """
-        Get or create a Whisper model.
-        model_name options:
-        - "medium.en": Fast, good for live processing (3x faster than large-v3)
-        - "large-v3": Most accurate, good for offline detailed analysis
-        """
-        if model_name not in self.models:
-            print(f"Loading Whisper model: {model_name}")
-            try:
-                self.models[model_name] = WhisperModel(
-                    model_name,
-                    device=device,
-                    compute_type=compute_type
-                )
-                print(f"[OK] Loaded {model_name} model successfully")
-            except Exception as e:
-                print(f"[ERROR] Failed to load {model_name}: {e}")
-                # Fallback to medium.en if large-v3 fails
-                if model_name == "large-v3":
-                    print("Falling back to medium.en")
-                    return self.get_model("medium.en")
-                raise e
-
-        return self.models[model_name]
-
-# Global model manager
-model_manager = WhisperModelManager()
-
-# For backward compatibility, keep a reference to medium.en as default
-whisper_model = model_manager.get_model("medium.en")
-
 
 class RunningStatistics:
     """
@@ -83,6 +40,9 @@ class RunningStatistics:
         # Time statistics
         self.total_duration = 0.0
         self.speaking_time = 0.0
+
+        self.last_chunk_end_time = 0.0  # Track end of last speech in current chunk
+        self.pending_pause_start = None
 
         # Pause statistics
         self.pause_durations = []
@@ -109,6 +69,10 @@ class RunningStatistics:
         self.total_keyword_score = 0.0
         self.question_count = 0
 
+        self.question_end_time = None
+        self.first_voice_time = None
+        self.response_latencies = []  # List of latencies per question
+
     # 🔥 Record interviewer question
     def record_question(self, question):
         """Record interviewer question"""
@@ -119,6 +83,27 @@ class RunningStatistics:
         # Also add to formatted transcript
         self.full_transcript.append(f"Interviewer: {question}")
         print(f"📝 Recorded question: {question[:50]}...")
+
+    def record_question_end(self):
+        """Record when interviewer finishes speaking"""
+        self.question_end_time = time.time()
+        print(f"⏱️ Question end recorded at {self.question_end_time:.1f}s")
+
+    def record_first_voice(self):
+        """Record when user starts speaking"""
+        self.first_voice_time = time.time()
+        if self.question_end_time:
+            latency = self.first_voice_time - self.question_end_time
+            self.response_latencies.append(latency)
+            print(f"⏱️ Response latency: {latency:.2f}s")
+        else:
+            print(f"⏱️ First voice recorded but no question end time")
+
+        def get_avg_response_latency(self):
+            """Get average response latency"""
+            if self.response_latencies:
+                return sum(self.response_latencies) / len(self.response_latencies)
+            return 0.0
 
     # 🔥 MODIFIED: Update record_qa_pair to include expected_answer
     def record_qa_pair(self, question, answer, expected_answer, similarity_score, keyword_score):
@@ -182,10 +167,52 @@ class RunningStatistics:
         """Update pause statistics with proper long pause detection (5s threshold)."""
         for pause in pause_durations:
             self.pause_durations.append(pause)
-            # 🔥 FIXED: Long pause threshold = 5 seconds (not 1 second)
-            if pause > 5.0:  # Changed from 1.0 to 5.0
+            # 🔥 FIXED: Long pause threshold = 5 seconds
+            if pause > 5.0:
                 self.long_pause_count += 1
                 print(f"⏸️ LONG PAUSE DETECTED: {pause:.1f}s (count: {self.long_pause_count})")
+
+    def handle_chunk_boundary(self, chunk_start_time, chunk_end_time, had_speech):
+        """
+        Track pauses during user's answer ONLY.
+        Counts EVERY 5-second chunk as a long pause.
+        """
+        # If this chunk has no speech (USER IS SILENT)
+        if not had_speech:
+            if self.pending_pause_start is None:
+                # Start of a new silence period during answer
+                self.pending_pause_start = chunk_start_time
+                print(f"⏸️ Silence started at {chunk_start_time:.1f}s")
+            
+        # If this chunk has speech (USER IS SPEAKING)
+        else:
+            if self.pending_pause_start is not None:
+                # Silence just ended - calculate total pause duration
+                pause_duration = chunk_start_time - self.pending_pause_start
+                
+                # 🔥 CRITICAL: Count EVERY 5-second chunk as a long pause
+                if pause_duration > 0.3:  # Only count significant pauses
+                    print(f"⏸️ Pause ended: {pause_duration:.2f}s")
+                    
+                    # Count how many 5-second chunks are in this pause
+                    # Examples:
+                    # - 5.2s pause → floor(5.2/5) = 1 long pause ✅
+                    # - 10.8s pause → floor(10.8/5) = 2 long pauses ✅
+                    # - 14.9s pause → floor(14.9/5) = 2 long pauses ✅
+                    num_long_pauses = int(pause_duration // 5)
+                    
+                    if num_long_pauses > 0:
+                        for i in range(num_long_pauses):
+                            self.long_pause_count += 1
+                            pause_start = self.pending_pause_start + (i * 5)
+                            pause_end = min(pause_start + 5, chunk_start_time)
+                            print(f"   → LONG PAUSE #{self.long_pause_count}: {pause_end-pause_start:.1f}s")
+                    
+                    # Add to total pauses list
+                    self.pause_durations.append(pause_duration)
+                
+                # Reset for next silence
+                self.pending_pause_start = None
 
     def update_pitch_stats(self, pitch_values):
         """Update pitch statistics using Welford's online algorithm."""
@@ -214,7 +241,6 @@ class RunningStatistics:
         if np.isfinite(hnr):
             self.hnr_values.append(hnr)
 
-    # 🔥 MODIFIED: Update get_current_stats to include expected answers
     def get_current_stats(self):
         """Get current computed statistics including Q&A scores."""
         # Calculate derived statistics
@@ -223,11 +249,16 @@ class RunningStatistics:
         # Create formatted conversation
         conversation_text = "\n\n".join(self.full_transcript)
 
+        # 🔥 Speaking time cannot exceed total duration
+        effective_speaking = min(self.speaking_time, self.total_duration)
+        pause_time = max(0, self.total_duration - effective_speaking)
+        
         # WPM calculation
-        wpm = (self.total_words / self.speaking_time * 60) if self.speaking_time > 3 else 0
+        wpm = (self.total_words / effective_speaking * 60) if effective_speaking > 3 else 0
 
-        # Pause ratio
-        pause_ratio = (self.total_duration - self.speaking_time) / self.total_duration if self.total_duration > 0 else 0
+        # Speaking and pause ratios
+        speaking_ratio = effective_speaking / self.total_duration if self.total_duration > 0 else 0
+        pause_ratio = pause_time / self.total_duration if self.total_duration > 0 else 0
 
         # Pitch statistics
         pitch_std = np.sqrt(self.pitch_m2 / self.pitch_count) if self.pitch_count > 1 else 0
@@ -242,101 +273,126 @@ class RunningStatistics:
         avg_semantic = self.total_semantic_score / self.question_count if self.question_count > 0 else 0
         avg_keyword = self.total_keyword_score / self.question_count if self.question_count > 0 else 0
 
-        # 🔥 NEW: Reduce keyword weight to 20% of overall
-        combined_score = (avg_semantic * 0.7) + (avg_keyword * 0.3)
+        # 🔥 Calculate pause frequency (pauses per minute of speaking)
+        pause_frequency = len(self.pause_durations) / (effective_speaking / 60) if effective_speaking > 0 else 0
+        
+        # 🔥 Calculate Type-Token Ratio (lexical diversity)
+        if transcript.strip():
+            words = transcript.split()
+            unique_words = len(set(words))
+            ttr = unique_words / len(words) if len(words) > 0 else 0
+        else:
+            ttr = 0
 
         return {
+            # Core transcript data
             'transcript': transcript,
-            'conversation': conversation_text,  # Full conversation
-            'conversation_parts': self.conversation,  # Raw conversation parts
+            'conversation': conversation_text,
+            'conversation_parts': self.conversation,
+            
+            # Word statistics
             'total_words': self.total_words,
-            'total_duration': self.total_duration,
-            'speaking_time': self.speaking_time,
-            'wpm': wpm,
-            'pause_ratio': pause_ratio,
+            
+            # 🔥 TIME METRICS (RESEARCH-GRADE)
+            'total_duration': self.total_duration,           # Wall-clock based, minus forced waits
+            'speaking_time': effective_speaking,             # Actual voice activity
+            'pause_time': pause_time,                         # Silence during user's turn
+            'wpm': wpm,                                       # Speaking rate
+            'speaking_ratio': speaking_ratio,                 # % of time speaking
+            'pause_ratio': pause_ratio,                       # % of time silent
+            
+            # 🔥 PAUSE METRICS
+            'pause_frequency': pause_frequency,               # Pauses per minute
+            'long_pause_count': self.long_pause_count,        # Total pauses >5s (counted as floor(L/5))
+            'total_pauses': len(self.pause_durations),        # Total number of pauses
+            
+            # Pitch statistics
             'pitch_mean': self.pitch_mean,
             'pitch_std': pitch_std,
             'pitch_min': self.pitch_min if self.pitch_count > 0 else 0,
             'pitch_max': self.pitch_max if self.pitch_count > 0 else 0,
             'pitch_range': pitch_range,
-            'filler_counts': self.filler_counts,
+            
+            # Voice quality
             'avg_jitter': avg_jitter,
             'avg_shimmer': avg_shimmer,
             'avg_hnr': avg_hnr,
+            'filler_counts': self.filler_counts,
+            
+            # 🔥 LEXICAL METRICS
+            'type_token_ratio': ttr,                          # Lexical diversity
+            
             # Q&A metrics
             'question_count': self.question_count,
             'avg_semantic_similarity': avg_semantic,
             'avg_keyword_coverage': avg_keyword,
-            'combined_relevance_score': combined_score,
-            'qa_pairs': self.question_scores  # Now includes expected_answer
+            'combined_relevance_score': (avg_semantic * 0.7) + (avg_keyword * 0.3),
+            'qa_pairs': self.question_scores
         }
 
 
-def analyze_audio_chunk_fast(pcm_chunk, sample_rate, stats: RunningStatistics):
+def analyze_audio_chunk_fast(pcm_chunk, sample_rate, stats: RunningStatistics, chunk_start_time=None):
     """
     Analyze audio chunk with proper VAD and pause detection.
-    Long pause threshold = 5 seconds (tracked across chunks).
     """
     # Convert int16 PCM → float32 for librosa
     audio = pcm_chunk.astype(np.float32) / 32768.0
     duration = len(audio) / sample_rate
     
-    # 🔥 FIXED: Use proper VAD with conservative parameters
     try:
         import librosa
         
         # Calculate energy of the chunk
         energy = np.sqrt(np.mean(audio**2))
         
-        # Adaptive threshold based on chunk energy
-        if energy < 0.005:  # Very quiet - probably silence
+        # 🔥 If energy is very low, it's definitely silence
+        if energy < 0.002:  # Extremely sensitive to silence
             speaking_time = 0
             stats.update_time_stats(duration, speaking_time)
             
-            # 🔥 CRITICAL: For silence, we need to track potential long pauses
-            # This will be handled by the silence_watcher in app.py
+            # Track cross-chunk silence
+            if chunk_start_time is not None and hasattr(stats, "handle_chunk_boundary"):
+                stats.handle_chunk_boundary(chunk_start_time, chunk_start_time + duration, False)
             return
         
-        # Use librosa's VAD with better parameters for speech detection
+        # Use aggressive VAD parameters
         intervals = librosa.effects.split(
             audio, 
-            top_db=25,  # 🔥 REDUCED from 30 to 25 (more sensitive to speech)
-            frame_length=2048,
-            hop_length=512
+            top_db=15,  # Very sensitive to silence
+            frame_length=1024,  # Smaller frames for better resolution
+            hop_length=256      # Smaller hop for accuracy
         )
         
-        # Calculate actual speaking time
+        # Calculate speaking time
         speaking_time = 0
         pauses_in_chunk = []
         
-        if len(intervals) > 0:
-            # Sum all speech intervals
+        had_speech = len(intervals) > 0
+        
+        if had_speech:
             for s, e in intervals:
                 speaking_time += (e - s) / sample_rate
-            
-            # 🔥 CRITICAL: Speaking time CANNOT exceed total duration
             speaking_time = min(speaking_time, duration)
             
-            # Calculate pauses BETWEEN intervals
+            # Calculate pauses within this chunk
             if len(intervals) > 1:
                 for i in range(len(intervals) - 1):
                     pause_start = intervals[i][1] / sample_rate
                     pause_end = intervals[i+1][0] / sample_rate
                     pause_duration = pause_end - pause_start
-                    
-                    # Only count significant pauses (> 0.3s)
                     if pause_duration > 0.3:
                         pauses_in_chunk.append(pause_duration)
-                        print(f"⏸️ Pause in chunk: {pause_duration:.2f}s")
         
         # Update stats
         stats.update_time_stats(duration, speaking_time)
         stats.update_pause_stats(pauses_in_chunk)
         
+        # 🔥 Track cross-chunk pauses (THIS IS CRITICAL)
+        if chunk_start_time is not None and hasattr(stats, "handle_chunk_boundary"):
+            stats.handle_chunk_boundary(chunk_start_time, chunk_start_time + duration, had_speech)
         
     except Exception as e:
         print(f"VAD failed: {e}")
-        # Fallback: assume 30% speaking time if detection fails
         stats.update_time_stats(duration, duration * 0.3)
 
 def detect_fillers_repetitions(text):
@@ -1101,55 +1157,7 @@ def analyze_interview_response_optimized(audio_path, ideal_answer_text="", ideal
 
 
 def speech_to_text(audio_path, model_name="medium.en", use_vad=True, min_speech_duration=1000):
-    """
-    Transcribe audio using faster-whisper with configurable model.
-    Can accept either a file path (str) or numpy array.
-    """
-    try:
-        # Get the appropriate model
-        model = model_manager.get_model(model_name)
-        
-        # Configure VAD based on parameter
-        vad_filter = use_vad
-        vad_parameters = None
-        
-        if vad_filter:
-            vad_parameters = {
-                "min_speech_duration_ms": min_speech_duration,
-                "max_speech_duration_s": 30,
-                "min_silence_duration_ms": 500,
-                "speech_pad_ms": 200
-            }
-        
-        # Handle both file paths and numpy arrays
-        segments, info = model.transcribe(
-            audio_path,
-            language="en",
-            beam_size=5,
-            vad_filter=vad_filter,
-            vad_parameters=vad_parameters,
-            # Add these parameters for better accuracy on first run
-            condition_on_previous_text=False,
-            temperature=0,
-            best_of=2
-        )
-        
-        # Join all segments to get full text
-        transcribed_text = " ".join([segment.text for segment in segments])
-        
-        # Log transcription info for debugging
-        print(f"📝 Transcription completed:")
-        print(f"   Language: {info.language if info else 'Unknown'}")
-        print(f"   Text length: {len(transcribed_text)} characters")
-        print(f"   Model: {model_name}")
-        
-        return transcribed_text.strip()
-        
-    except Exception as e:
-        print(f"❌ Error during speech-to-text transcription with {model_name}: {e}")
-        import traceback
-        traceback.print_exc()
-        return ""
+    pass
         
 def fluency_score(results):
     """
@@ -1377,7 +1385,8 @@ def compute_research_metrics(stats: RunningStatistics) -> dict:
     final_stats = stats.get_current_stats()
     
     total_words = final_stats["total_words"]
-    speaking_time = final_stats["speaking_time"]
+    # 🔥 Use effective speaking time (min of speaking_time and total_duration)
+    speaking_time = final_stats["speaking_time"]  # This is already corrected
     total_duration = final_stats["total_duration"]
     
     # 🔥 VALIDATION: Ensure durations make sense
@@ -1387,6 +1396,8 @@ def compute_research_metrics(stats: RunningStatistics) -> dict:
             "speaking_time_ratio": 0,
             "pause_ratio": 1.0,
             "long_pause_count": 0,
+            "pause_frequency": 0,
+            "type_token_ratio": 0,
             "filler_frequency_per_min": 0,
             "avg_semantic_similarity": 0,
             "avg_keyword_coverage": 0,
@@ -1410,22 +1421,28 @@ def compute_research_metrics(stats: RunningStatistics) -> dict:
     # 4️⃣ Long Pause Count (5s threshold)
     long_pause_count = stats.long_pause_count
     
-    # 🔥 NEW: Get Q&A metrics
+    # 5️⃣ Pause Frequency (pauses per minute)
+    pause_frequency = final_stats.get('pause_frequency', 0)
+    
+    # 6️⃣ Type-Token Ratio (lexical diversity)
+    ttr = final_stats.get('type_token_ratio', 0)
+    
+    # 🔥 Get Q&A metrics
     avg_semantic = final_stats.get('avg_semantic_similarity', 0)
     avg_keyword = final_stats.get('avg_keyword_coverage', 0)
     question_count = final_stats.get('question_count', 0)
     
-   # 🔥 NEW: Reduce keyword weight to 20% of overall
-    overall_relevance = (avg_semantic * 0.8) + (avg_keyword * 0.2)
+    # Overall relevance (70/30 split)
+    overall_relevance = (avg_semantic * 0.7) + (avg_keyword * 0.3)
     
-    # 5️⃣ Filler Frequency (per minute)
+    # 7️⃣ Filler Frequency (per minute)
     total_fillers = sum(stats.filler_counts.values())
     if speaking_time > 1.0:
         filler_frequency_per_min = total_fillers / (speaking_time / 60)
     else:
         filler_frequency_per_min = 0
     
-    # 🔥 SANITY CHECK: Log impossible values
+    # 🔥 SANITY CHECK: Log values
     print(f"\n📊 FINAL INTERVIEW METRICS:")
     print(f"   Questions answered: {question_count}")
     print(f"   Avg Semantic Similarity: {avg_semantic:.3f}")
@@ -1436,19 +1453,31 @@ def compute_research_metrics(stats: RunningStatistics) -> dict:
     print(f"   Speaking Ratio: {speaking_time_ratio:.3f}")
     print(f"   Pause Ratio: {pause_ratio:.3f}")
     print(f"   Long Pauses: {long_pause_count}")
+    print(f"   Pause Frequency: {pause_frequency:.2f}/min")
+    print(f"   Type-Token Ratio: {ttr:.3f}")
     print(f"   WPM: {wpm:.1f}")
+    
+    # 🔥 Data quality flag
+    if speaking_time > total_duration * 1.05:  # If speaking > total by >5%
+        data_quality = "QUESTIONABLE_HIGH_SPEECH"
+    elif total_duration < 10:
+        data_quality = "INSUFFICIENT_DURATION"
+    else:
+        data_quality = "VALID"
     
     return {
         "wpm": round(wpm, 2),
         "speaking_time_ratio": round(speaking_time_ratio, 3),
         "pause_ratio": round(pause_ratio, 3),
         "long_pause_count": long_pause_count,
+        "pause_frequency": round(pause_frequency, 2),
+        "type_token_ratio": round(ttr, 3),
         "filler_frequency_per_min": round(filler_frequency_per_min, 2),
         "avg_semantic_similarity": round(avg_semantic, 3),
         "avg_keyword_coverage": round(avg_keyword, 3),
         "overall_relevance": round(overall_relevance, 3),
         "questions_answered": question_count,
-        "data_quality": "VALID" if speaking_time_ratio < 0.95 else "QUESTIONABLE_HIGH_SPEECH"
+        "data_quality": data_quality
     }
 
 def finalize_interview(stats: RunningStatistics,
