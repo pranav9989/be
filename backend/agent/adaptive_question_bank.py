@@ -283,14 +283,15 @@ class AdaptiveQuestionBank:
     
     def sample_concepts_by_priority(self, topic: str, subtopic: str, mastery_state) -> list:
         """
-        INVARIANT 3: Sample exactly 2 concepts using priority scores
-        - Higher priority concepts are ALWAYS selected first
-        - No randomness - purely deterministic based on priority
+        STRICT RULE:
+        - ALWAYS sample exactly 2 concepts
+        - ALWAYS highest priority first
+        - NEVER random
         """
         all_concepts = self.get_concepts_for_subtopic(topic, subtopic)
         
         if len(all_concepts) < 2:
-            # Not enough concepts, pad with subtopic name
+            # Not enough concepts, pad with subtopic
             print(f"   ⚠️ Not enough concepts ({len(all_concepts)}), padding with subtopic")
             return all_concepts + [subtopic] * (2 - len(all_concepts))
         
@@ -310,8 +311,8 @@ class AdaptiveQuestionBank:
         # INVARIANT 3: Sort by priority (highest first) - NO RANDOM
         concept_scores.sort(key=lambda x: x[1], reverse=True)
         
-        # Take top 2 concepts
-        sampled = [c[0] for c in concept_scores[:2]]
+        # Take EXACTLY 2 concepts (highest priority)
+        sampled = [concept_scores[0][0], concept_scores[1][0]]
         print(f"      ✅ Selected by priority: {sampled}")
         return sampled
     

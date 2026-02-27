@@ -374,6 +374,15 @@ class AdaptiveInterviewController:
             mentioned_concepts=mentioned,
             missing_from_sampled=missing
         )
+
+        # ============================================
+        # UPDATE CONCEPT PRIORITIES WITH VELOCITY
+        # ============================================
+        # Pass the topic velocity to each concept's priority calculation
+        for concept_name, concept in mastery.concepts.items():
+            concept.update_priority_score(velocity=mastery.mastery_velocity)
+
+        print(f"📊 CONCEPT PRIORITIES UPDATED WITH VELOCITY {mastery.mastery_velocity:+.3f}")
         
         # ============================================
         # CONCEPT TRACKING - COMPLETE FIX
@@ -551,9 +560,24 @@ class AdaptiveInterviewController:
         }
     
     def _calculate_next_difficulty(self, current_question_num: int, current_score: float, previous_difficulty: str) -> str:
+        """
+        STRICT 9-CASE MATRIX IMPLEMENTATION
+        
+        Q2 difficulty based on Q1 score:
+            < 0.4  → EASY
+            0.4-0.7 → MEDIUM
+            > 0.7  → HARD
+        
+        Q3 difficulty based on Q2 score AND Q2 difficulty:
+            < 0.4  → EASY (regardless of previous)
+            > 0.7  → HARD (regardless of previous)
+            0.4-0.7 → MEDIUM (regardless of previous)
+        """
+        # Q1 always medium
         if current_question_num == 1:
             return "medium"
         
+        # Q2 logic (based on Q1 score)
         if current_question_num == 2:
             if current_score < 0.4:
                 return "easy"
@@ -562,22 +586,16 @@ class AdaptiveInterviewController:
             else:
                 return "medium"
         
+        # Q3 logic (based on Q2 score)
         if current_question_num == 3:
             if current_score < 0.4:
                 return "easy"
             elif current_score > 0.7:
-                if previous_difficulty == "hard":
-                    return "hard"
-                else:
-                    return "hard"
-            else:
-                if previous_difficulty == "hard":
-                    return "medium"
-                elif previous_difficulty == "easy":
-                    return "medium"
-                else:
-                    return "medium"
+                return "hard"
+            else:  # 0.4-0.7
+                return "medium"
         
+        # Fallback (should not happen)
         return "medium"
     
     def _move_to_next_topic(self, state, session_id) -> dict:

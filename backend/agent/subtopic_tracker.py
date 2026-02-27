@@ -269,10 +269,11 @@ class SubtopicTracker:
     
     def get_next_subtopic(self, topic: str, weak_concepts: Optional[list] = None) -> str:
         """
-        🔥 COMPLETE FIX: Strict priority order per rules:
-        1. WEAK SUBTOPICS (any subtopic containing weak concepts) → ALWAYS FIRST
-        2. EXPLORE POOL (ongoing + not_started) → 80% probability
-        3. MASTERED SUBTOPICS → 20% probability
+        STRICT PRIORITY ORDER PER RULES:
+
+        1. Weak subtopics (subtopics containing weak concepts) → ALWAYS FIRST
+        2. Explore pool (ongoing + not_started) → 80% probability
+        3. Mastered subtopics → 20% probability
         """
         all_subtopics = list(self.SUBTOPICS_BY_TOPIC.get(topic, []))
         if not all_subtopics:
@@ -284,8 +285,8 @@ class SubtopicTracker:
         
         # Categorize subtopics with strict priority
         weak_subtopics = []      # Contain weak concepts - PRIORITY 1
-        explore_pool = []         # ongoing + not_started (no weak concepts) - PRIORITY 2
-        mastered_subtopics = []   # mastered with no weak concepts - PRIORITY 3
+        explore_pool = []        # ongoing + not_started (no weak concepts) - PRIORITY 2
+        mastered_subtopics = []  # mastered with no weak concepts - PRIORITY 3
         
         print(f"\n🔍 Analyzing subtopics for {topic} with weak concepts: {weak_concepts}")
         
@@ -296,7 +297,8 @@ class SubtopicTracker:
                 # Get concepts for this subtopic
                 subtopic_concepts = self._get_concepts_for_subtopic(topic, subtopic)
                 # Check if any weak concept matches any concept in this subtopic
-                if any(wc.lower() in [c.lower() for c in subtopic_concepts] for wc in weak_concepts):
+                subtopic_concepts_lower = [c.lower() for c in subtopic_concepts]
+                if any(wc.lower() in subtopic_concepts_lower for wc in weak_concepts):
                     has_weak = True
                     weak_subtopics.append(subtopic)
                     print(f"   ⚠️ Weak subtopic detected: {subtopic}")
@@ -330,9 +332,8 @@ class SubtopicTracker:
             print(f"   ✅ SELECTED (WEAK - Priority 1): {chosen}")
             return chosen
         
-        # PRIORITY 2: Explore pool (ongoing + not_started)
+        # PRIORITY 2 vs 3: 80% explore, 20% mastered
         if explore_pool and mastered_subtopics:
-            # 80% explore, 20% mastered
             if random.random() < 0.8:
                 chosen = random.choice(explore_pool)
                 source = "ONGOING" if chosen in attempted else "NOT_STARTED"

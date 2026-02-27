@@ -249,7 +249,7 @@ const Profile = ({ user, onLogout }) => {
             <i className="fas fa-user"></i>
           </div>
           <h2>{profile.full_name || profile.username}</h2>
-          <p>Member since {new Date(profile.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</p>
+
         </section>
 
         <div className="profile-content">

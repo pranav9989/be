@@ -65,21 +65,20 @@ class ConceptMastery:
         # Update priority score after each attempt
         self.update_priority_score()
 
-    def update_priority_score(self):
+    def update_priority_score(self, velocity: float = 0.0):
         """
-        Calculate priority score for concept sampling per rules:
-        base_priority = 1.0 - mastery_level
-        stagnation_boost = (times_missed_when_sampled / max(1, attempts)) × 0.5
-        recency_boost = min(0.3, days_since_last_seen × 0.05)
-        raw_priority = base_priority + stagnation_boost + recency_boost
+        STRICT RULE IMPLEMENTATION WITH VELOCITY FACTOR
 
-        IF is_weak: priority = 2.0 (ALWAYS MAXIMUM)
-        ELSE IF is_strong: priority = raw_priority × 0.3 (LOW priority)
-        ELSE IF attempts < 3: priority = raw_priority × 1.2 (EXPLORATION boost)
-        ELSE: priority = raw_priority × 1.0 (NORMAL)
+        base_priority = 1.0 - mastery_level
+        stagnation_boost = (times_missed_when_sampled / attempts) * 0.5
+        recency_boost = min(0.3, days_since_last_seen * 0.05)
+
+        velocity adjustment:
+            positive velocity → reduce priority
+            negative velocity → increase priority
         """
         if self.attempts == 0:
-            self.priority_score = 1.5  # New concept = high priority
+            self.priority_score = 1.5
             return
 
         # Base priority: lower mastery = higher priority
@@ -100,7 +99,13 @@ class ConceptMastery:
 
         raw_priority = base_priority + stagnation_boost + recency_boost
 
-        # Apply rules-based multipliers
+        # 🔥 VELOCITY ADJUSTMENT
+        # Positive velocity → reduce priority (they're learning)
+        # Negative velocity → increase priority (they're struggling)
+        velocity_adjustment = -velocity  # Note the negative sign
+        raw_priority += velocity_adjustment
+
+        # Apply classification rules
         if self.is_weak:
             self.priority_score = 2.0  # Maximum priority
         elif self.is_strong:
