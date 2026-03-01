@@ -1103,5 +1103,455 @@
     "id": 221,
     "question": "What is slicing in C++ OOP and how to avoid it?",
     "answer": "Object slicing occurs when a derived object is copied into a base object by value, losing derived state. Avoid by using references/pointers to base or making types non‑copyable."
+  },
+  {
+    "id": 222,
+    "question": "What is polymorphism in object-oriented programming?",
+    "answer": "Polymorphism means 'many forms' - the ability of objects of different types to respond to the same interface. In OOP, it allows code to work with objects of different classes through a common interface. Types include compile-time (method overloading, operator overloading) and runtime polymorphism (method overriding via virtual functions)."
+  },
+  {
+    "id": 223,
+    "question": "Explain the difference between compile-time and runtime polymorphism.",
+    "answer": "Compile-time polymorphism (static binding) is resolved during compilation - method overloading and operator overloading. Runtime polymorphism (dynamic binding) is resolved at runtime via virtual functions and inheritance. Example: compile-time: add(int,int) vs add(double,double); runtime: Shape* s = new Circle(); s->draw() calls Circle's draw()."
+  },
+  {
+    "id": 224,
+    "question": "What is method overloading and how does it achieve polymorphism?",
+    "answer": "Method overloading allows multiple methods with same name but different parameters (number, type, order) in the same class. It's compile-time polymorphism. Example: void print(int i); void print(double d); void print(string s); Compiler decides which to call based on arguments. Return type alone cannot distinguish overloads."
+  },
+  {
+    "id": 225,
+    "question": "Explain method overriding with an example.",
+    "answer": "Method overriding occurs when a subclass provides its own implementation of a method already defined in parent class. Enables runtime polymorphism. Example: class Animal { virtual void speak() { cout << 'Animal speaks'; } }; class Dog : public Animal { void speak() override { cout << 'Dog barks'; } }; Animal* a = new Dog(); a->speak(); // Calls Dog's speak."
+  },
+  {
+    "id": 226,
+    "question": "What is the difference between overloading and overriding?",
+    "answer": "Overloading: same class, same method name, different parameters, compile-time binding, may have different return types. Overriding: different classes (inheritance), same signature, runtime binding via virtual functions, return type must be covariant. Overloading adds behavior; overriding replaces behavior."
+  },
+  {
+    "id": 227,
+    "question": "How does virtual functions enable runtime polymorphism in C++?",
+    "answer": "Virtual functions allow derived class methods to be called through base class pointers/references. Compiler adds vptr (virtual pointer) to objects, pointing to vtable (virtual table) containing function pointers. At runtime, vptr is used to call correct function. Example: class Base { public: virtual void show() { cout << 'Base'; } }; class Derived : public Base { void show() override { cout << 'Derived'; } }; Base* b = new Derived(); b->show(); // Prints 'Derived'"
+  },
+  {
+    "id": 228,
+    "question": "What is the role of virtual table (vtable) in polymorphism?",
+    "answer": "Vtable is a static array of function pointers created per class with virtual functions. Each object has a hidden vptr pointing to its class's vtable. When virtual function called, program follows vptr to vtable, then to correct function. Enables dynamic dispatch with minimal overhead (one pointer indirection)."
+  },
+  {
+    "id": 229,
+    "question": "Explain the concept of virtual destructors in C++.",
+    "answer": "Virtual destructors ensure proper cleanup when deleting derived objects through base pointers. If base destructor non-virtual, only base destructor runs, causing resource leaks. Example: class Base { public: virtual ~Base() {} }; class Derived : public Base { ~Derived() { /* cleanup derived resources */ } }; Base* b = new Derived(); delete b; // Both destructors called."
+  },
+  {
+    "id": 230,
+    "question": "What is pure virtual function and abstract class?",
+    "answer": "Pure virtual function is declared with '= 0' in C++, making class abstract (cannot instantiate). Derived classes must override it to become concrete. Example: class Shape { public: virtual double area() = 0; }; class Circle : public Shape { double area() override { return 3.14 * r * r; } }; Abstract classes define interfaces."
+  },
+  {
+    "id": 231,
+    "question": "Explain the concept of covariant return types in overriding.",
+    "answer": "Covariant return types allow overridden method to return more specific type than base method. Example: class Base { virtual Base* clone(); }; class Derived : public Base { Derived* clone() override; }; Allowed because Derived* is substitutable for Base*. Maintains type safety while enabling more precise interfaces."
+  },
+  {
+    "id": 232,
+    "question": "What is the difference between early binding and late binding?",
+    "answer": "Early binding (static binding) resolved at compile time - function calls linked directly. Faster but inflexible. Used for non-virtual functions, overloaded functions. Late binding (dynamic binding) resolved at runtime via virtual functions - function determined by object type. Slight overhead but enables polymorphism. Virtual functions, interface methods use late binding."
+  },
+  {
+    "id": 233,
+    "question": "How does Java implement polymorphism?",
+    "answer": "Java implements polymorphism through method overriding (runtime polymorphism) and method overloading (compile-time). All non-static, non-final, non-private methods are virtual by default. Uses late binding for overridden methods. Interfaces provide polymorphic behavior across unrelated classes. Example: List<String> list = new ArrayList<>(); // Polymorphic reference."
+  },
+  {
+    "id": 234,
+    "question": "Explain the concept of duck typing in Python as polymorphism.",
+    "answer": "Duck typing ('If it walks like a duck and quacks like a duck, it's a duck') means objects are considered based on behavior, not type. Python polymorphism through duck typing: def process(obj): obj.quack() # Works if obj has quack() method. No inheritance needed. More flexible but less explicit than nominal typing."
+  },
+  {
+    "id": 235,
+    "question": "What is parametric polymorphism (generics/templates)?",
+    "answer": "Parametric polymorphism allows code to work with any type through type parameters. C++ templates: template<typename T> T max(T a, T b) { return a > b ? a : b; } Java generics: class Box<T> { T value; } Python type hints: def identity[T](x: T) -> T: return x. Enables type-safe reusable code."
+  },
+  {
+    "id": 236,
+    "question": "Explain the difference between subtype polymorphism and parametric polymorphism.",
+    "answer": "Subtype polymorphism (inclusion polymorphism) uses inheritance - objects of different types through common base. Parametric polymorphism uses type parameters - same code works for any type. Subtype: Shape* s = getShape(); s->draw(); Parametric: vector<int> vi; vector<string> vs; Both provide flexibility but different mechanisms."
+  },
+  {
+    "id": 237,
+    "question": "What is the Liskov Substitution Principle and its relation to polymorphism?",
+    "answer": "LSP states that objects of a superclass should be replaceable with objects of a subclass without affecting program correctness. Foundation for safe polymorphism. Violation: Square inheriting from Rectangle with separate setWidth/setHeight breaks substitution. Proper polymorphism requires subtypes maintain base class contracts."
+  },
+  {
+    "id": 238,
+    "question": "How does C++ achieve compile-time polymorphism with templates?",
+    "answer": "Templates provide compile-time polymorphism through code generation. Different types generate different code, resolved during compilation. Example: template<typename T> T add(T a, T b) { return a + b; } add(5,3) generates int version; add(5.2,3.1) generates double version. Faster than runtime polymorphism but increases code size."
+  },
+  {
+    "id": 239,
+    "question": "Explain the concept of dynamic dispatch in polymorphism.",
+    "answer": "Dynamic dispatch selects which method to call at runtime based on object's actual type. Virtual functions in C++, all instance methods in Java/Python (except final/private). Implemented via vtables or similar mechanisms. Enables polymorphic behavior but adds slight overhead compared to static dispatch."
+  },
+  {
+    "id": 240,
+    "question": "What is the difference between polymorphism and method overloading?",
+    "answer": "Polymorphism (specifically subtype/runtime) allows objects of different types to respond to same interface, resolved at runtime. Overloading is multiple methods same name different parameters, resolved at compile time. Overloading within same class; polymorphism across inheritance hierarchy. Both provide flexibility but different mechanisms and timing."
+  },
+  {
+    "id": 241,
+    "question": "Explain the concept of ad-hoc polymorphism with examples.",
+    "answer": "Ad-hoc polymorphism allows same function name to work with different types through separate implementations. Includes function overloading and operator overloading. Example: print(int), print(string), print(vector<int>) - each has separate implementation. Contrast with parametric polymorphism (same code for all types) and subtype polymorphism (inheritance-based)."
+  },
+  {
+    "id": 242,
+    "question": "What is the role of the 'virtual' keyword in C++ polymorphism?",
+    "answer": "'virtual' enables runtime polymorphism by telling compiler to use dynamic dispatch. Virtual functions can be overridden in derived classes. Virtual destructors ensure proper cleanup. Pure virtual (=0) makes class abstract. Without virtual, function calls resolved statically based on pointer type, not object type."
+  },
+  {
+    "id": 243,
+    "question": "Explain the concept of multiple dispatch (multimethods).",
+    "answer": "Multiple dispatch selects method based on runtime types of multiple arguments. Single dispatch (typical OOP) uses only receiver type. C++ virtual functions are single dispatch. Python with functools.singledispatch provides single dispatch on first argument. Multiple dispatch useful for operations like collision detection (two objects of unknown types)."
+  },
+  {
+    "id": 244,
+    "question": "How does polymorphism support the Open/Closed Principle?",
+    "answer": "OCP states classes open for extension, closed for modification. Polymorphism enables adding new behavior through new derived classes without changing existing code. Example: Shape hierarchy with draw() - add Triangle class without modifying drawing code that works with Shape*. New functionality through extension, not modification."
+  },
+  {
+    "id": 245,
+    "question": "What is the performance cost of polymorphism?",
+    "answer": "Runtime polymorphism costs: vtable pointer per object (memory), indirect function call (one extra indirection), prevents inlining in many cases. Virtual function call ~2-3x slower than direct call. Compile-time polymorphism (templates) has no runtime cost but increases code size. Trade-off between flexibility and performance."
+  },
+  {
+    "id": 246,
+    "question": "Explain the concept of polymorphic copy construction.",
+    "answer": "Polymorphic copying requires virtual clone method because copy constructor can't be virtual. Example: class Base { public: virtual Base* clone() const = 0; }; class Derived : public Base { Derived* clone() const override { return new Derived(*this); } }; Base* b1 = new Derived(); Base* b2 = b1->clone(); // Copies correct type."
+  },
+  {
+    "id": 247,
+    "question": "What is the difference between static polymorphism and dynamic polymorphism?",
+    "answer": "Static polymorphism (compile-time): templates, overloading - resolved during compilation, faster, no runtime overhead, but less flexible. Dynamic polymorphism (runtime): virtual functions, interfaces - resolved at runtime via dynamic dispatch, flexible, enables plugins and runtime decisions, slight overhead. Each suited for different scenarios."
+  },
+  {
+    "id": 248,
+    "question": "How does Python achieve polymorphism without explicit interfaces?",
+    "answer": "Python uses duck typing - objects are polymorphic if they implement required methods. No explicit inheritance needed. Example: def process(obj): obj.save() # Works if obj has save() method. Also supports nominal polymorphism through ABC (Abstract Base Classes) and inheritance. More flexible but less explicit than static typing."
+  },
+  {
+    "id": 249,
+    "question": "Explain the concept of CRTP (Curiously Recurring Template Pattern) for static polymorphism.",
+    "answer": "CRTP achieves static polymorphism in C++: template<typename Derived> class Base { void interface() { static_cast<Derived*>(this)->implementation(); } }; class Derived : Base<Derived> { void implementation(); }; All calls resolved at compile time, no virtual overhead. Used for mixins, policy-based design, optimizing polymorphic calls."
+  },
+  {
+    "id": 250,
+    "question": "What is the relationship between polymorphism and dependency injection?",
+    "answer": "Dependency injection relies on polymorphism - injecting dependencies through interfaces allows swapping implementations. Example: class Service { private: IRepository repo; public: Service(IRepository r) : repo(r) {} }; Can inject SqlRepository or MockRepository polymorphically. Enables loose coupling, testing, configuration."
+  },
+  {
+    "id": 251,
+    "question": "Explain the concept of polymorphic value types in modern C++.",
+    "answer": "C++17 std::variant and std::visit provide polymorphic-like behavior for value types without inheritance. std::variant<int, double, string> v; std::visit([](auto&& arg) { cout << arg; }, v); Combined with std::holds_alternative, enables type-safe unions with visitor pattern. Alternative to inheritance-based polymorphism for fixed type sets."
+  },
+  {
+    "id": 252,
+    "question": "What are virtual functions ?",
+    "answer": "Virtual functions are member functions declared with 'virtual' keyword that can be overridden in derived classes. They enable runtime polymorphism - the function called is determined by object's actual type, not pointer/reference type. Virtual functions use dynamic dispatch via vtables. Example: class Base { public: virtual void show() { cout << 'Base'; } };"
+  },
+  {
+    "id": 253,
+    "question": "Explain how vtables (virtual tables) work in C++.",
+    "answer": "Each class with virtual functions has a static vtable - array of function pointers. Each object has a hidden vptr pointing to its class's vtable. Virtual function call: obj.vptr->vtable[index](). Constructor sets vptr to class's vtable. Multiple inheritance creates multiple vptrs. Enables efficient dynamic dispatch with minimal overhead."
+  },
+  {
+    "id": 254,
+    "question": "What is the difference between virtual and non-virtual functions?",
+    "answer": "Virtual functions support dynamic binding - resolved at runtime based on object type. Non-virtual functions use static binding - resolved at compile time based on pointer/reference type. Virtual functions have slight overhead (vptr, indirect call) but enable polymorphism. Non-virtual faster but inflexible. Virtual destructors essential for proper cleanup."
+  },
+  {
+    "id": 255,
+    "question": "Explain the concept of pure virtual functions and abstract classes.",
+    "answer": "Pure virtual function declared with '= 0' (C++) or 'abstract' (C#/Java). Makes class abstract - cannot instantiate. Derived classes must override pure virtuals to become concrete. Example: class Shape { public: virtual double area() = 0; }; Abstract classes define interfaces, provide common base for polymorphic hierarchies."
+  },
+  {
+    "id": 256,
+    "question": "Why should destructors be virtual in polymorphic base classes?",
+    "answer": "Virtual destructors ensure proper cleanup when deleting derived objects through base pointers. Without virtual, only base destructor runs, causing resource leaks in derived class. Example: Base* b = new Derived(); delete b; // Calls ~Derived() then ~Base() if virtual, else only ~Base(). Always make base class destructor virtual."
+  },
+  {
+    "id": 257,
+    "question": "What is the cost of virtual functions in C++?",
+    "answer": "Virtual function costs: per-object vptr (typically 8 bytes on 64-bit), per-class vtable, indirect function call (can't be inlined), prevents some optimizations. Virtual call ~2-3x slower than direct call. Construction sets vptr. Virtual functions in tight loops can impact performance. Consider non-virtual alternatives for performance-critical code."
+  },
+  {
+    "id": 258,
+    "question": "Explain the concept of virtual inheritance and the diamond problem.",
+    "answer": "Virtual inheritance solves diamond problem in multiple inheritance where a class inherits from two classes sharing common base. Without virtual, duplicate base subobjects cause ambiguity. Virtual inheritance (virtual base) ensures single shared base instance. Example: class A {}; class B : virtual public A {}; class C : virtual public A {}; class D : public B, public C {}; // Single A subobject."
+  },
+  {
+    "id": 259,
+    "question": "How does C++ resolve virtual function calls?",
+    "answer": "Compiler generates vtable per class with virtual functions. Constructor sets vptr to appropriate vtable. Virtual call: (obj.vptr[ index ] )(). Index determined at compile time. Runtime: fetch vptr, get function pointer from vtable at index, call through pointer. Multiple inheritance: adjust 'this' pointer for second/third base classes."
+  },
+  {
+    "id": 260,
+    "question": "What is the difference between override and final specifiers in C++11?",
+    "answer": "'override' explicitly marks overridden virtual function, compiler checks base class has matching virtual. Prevents accidental overloads. 'final' prevents further overriding in derived classes. Example: class Derived : public Base { void func() override; // ensures overriding }; class Derived2 : public Derived { void func() final; // no further override };"
+  },
+  {
+    "id": 261,
+    "question": "Explain virtual functions in constructors and destructors.",
+    "answer": "In constructors, virtual functions call the version from current class, not derived (derived not yet constructed). Same in destructors (derived already destroyed). Because vptr updated as construction/destruction proceeds. Never call virtual functions in constructors/destructors if expecting polymorphic behavior - leads to surprises."
+  },
+  {
+    "id": 262,
+    "question": "What is the slicing problem and how does it relate to virtual functions?",
+    "answer": "Slicing occurs when derived object assigned to base object by value - derived part 'sliced off'. Virtual functions called through sliced object use base class versions. Example: Base b = Derived(); b.virtualFunc(); // Calls Base::virtualFunc, not Derived. Avoid by using pointers/references, disable copying, or use polymorphic wrappers."
+  },
+  {
+    "id": 263,
+    "question": "Explain the concept of covariant return types with virtual functions.",
+    "answer": "Covariant return types allow overridden virtual function to return more specific type. Example: class Base { virtual Base* clone(); }; class Derived : public Base { Derived* clone() override; }; Allowed because Derived* is substitutable for Base*. Maintains type safety while enabling more precise interfaces in hierarchies."
+  },
+  {
+    "id": 264,
+    "question": "How are virtual functions implemented in languages without pointers (Java/C#)?",
+    "answer": "Java/C# use similar vtable mechanism but managed. All non-static, non-final, non-private methods are virtual by default. Objects have hidden type pointer to method table. Just-In-Time compilation can devirtualize when possible. Reflection provides runtime type information. Garbage collection handles memory, no destructor issues."
+  },
+  {
+    "id": 265,
+    "question": "What is the difference between dynamic_cast and virtual functions?",
+    "answer": "dynamic_cast uses RTTI (Run-Time Type Information) to safely downcast polymorphic types. Requires at least one virtual function. Virtual functions enable polymorphic behavior without casting. dynamic_cast: Base* b = new Derived(); Derived* d = dynamic_cast<Derived*>(b); Returns null if cast fails. Virtual functions preferred over casting for polymorphic behavior."
+  },
+  {
+    "id": 266,
+    "question": "Explain the concept of virtual table pointers (vptr) layout in memory.",
+    "answer": "vptr typically stored at beginning of object (implementation-dependent). Size of pointer (4/8 bytes). Each object has vptr(s) - one per polymorphic base in multiple inheritance. vptr points to class-specific vtable. Constructor sets vptr. Object memory layout: [vptr][member variables]. Affects object size and alignment."
+  },
+  {
+    "id": 267,
+    "question": "What is the relationship between virtual functions and the Open/Closed Principle?",
+    "answer": "Virtual functions enable Open/Closed Principle - classes open for extension via new derived classes, closed for modification. Base class defines virtual interface, derived classes provide implementations. New functionality added without modifying existing code. Example: Shape with virtual draw() - add Triangle without changing code using Shape*."
+  },
+  {
+    "id": 268,
+    "question": "How does multiple inheritance affect virtual function tables?",
+    "answer": "Multiple inheritance creates multiple vptrs in object - one per polymorphic base class. Each base has its own vtable. Derived class may need to adjust 'this' pointer when calling virtual functions through second/third base. Thunk functions adjust 'this' then jump to implementation. More complex layout, larger objects."
+  },
+  {
+    "id": 269,
+    "question": "Explain the concept of virtual base classes and their impact on vtables.",
+    "answer": "Virtual base classes solve diamond problem. Implementation adds indirection - objects have pointers to virtual base subobject rather than embedding it directly. Vtables include offsets to virtual bases. More complex, slightly slower access. Constructor responsibilities increase - most derived initializes virtual bases."
+  },
+  {
+    "id": 270,
+    "question": "What is the performance overhead of virtual inheritance compared to virtual functions?",
+    "answer": "Virtual inheritance adds more overhead than regular virtual functions: additional indirection for accessing virtual base members, more complex construction, larger objects (pointers to virtual bases). Virtual functions: one indirection per call. Virtual inheritance: may add indirection per member access to virtual base. Use only when necessary."
+  },
+  {
+    "id": 271,
+    "question": "How do you call a base class virtual function from derived?",
+    "answer": "Use scope resolution: Base::function(). Example: class Derived : public Base { void func() override { Base::func(); // Call base version // Additional derived behavior } }; Bypasses virtual dispatch, calls specific version. Useful for extending base behavior rather than replacing."
+  },
+  {
+    "id": 272,
+    "question": "What is the difference between early and late binding in virtual functions?",
+    "answer": "Early binding (static binding) resolved at compile time - used for non-virtual functions. Late binding (dynamic binding) resolved at runtime via vtable - used for virtual functions. Early binding faster, can inline. Late binding enables polymorphism, supports runtime decisions based on object type."
+  },
+  {
+    "id": 273,
+    "question": "Explain the concept of virtual friends - why can't friends be virtual?",
+    "answer": "Friendship isn't inherited or virtual because it's about access privileges, not polymorphic behavior. Friend declaration specifies a specific function or class gets access to private members. Virtual would imply friendship determined at runtime, but access control is compile-time concept. Use virtual functions that call friend functions if needed."
+  },
+  {
+    "id": 274,
+    "question": "What is the address of a virtual function and can you take it?",
+    "answer": "Can't take address of virtual function directly and have it work polymorphically - address resolved at compile time. &Base::func gives pointer to member function (non-polymorphic). For polymorphic call, need object and vtable. Use pointers to members carefully with virtual functions - they capture non-virtual addresses."
+  },
+  {
+    "id": 275,
+    "question": "How does the compiler implement virtual function calls in switch statements?",
+    "answer": "Some compilers optimize virtual calls by devirtualization - if exact type known at compile time, replace virtual call with direct call. For switch on type, may use jump table. Otherwise, standard vtable dispatch. Profile-guided optimization can identify common types and optimize accordingly."
+  },
+  {
+    "id": 276,
+    "question": "Explain the concept of virtual constructors - why aren't they possible?",
+    "answer": "Constructors can't be virtual because object doesn't exist yet - vptr not set. Object construction builds from base up, setting vptrs along the way. Virtual constructor idiom (clone() factory methods) provides polymorphic object creation instead. Example: virtual Base* clone() const = 0; in base, implemented in each derived."
+  },
+  {
+    "id": 277,
+    "question": "What is the role of virtual functions in the Template Method pattern?",
+    "answer": "Template Method pattern uses virtual functions for algorithm steps. Base class defines skeleton with virtual hooks, derived classes override specific steps. Example: class DataProcessor { public: void process() { read(); transform(); write(); } virtual void read() = 0; virtual void transform() {} virtual void write() = 0; }; Virtual functions customize algorithm."
+  },
+  {
+    "id": 278,
+    "question": "How does virtual function call differ from ordinary function call in assembly?",
+    "answer": "Ordinary call: direct address (call _Z4funcv). Virtual call: load vptr from object (mov rax, [rbx]), load function pointer from vtable (call [rax + offset]), indirect call through register. Virtual requires extra memory access, can't be inlined, may cause branch misprediction. Modern CPUs handle reasonably well."
+  },
+  {
+    "id": 279,
+    "question": "Explain the concept of RTTI (Run-Time Type Information) and its relation to virtual functions.",
+    "answer": "RTTI provides type information at runtime - typeid, dynamic_cast. Requires at least one virtual function in class. Compiler stores type_info objects for polymorphic classes. vtable often includes pointer to type_info. Enables safe downcasting, type identification. Adds overhead (space for type_info, time for dynamic_cast)."
+  },
+  {
+    "id": 280,
+    "question": "What is the difference between virtual and non-virtual interfaces (NVI) idiom?",
+    "answer": "NVI makes virtual functions private/protected, provides public non-virtual wrapper. Controls access, enables pre/post conditioning. Example: class Base { public: void execute() { pre(); doExecute(); post(); } private: virtual void doExecute() = 0; }; Separates interface from customization points."
+  },
+  {
+    "id": 281,
+    "question": "How do you measure virtual function call overhead in practice?",
+    "answer": "Benchmark comparing virtual calls to direct calls or function pointers. Factors: call frequency, branch prediction, inlining potential. Tools: perf, benchmark frameworks (Google Benchmark). Virtual call typically 2-5ns overhead on modern CPUs. For millions of calls per second, may matter. Profile to determine if overhead significant in your context."
+  },
+  {
+    "id": 282,
+    "question": "What are the different types of relationships between objects in OOP?",
+    "answer": "Main relationships: Association (uses-a) - objects know about each other; Aggregation (has-a) - whole-part relationship, parts can exist independently; Composition (contains-a) - stronger whole-part, parts die with whole; Inheritance (is-a) - class derives from another; Dependency (uses temporarily) - method parameter or local variable. UML represents these differently."
+  },
+  {
+    "id": 283,
+    "question": "Explain the difference between association, aggregation, and composition.",
+    "answer": "Association: objects connected, independent lifecycles. Aggregation: whole-part relationship, parts can exist without whole (e.g., Department has Professors). Composition: stronger ownership, parts destroyed with whole (e.g., House has Rooms). Composition implies exclusive ownership; aggregation implies shared ownership. Both are 'has-a' relationships."
+  },
+  {
+    "id": 284,
+    "question": "What is the difference between 'has-a' and 'is-a' relationships?",
+    "answer": "'is-a' is inheritance - class derives from another (e.g., Dog is-a Animal). 'has-a' is composition/aggregation - class contains other objects (e.g., Car has-a Engine). Prefer composition over inheritance ('has-a' over 'is-a') when relationship isn't strict subtype. 'has-a' more flexible, less coupling."
+  },
+  {
+    "id": 285,
+    "question": "Explain the concept of multiplicity in object relationships.",
+    "answer": "Multiplicity specifies how many objects participate in relationship. Common: one-to-one (1..1), one-to-many (1..*), many-to-many (*..*). Also optional (0..1), exactly N, ranges. Example: Person has 0..* Addresses (optional, many). Department has 1..* Employees (at least one). Implemented via collections, references, or foreign keys."
+  },
+  {
+    "id": 286,
+    "question": "What is a bidirectional relationship and how do you implement it?",
+    "answer": "Bidirectional relationship means both objects know about each other. Example: Person has List<Address>; Address has Person owner. Implementation: both sides have references. Must maintain consistency - when setting Person on Address, also add Address to Person's list. Can cause circular references, careful with serialization, memory leaks."
+  },
+  {
+    "id": 287,
+    "question": "Explain the concept of dependency injection in object relationships.",
+    "answer": "Dependency injection provides required objects from outside rather than creating internally. Types: constructor injection (dependencies passed via constructor), setter injection (via setters), interface injection. Reduces coupling, improves testability. Example: class Service { private Repository repo; public Service(Repository r) { repo = r; } } // DI through constructor."
+  },
+  {
+    "id": 288,
+    "question": "What is the difference between aggregation and composition in code?",
+    "answer": "Aggregation: parts can exist independently - passed in constructor, can be shared. Composition: parts owned exclusively - created in constructor, destroyed with owner, cannot be shared. Composition implies exclusive ownership and same lifetime. Example: Car aggregates Engine (engine may be swapped), composes Chassis (chassis destroyed with car)."
+  },
+  {
+    "id": 289,
+    "question": "Explain the concept of UML class diagram relationships.",
+    "answer": "UML relationships: Inheritance (solid line, hollow triangle arrow), Association (solid line, optional arrow), Aggregation (hollow diamond at whole end), Composition (filled diamond), Dependency (dashed arrow with stereotype). Multiplicity shown as numbers (1, 0..*, 1..*). Navigability arrows show direction. Essential for design documentation."
+  },
+  {
+    "id": 290,
+    "question": "What is the Law of Demeter (Principle of Least Knowledge)?",
+    "answer": "Law of Demeter says object should only talk to immediate friends: itself, its members, parameters, objects it creates. Avoid method chaining like a.getB().getC().doSomething(). Reduces coupling, improves maintainability. Violation indicates exposing internal structure. Solution: provide higher-level methods that delegate."
+  },
+  {
+    "id": 291,
+    "question": "Explain the concept of friend classes/functions in C++ relationships.",
+    "answer": "Friend declarations allow non-member functions or other classes access to private members. Creates coupling - use sparingly. Example: class A { friend class B; friend void helper(A&); private: int secret; }; B can access A's private members. Alternative to getters/setters for specific cases like operators, serialization."
+  },
+  {
+    "id": 292,
+    "question": "What is the difference between shallow and deep relationships in object graphs?",
+    "answer": "Shallow relationships: objects directly reference each other, simple graph. Deep relationships: chains of references, complex object graphs. Deep relationships require careful copying (deep vs shallow copy), serialization, and garbage collection. Can lead to cascade operations (deleting root deletes whole graph if composition)."
+  },
+  {
+    "id": 293,
+    "question": "Explain the concept of navigation direction in object relationships.",
+    "answer": "Navigation direction indicates whether objects can traverse relationship. Unidirectional: A knows B, B doesn't know A. Bidirectional: both know each other. Direction affects implementation (pointers/references one or both ways), performance, memory usage. Choose direction based on usage patterns - only navigate where needed."
+  },
+  {
+    "id": 294,
+    "question": "How do you model many-to-many relationships in OOP?",
+    "answer": "Many-to-many: both sides have collections of the other. Example: Student has List<Course>, Course has List<Student>. Need to maintain consistency. Alternatively, introduce intermediate class (Enrollment) with additional attributes (grade, date). Relational mapping uses join table. Choose based on whether relationship has its own data."
+  },
+  {
+    "id": 295,
+    "question": "What is the difference between using and owning relationships?",
+    "answer": "Using relationship (dependency): object temporarily uses another (method parameter, local variable). No ownership, no lifecycle management. Owning relationship (composition/aggregation): object holds reference longer-term, may manage lifecycle. Important for resource management, garbage collection, and design clarity."
+  },
+  {
+    "id": 296,
+    "question": "Explain the concept of object graphs and their management.",
+    "answer": "Object graphs are networks of interconnected objects. Management challenges: circular references (memory leaks in reference-counted systems), consistency (updates propagate correctly), serialization (entire graph may need serializing), and traversal (algorithms like garbage collection). Design patterns like Visitor help traverse graphs."
+  },
+  {
+    "id": 297,
+    "question": "What is the role of interfaces in defining object relationships?",
+    "answer": "Interfaces define contracts between objects without concrete coupling. Objects relate through interfaces they implement, enabling loose coupling. Example: PaymentProcessor interface with process() method. Multiple payment services implement it. Client depends on interface, not concrete classes. Enables polymorphism and dependency injection."
+  },
+  {
+    "id": 298,
+    "question": "Explain the concept of delegation in object relationships.",
+    "answer": "Delegation passes responsibility to another object. Object receives request, forwards to delegate. Implements 'forwarding' rather than inheritance. Example: class Printer { private RealPrinter delegate; void print() { delegate.print(); } }; Delegation more flexible than inheritance - can change delegate at runtime. Composition with forwarding."
+  },
+  {
+    "id": 299,
+    "question": "What is the difference between composition and inheritance?",
+    "answer": "Composition ('has-a') builds objects from other objects; more flexible, runtime configurable, weaker coupling. Inheritance ('is-a') extends classes; compile-time, stronger coupling, fragile base class problem. Prefer composition over inheritance (Gang of Four). Use inheritance only for true subtype relationships with LSP compliance."
+  },
+  {
+    "id": 300,
+    "question": "How do you handle circular references in object relationships?",
+    "answer": "Circular references cause issues: memory leaks in reference counting (C++ shared_ptr cycles), infinite recursion in serialization/toString, difficult garbage collection. Solutions: use weak references (weak_ptr) for back references, break cycles manually, use GC that handles cycles (Java, C#). Design to minimize cycles where possible."
+  },
+  {
+    "id": 301,
+    "question": "Explain the concept of relationship cardinality in domain modeling.",
+    "answer": "Cardinality defines numerical constraints: one-to-one (1:1), one-to-many (1:N), many-to-many (M:N). Also optionality: mandatory (1) vs optional (0..1). Example: Person married to Person (1:1 optional), Department has Employees (1:N mandatory at department side). Drives implementation choices - collections, nullability, foreign keys."
+  },
+  {
+    "id": 302,
+    "question": "What is the difference between aggregation and association in UML?",
+    "answer": "Both show relationships, but aggregation implies whole-part with independent lifecycles (hollow diamond). Association is general connection without ownership implication (solid line). In practice, distinction subtle. Many modelers avoid aggregation, use association with notes, or composition for strong ownership. Focus on clarity over strict definitions."
+  },
+  {
+    "id": 303,
+    "question": "Explain the concept of qualified association in UML.",
+    "answer": "Qualified association uses qualifier to select among many objects at the other end. Like dictionary lookup - given qualifier value, you get specific target object. Example: Directory has many Files, qualified by filename. Reduces multiplicity from many-to-one to one-to-one with qualifier. Implementation uses map keyed by qualifier."
+  },
+  {
+    "id": 304,
+    "question": "How do you model recursive relationships in OOP?",
+    "answer": "Recursive relationship: object relates to same type. Example: Employee has manager (also Employee). Implemented with same-type reference. Tree structures: Node has children (List<Node>), parent reference. Graph structures: Node has List<Node> neighbors. Common in organizational hierarchies, category trees, network graphs."
+  },
+  {
+    "id": 305,
+    "question": "What is the role of the Mediator pattern in object relationships?",
+    "answer": "Mediator reduces coupling between multiple objects by centralizing communication. Objects communicate through mediator rather than directly. Example: Air traffic control mediates between aircraft. Chat room mediates between users. Prevents many-to-many relationships becoming unmanageable, simplifies protocols."
+  },
+  {
+    "id": 306,
+    "question": "Explain the concept of relationship inversion (Dependency Inversion).",
+    "answer": "Dependency Inversion Principle: depend on abstractions, not concretions. High-level modules shouldn't depend on low-level; both depend on abstractions. Flips traditional dependency direction. Example: Business logic depends on Repository interface, not concrete SqlRepository. Concrete depends on same interface. Enables pluggable architecture."
+  },
+  {
+    "id": 307,
+    "question": "What is the difference between static and dynamic relationships?",
+    "answer": "Static relationships defined at compile time: inheritance, template instantiation. Dynamic relationships established at runtime: object references, dependency injection. Static relationships rigid but type-safe; dynamic relationships flexible but runtime-checked. Modern design favors dynamic for extensibility, static for performance."
+  },
+  {
+    "id": 308,
+    "question": "How do ORMs (Object-Relational Mappers) handle object relationships?",
+    "answer": "ORMs map OOP relationships to database: one-to-one (foreign key), one-to-many (collection, foreign key), many-to-many (join table). Handle lazy loading (load on access), eager loading (load with parent), cascading (save/delete propagate). Example: JPA @OneToMany, @ManyToOne annotations. Challenges: N+1 queries, object graph consistency."
+  },
+  {
+    "id": 309,
+    "question": "Explain the concept of relationship multiplicity and its implementation.",
+    "answer": "Multiplicity implementation: 1:1 - direct reference (possibly nullable). 1:N - collection in 'one' side, reference in 'many' side. M:N - collections both sides, or intermediate class. Optional: nullable references. Mandatory: ensure non-null construction, validation. Implement with language collections (List, Set) and proper encapsulation."
+  },
+  {
+    "id": 310,
+    "question": "What is the role of the Observer pattern in object relationships?",
+    "answer": "Observer defines one-to-many dependency: when subject changes, observers notified. Objects relate through subscription. Example: UI components observe data model. Stock price changes notify multiple displays. Decouples subject from observers - subjects know only Observer interface. Maintains relationships dynamically as observers subscribe/unsubscribe."
+  },
+  {
+    "id": 311,
+    "question": "How do you ensure relationship invariants are maintained?",
+    "answer": "Encapsulate relationships - control modifications through methods that maintain consistency. Example: addStudentToCourse() updates both sides. Use validation in setters. Consider using domain events for complex invariants. In bidirectional relationships, designate one side as owner responsible for consistency. Test relationship invariants thoroughly."
   }
 ]

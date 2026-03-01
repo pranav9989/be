@@ -51,7 +51,7 @@ def build_faiss_index(chunks, metas):
     )
 
     dimension = embeddings.shape[1]
-    index = faiss.IndexFlatL2(dimension)
+    index = faiss.IndexFlatIP(dimension)
     index.add(np.asarray(embeddings, dtype="float32"))
 
     index_path = FAISS_DIR / "index.faiss"

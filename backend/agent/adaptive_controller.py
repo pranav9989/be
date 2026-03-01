@@ -26,6 +26,48 @@ class AdaptiveInterviewController:
     
     TOPICS = ["DBMS", "OS", "OOPS"]
     
+    # STRICT 9-CASE DIFFICULTY MATRIX - ADD THIS
+    def _calculate_next_difficulty(self, question_number: int, previous_score: float, previous_difficulty: str) -> str:
+        """
+        STRICT 9-CASE DIFFICULTY MATRIX
+        
+        Q1: Always MEDIUM
+        
+        Q2: Based on Q1 score:
+            < 0.4  → EASY
+            0.4-0.7 → MEDIUM
+            > 0.7  → HARD
+        
+        Q3: Based on Q2 score:
+            < 0.4  → EASY (regardless of previous)
+            0.4-0.7 → MEDIUM (regardless of previous)
+            > 0.7  → HARD (regardless of previous)
+        """
+        # Q1 always medium
+        if question_number == 1:
+            return "medium"
+        
+        # Q2 logic (based on Q1 score)
+        if question_number == 2:
+            if previous_score < 0.4:
+                return "easy"
+            elif previous_score > 0.7:
+                return "hard"
+            else:
+                return "medium"
+        
+        # Q3 logic (based on Q2 score)
+        if question_number == 3:
+            if previous_score < 0.4:
+                return "easy"
+            elif previous_score > 0.7:
+                return "hard"
+            else:
+                return "medium"
+        
+        # Fallback (should not happen)
+        return "medium"
+    
     def __init__(self):
         self.sessions: Dict[str, AdaptiveInterviewState] = {}
         self.question_bank = AdaptiveQuestionBank()
@@ -154,7 +196,7 @@ class AdaptiveInterviewController:
         
         # Get weak concepts for this topic to pass to subtopic tracker
         weak_concepts_for_topic = list(mastery_for_topic.weak_concepts) if mastery_for_topic else []
-        chosen_subtopic = tracker.get_next_subtopic(first_topic, weak_concepts=weak_concepts_for_topic)
+        chosen_subtopic = tracker.get_next_subtopic(first_topic, weak_concepts=weak_concepts_for_topic, covered_subtopics=[])
         print(f"\n   ✅ SELECTED: {chosen_subtopic}")
         print("-"*80)
         
@@ -244,7 +286,8 @@ class AdaptiveInterviewController:
                     tracker = self.subtopic_trackers[state.user_id]
                     mastery = state.topic_mastery.get(topic)
                     weak_for_topic = list(mastery.weak_concepts) if mastery else []
-                    subtopic = tracker.get_next_subtopic(topic, weak_concepts=weak_for_topic)
+                    covered = state.cycle_covered_subtopics.get(topic, [])
+                    subtopic = tracker.get_next_subtopic(topic, weak_concepts=weak_for_topic, covered_subtopics=covered)
                     print(f"🎯 Tracker selected: {subtopic}")
                 else:
                     available_subtopics = self.question_bank.subtopics_by_topic.get(topic, [])
@@ -414,11 +457,11 @@ class AdaptiveInterviewController:
         for concept_name in state.current_sampled_concepts:
             concept = mastery.concepts[concept_name]
             print(f"   {concept_name}: attempts={concept.attempts}, "
-                  f"mentioned={concept.times_mentioned}, "
-                  f"missed={concept.times_missed_when_sampled}, "
-                  f"mastery={concept.mastery_level:.2f}, "
-                  f"priority={concept.priority_score:.2f}, "
-                  f"weak={concept.is_weak}, strong={concept.is_strong}")
+                f"mentioned={concept.times_mentioned}, "
+                f"missed={concept.times_missed_when_sampled}, "
+                f"mastery={concept.mastery_level:.2f}, "
+                f"priority={concept.priority_score:.2f}, "
+                f"weak={concept.is_weak}, strong={concept.is_strong}")
         
         # ============================================
         # LEARNING VELOCITY CALCULATION
@@ -458,7 +501,31 @@ class AdaptiveInterviewController:
         
         state.add_to_history(record)
         
-        self._save_to_db(state.user_id, session_id, record, mastery, expected_answer, sampled_concepts)
+        # 🔥 Get expected answer for this question from RAG FIRST - FIXED VERSION
+        expected_answer_for_db = None
+        try:
+            from rag import agentic_expected_answer
+            sampled_concepts_for_rag = state.current_sampled_concepts  # ✅ Use state directly
+            
+            # PASS THE CONTROLLER'S TOPIC - CRITICAL FIX
+            current_topic = state.current_topic
+            if not current_topic:
+                print(f"⚠️ No current_topic found in session")
+                current_topic = "DBMS"  # Fallback
+                
+            # ✅ FIX: Pass controller topic explicitly with correct parameter names
+            expected_answer_for_db, chunks = agentic_expected_answer(
+                user_query=state.current_question,
+                sampled_concepts=sampled_concepts_for_rag,
+                expected_topic=current_topic  # THIS IS THE CRITICAL FIX
+            )
+            print(f"📝 Generated expected answer using topic: {current_topic} ({len(expected_answer_for_db)} chars)")
+
+        except Exception as e:
+            print(f"⚠️ Could not get expected answer: {e}")
+            expected_answer_for_db = state.current_question  # Simple fallback
+        
+        self._save_to_db(state.user_id, session_id, record, mastery, expected_answer_for_db, sampled_concepts)
         
         # Build comprehensive analysis dict for decision engine
         analysis_for_decision = {
@@ -500,6 +567,7 @@ class AdaptiveInterviewController:
         mastery = state.topic_mastery.get(topic)
         weak_concepts = list(mastery.weak_concepts) if mastery else []
         
+        # Count questions on this subtopic
         questions_on_subtopic = 0
         for record in state.history:
             if record.topic == topic and record.subtopic == state.current_subtopic:
@@ -519,17 +587,19 @@ class AdaptiveInterviewController:
             print(f"\n   → Already asked 3 questions, moving to next topic")
             return self._move_to_next_topic(state, session_id)
         
+        # Get previous score for this subtopic
         prev_scores = [r.semantic_score for r in state.history 
                       if r.topic == topic and r.subtopic == state.current_subtopic]
         prev_score = prev_scores[-1] if prev_scores else 0.5
         
+        # 🔥 USE STRICT DIFFICULTY MATRIX
         next_difficulty = self._calculate_next_difficulty(
-            current_question_num=current_question_num,
-            current_score=prev_score,
+            question_number=current_question_num,
+            previous_score=prev_score,
             previous_difficulty=state.current_difficulty
         )
         
-        print(f"\n   ✅ NEXT DIFFICULTY: {next_difficulty.upper()}")
+        print(f"\n   ✅ NEXT DIFFICULTY: {next_difficulty.upper()} (score: {prev_score:.2f})")
         
         question, subtopic, sampled_concepts = self._generate_question(
             session_id=session_id,
@@ -541,8 +611,6 @@ class AdaptiveInterviewController:
         )
         
         asked_questions = [r.question for r in state.history]
-        if semantic_dedup.is_duplicate(session_id, question, asked_questions, threshold=0.9):
-            question = f"Let's explore this further: {question}"
         
         state.current_question = question
         state.current_difficulty = next_difficulty
@@ -559,55 +627,27 @@ class AdaptiveInterviewController:
             "learning_velocity": round(mastery.mastery_velocity, 3) if mastery else 0
         }
     
-    def _calculate_next_difficulty(self, current_question_num: int, current_score: float, previous_difficulty: str) -> str:
-        """
-        STRICT 9-CASE MATRIX IMPLEMENTATION
-        
-        Q2 difficulty based on Q1 score:
-            < 0.4  → EASY
-            0.4-0.7 → MEDIUM
-            > 0.7  → HARD
-        
-        Q3 difficulty based on Q2 score AND Q2 difficulty:
-            < 0.4  → EASY (regardless of previous)
-            > 0.7  → HARD (regardless of previous)
-            0.4-0.7 → MEDIUM (regardless of previous)
-        """
-        # Q1 always medium
-        if current_question_num == 1:
-            return "medium"
-        
-        # Q2 logic (based on Q1 score)
-        if current_question_num == 2:
-            if current_score < 0.4:
-                return "easy"
-            elif current_score > 0.7:
-                return "hard"
-            else:
-                return "medium"
-        
-        # Q3 logic (based on Q2 score)
-        if current_question_num == 3:
-            if current_score < 0.4:
-                return "easy"
-            elif current_score > 0.7:
-                return "hard"
-            else:  # 0.4-0.7
-                return "medium"
-        
-        # Fallback (should not happen)
-        return "medium"
+
     
     def _move_to_next_topic(self, state, session_id) -> dict:
         print("\n" + "="*80)
         print("➡️ MOVING TO NEXT TOPIC")
         print("="*80)
         
+        # Mark current subtopic as covered before moving
+        if state.current_topic and state.current_subtopic:
+            if state.current_topic not in state.cycle_covered_subtopics:
+                state.cycle_covered_subtopics[state.current_topic] = []
+            if state.current_subtopic not in state.cycle_covered_subtopics[state.current_topic]:
+                state.cycle_covered_subtopics[state.current_topic].append(state.current_subtopic)
+                print(f"✅ Marked {state.current_subtopic} in {state.current_topic} as covered for this cycle")
+
         if not state.advance_to_next_topic():
             print("\n🔄 Completed full cycle - starting new cycle")
             state.current_topic_index = 0
             state.current_topic = state.topic_order[0]
             state.followup_count = 0
+            state.cycle_covered_subtopics = {} # CLEAR COVERED FLAGS
             
             for topic in list(state.topic_sessions.keys()):
                 state.topic_sessions[topic] = TopicSessionState(topic=topic)
@@ -622,7 +662,8 @@ class AdaptiveInterviewController:
             self.subtopic_trackers[state.user_id] = SubtopicTracker(state.user_id)
         
         tracker = self.subtopic_trackers[state.user_id]
-        chosen_subtopic = tracker.get_next_subtopic(new_topic, weak_concepts=weak_concepts)
+        covered = state.cycle_covered_subtopics.get(new_topic, [])
+        chosen_subtopic = tracker.get_next_subtopic(new_topic, weak_concepts=weak_concepts, covered_subtopics=covered)
         
         difficulty = "medium"
         state.current_difficulty = difficulty

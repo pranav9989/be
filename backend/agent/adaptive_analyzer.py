@@ -1,11 +1,54 @@
 # backend/agent/adaptive_analyzer.py
 
 import re
-from typing import List, Set, Dict
+from typing import List, Set, Dict, Tuple
 import numpy as np
-# 🔥 ADD THESE IMPORTS
+import requests
+import os
+from sentence_transformers import SentenceTransformer, util
+from sklearn.metrics.pairwise import cosine_similarity
 from interview_analyzer import calculate_semantic_similarity
-from rag import agentic_expected_answer
+from rag import agentic_expected_answer, retrieve_relevant_chunks
+
+# Ollama configuration
+OLLAMA_URL = "http://localhost:11434/api/generate"
+OLLAMA_MODEL = "gemma3:1b"
+
+# Global embedder for semantic concept detection (loaded once)
+_concept_embedder = SentenceTransformer("all-MiniLM-L6-v2")
+
+def normalize_text(text: str) -> str:
+    """Normalize text for concept matching"""
+    text = text.lower()
+    text = text.replace("/", " ")
+    text = text.replace("-", " ")
+    text = re.sub(r'[^a-z0-9 ]', '', text)
+    text = re.sub(r'\s+', ' ', text)
+    return text.strip()
+
+def semantic_concept_match(answer: str, concept: str, threshold: float = 0.65):
+    """Match concept using both exact and semantic similarity"""
+    answer_norm = normalize_text(answer)
+    concept_norm = normalize_text(concept)
+    
+    # Exact normalized match
+    if concept_norm in answer_norm:
+        print(f"   ✓ Exact match detected: {concept}")
+        return True, 1.0
+    
+    # Semantic similarity
+    answer_emb = _concept_embedder.encode([answer_norm], normalize_embeddings=True)[0]
+    concept_emb = _concept_embedder.encode([concept_norm], normalize_embeddings=True)[0]
+    
+    similarity = cosine_similarity([answer_emb], [concept_emb])[0][0]
+    
+    print(f"   🔍 Concept similarity: {concept} → {similarity:.3f}")
+    
+    if similarity >= threshold:
+        print(f"   ✓ Semantic match accepted: {concept}")
+        return True, similarity
+    
+    return False, similarity
 
 class AdaptiveAnalyzer:
     """Enhanced analyzer with adaptive learning signals"""
@@ -32,6 +75,10 @@ class AdaptiveAnalyzer:
         ]
     }
     
+    # Add class-level variables for semantic detection
+    embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    concept_similarity_threshold = 0.65
+    
     # Difficulty indicators
     DEPTH_INDICATORS = [
         'because', 'therefore', 'thus', 'hence', 'consequently',
@@ -57,7 +104,7 @@ class AdaptiveAnalyzer:
     def _concept_in_answer(cls, concept: str, answer_lower: str) -> bool:
         """
         INVARIANT 1: Detect concept with synonym support
-        Used for concept mastery tracking
+        Used for concept mastery tracking (legacy method, kept for compatibility)
         """
         concept_lower = concept.lower()
         
@@ -95,6 +142,53 @@ class AdaptiveAnalyzer:
         return False
     
     @classmethod
+    def detect_concepts_semantically(cls, answer: str, sampled_concepts: List[str]) -> Tuple[List[str], List[str]]:
+        """
+        Semantic concept detection robust to speech recognition errors
+        Uses semantic similarity with text normalization
+        
+        Returns:
+            Tuple of (mentioned_concepts, missing_concepts)
+        """
+        mentioned = []
+        missing = []
+        
+        if not answer or not sampled_concepts:
+            print("   ⚠️ Empty answer or concepts in semantic detection")
+            return [], sampled_concepts
+        
+        print(f"\n🔬 SEMANTIC CONCEPT DETECTION")
+        print(f"   Answer: {answer[:100]}..." if len(answer) > 100 else f"   Answer: {answer}")
+        print(f"   Concepts to check: {sampled_concepts}")
+        
+        try:
+            for concept in sampled_concepts:
+                # Use semantic concept matching
+                is_match, sim = semantic_concept_match(answer, concept)
+                
+                if is_match:
+                    mentioned.append(concept)
+                    print(f"   ✓ '{concept}' (match with similarity: {sim:.3f})")
+                else:
+                    missing.append(concept)
+                    print(f"   ✗ '{concept}' (similarity: {sim:.3f} < {cls.concept_similarity_threshold})")
+                    
+        except Exception as e:
+            print(f"   ⚠️ Semantic detection failed, falling back: {e}")
+            # Fallback to semantic matching (still better than exact)
+            for concept in sampled_concepts:
+                is_match, sim = semantic_concept_match(answer, concept)
+                if is_match:
+                    mentioned.append(concept)
+                    print(f"   ✓ '{concept}' (fallback match with sim: {sim:.3f})")
+                else:
+                    missing.append(concept)
+                    print(f"   ✗ '{concept}' (fallback missing, sim: {sim:.3f})")
+        
+        print(f"\n   📊 Final result - Mentioned: {mentioned}, Missing: {missing}")
+        return mentioned, missing
+    
+    @classmethod
     def extract_keywords(cls, text: str, topic: str = None) -> Set[str]:
         """Extract important keywords, optionally filtered by topic"""
         words = set(re.findall(r'\b[a-zA-Z]{3,}\b', text.lower()))
@@ -110,15 +204,18 @@ class AdaptiveAnalyzer:
         if topic and topic in cls.TECH_KEYWORDS:
             # Filter by topic-specific keywords
             topic_keywords = set(cls.TECH_KEYWORDS[topic])
-            return words.intersection(topic_keywords).union(multi_word_terms)
+            result = words.intersection(topic_keywords).union(multi_word_terms)
+            print(f"🔑 Extracted {len(result)} keywords for topic {topic}")
+            return result
         
         # Return all technical keywords from any topic
         all_keywords = set()
         for kw_list in cls.TECH_KEYWORDS.values():
             all_keywords.update(kw_list)
         
-        return words.intersection(all_keywords).union(multi_word_terms)
-    
+        result = words.intersection(all_keywords).union(multi_word_terms)
+        print(f"🔑 Extracted {len(result)} keywords (no topic filter)")
+        return result
     
     @classmethod
     def assess_depth(cls, answer: str) -> str:
@@ -132,11 +229,14 @@ class AdaptiveAnalyzer:
         has_example = 'example' in answer.lower() or 'instance' in answer.lower()
         
         if word_count > 100 and indicator_count >= 3 and has_example:
-            return "deep"
+            depth = "deep"
         elif word_count > 50 or indicator_count >= 2:
-            return "medium"
+            depth = "medium"
         else:
-            return "shallow"
+            depth = "shallow"
+        
+        print(f"📏 Depth assessment: {depth} (words: {word_count}, indicators: {indicator_count}, examples: {has_example})")
+        return depth
 
     @classmethod
     def get_subtopic_concepts(cls, topic: str, subtopic: str, question_bank) -> Set[str]:
@@ -145,6 +245,7 @@ class AdaptiveAnalyzer:
         This ensures we only check concepts that actually belong to this subtopic
         """
         if not topic or not subtopic or not question_bank:
+            print(f"⚠️ Missing parameters for get_subtopic_concepts: topic={topic}, subtopic={subtopic}, question_bank={bool(question_bank)}")
             return set()
         
         # Look through the taxonomy in question_bank
@@ -152,9 +253,11 @@ class AdaptiveAnalyzer:
             if t["name"] == topic:
                 for s in t["subtopics"]:
                     if s["name"] == subtopic:
-                        # Return all concepts for this subtopic as lowercase set
-                        return set([c.lower() for c in s["concepts"]])
+                        concepts = set([c.lower() for c in s["concepts"]])
+                        print(f"📚 Found {len(concepts)} concepts for {topic} - {subtopic}")
+                        return concepts
         
+        print(f"⚠️ No concepts found for {topic} - {subtopic}")
         return set()
     
     @classmethod
@@ -166,15 +269,18 @@ class AdaptiveAnalyzer:
         hesitant_count = sum(1 for ind in cls.HESITANT_INDICATORS if ind in answer_lower)
         
         if confident_count > hesitant_count + 1:
-            return "high"
+            confidence = "high"
         elif hesitant_count > confident_count + 1:
-            return "low"
+            confidence = "low"
         else:
-            return "medium"
+            confidence = "medium"
+        
+        print(f"🎯 Confidence assessment: {confidence} (confident: {confident_count}, hesitant: {hesitant_count})")
+        return confidence
     
     @classmethod
     def identify_missing_concepts(cls, answer: str, expected_concepts: Set[str]) -> List[str]:
-        """Identify which expected concepts are missing"""
+        """Identify which expected concepts are missing (legacy method)"""
         if not expected_concepts:
             return []
         
@@ -185,8 +291,140 @@ class AdaptiveAnalyzer:
             if concept not in answer_lower:
                 missing.append(concept)
         
+        print(f"🔍 Legacy missing concepts: {missing[:5]}")
         return missing[:5]  # Return top 5 missing concepts
     
+    @classmethod
+    def generate_rag_expected_answer(cls, question: str, concepts: List[str]) -> str:
+        """
+        Generate expected answer using RAG retrieval
+        Retrieves relevant chunks and synthesizes a concise answer
+        """
+        if not question or not concepts:
+            print("   ⚠️ No question or concepts for RAG expected answer")
+            return ""
+        
+        print(f"\n📚 Generating RAG expected answer for: {question[:50]}...")
+        print(f"   Concepts: {concepts}")
+        
+        # Retrieve relevant chunks
+        try:
+            chunks = retrieve_relevant_chunks(question, k=5)
+            print(f"   Retrieved {len(chunks)} relevant chunks")
+        except Exception as e:
+            print(f"   ⚠️ RAG retrieval failed: {e}")
+            chunks = []
+        
+        # Extract concept-specific content
+        concept_text = ""
+        if chunks:
+            for concept in concepts:
+                concept_lower = concept.lower()
+                for chunk in chunks:
+                    chunk_text = chunk.get("answer", chunk.get("text", ""))
+                    if concept_lower in chunk_text.lower():
+                        excerpt = chunk_text[:200]
+                        concept_text += f"\n{excerpt}"
+                        print(f"   Found content for '{concept}': {excerpt[:50]}...")
+        
+        # Build prompt
+        prompt = f"""Question: {question}
+
+Required concepts to cover: {', '.join(concepts)}
+
+Relevant knowledge:
+{concept_text if concept_text else "Use your technical knowledge."}
+
+Generate a concise expected answer (2-4 sentences) that:
+1. Explicitly mentions ALL required concepts
+2. Is technically accurate
+3. Is concise and well-structured
+
+Expected answer:"""
+
+        try:
+            response = requests.post(
+                OLLAMA_URL,
+                json={
+                    "model": OLLAMA_MODEL,
+                    "prompt": prompt,
+                    "stream": False,
+                    "options": {
+                        "temperature": 0.2,
+                        "num_predict": 300
+                    }
+                },
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                answer = response.json()["response"].strip()
+                print(f"   ✅ Generated ({len(answer)} chars)")
+                print(f"   Preview: {answer[:100]}...")
+                return answer
+            else:
+                print(f"   ⚠️ Ollama error: {response.status_code}")
+                return ""
+                
+        except Exception as e:
+            print(f"   ⚠️ Error generating: {e}")
+            return ""
+    
+    @classmethod
+    def perform_gap_analysis(cls, user_answer: str, question: str, concepts: List[str]) -> List[str]:
+        """
+        Perform gap analysis by comparing user answer with retrieved knowledge
+        Returns list of missing key points (up to 3)
+        """
+        if not user_answer or len(user_answer.strip()) < 10:
+            print(f"   ⚠️ Answer too brief for gap analysis")
+            return ["Answer too brief - needs more detail"]
+        
+        print(f"\n🔍 Performing gap analysis...")
+        print(f"   Question: {question[:50]}...")
+        print(f"   Concepts: {concepts}")
+        
+        # Retrieve relevant chunks
+        try:
+            chunks = retrieve_relevant_chunks(question, k=5)
+            print(f"   Retrieved {len(chunks)} chunks for analysis")
+        except Exception as e:
+            print(f"   ⚠️ RAG retrieval failed: {e}")
+            return []
+        
+        user_lower = user_answer.lower()
+        missing_points = []
+        
+        for i, chunk in enumerate(chunks[:3]):  # Check top 3 chunks
+            chunk_text = chunk.get("answer", chunk.get("text", ""))
+            if not chunk_text:
+                continue
+            
+            print(f"\n   Analyzing chunk {i+1}:")
+            
+            # Extract key sentences from chunk
+            sentences = chunk_text.split('.')
+            for j, sentence in enumerate(sentences[:2]):  # Check first 2 sentences
+                sentence = sentence.strip()
+                if len(sentence) < 20:
+                    continue
+                
+                # If key point not in answer, add to missing
+                if sentence.lower() not in user_lower:
+                    # Extract short version (first 60 chars)
+                    short_point = sentence[:60] + "..." if len(sentence) > 60 else sentence
+                    missing_points.append(short_point)
+                    print(f"      Missing point {len(missing_points)}: {short_point}")
+                    break  # One missing point per chunk
+            
+            if len(missing_points) >= 3:
+                break
+        
+        print(f"\n   📊 Gap analysis complete - found {len(missing_points)} missing points")
+        for i, point in enumerate(missing_points):
+            print(f"      Missing {i+1}: {point}")
+        
+        return missing_points[:3]
 
     @classmethod
     def analyze(cls, question: str, answer: str, topic: str = None, 
@@ -195,8 +433,14 @@ class AdaptiveAnalyzer:
         """
         Comprehensive analysis with adaptive learning signals
         ALL metrics are RAW values (0.0 to 1.0) - NO SCALING
-        INVARIANT 1: Concept detection uses synonym support
+        INVARIANT 1: Concept detection uses synonym support and semantic matching
         """
+        print("\n" + "█"*80)
+        print("📊 ADAPTIVE ANALYZER")
+        print("█"*80)
+        print(f"   Question: {question[:100]}..." if len(question) > 100 else f"   Question: {question}")
+        print(f"   Topic: {topic}, Subtopic: {subtopic}")
+        
         if not answer or not answer.strip() or len(answer.strip()) < 5:
             print(f"⚠️ Empty or very short answer detected, returning zeros")
             return {
@@ -211,7 +455,8 @@ class AdaptiveAnalyzer:
                 "has_example": False,
                 "estimated_difficulty": "easy",
                 "semantic_similarity": 0.0,
-                "expected_answer": expected_answer or ""
+                "expected_answer": expected_answer or "",
+                "gap_analysis": []
             }
         
         # Extract keywords
@@ -221,51 +466,55 @@ class AdaptiveAnalyzer:
         # Calculate RAW coverage
         from interview_analyzer import calculate_keyword_coverage
         keyword_coverage = calculate_keyword_coverage(answer, question)
+        print(f"📊 Keyword coverage: {keyword_coverage:.3f}")
         
         depth = cls.assess_depth(answer)
         confidence = cls.assess_confidence(answer)
         
-        # 🔥 FIX: Use subtopic-specific concepts for missing concepts with synonym support
+        # Use semantic concept detection
         missing = []
         covered = []
+        sampled_concepts = []
         
         if topic and subtopic and question_bank:
             # Get the EXACT concepts for this subtopic from the taxonomy
             subtopic_concepts = cls.get_subtopic_concepts(topic, subtopic, question_bank)
+            sampled_concepts = list(subtopic_concepts) if subtopic_concepts else []
             
             if subtopic_concepts:
-                answer_lower = answer.lower()
-                for concept in subtopic_concepts:
-                    # Use the enhanced concept detection with synonyms
-                    if cls._concept_in_answer(concept, answer_lower):
-                        covered.append(concept)
-                    else:
-                        missing.append(concept)
+                # 🔥 USE SEMANTIC CONCEPT DETECTION
+                covered, missing = cls.detect_concepts_semantically(
+                    answer=answer,
+                    sampled_concepts=list(subtopic_concepts)
+                )
                 
-                print(f"🎯 Subtopic concepts for {topic} - {subtopic}: {len(subtopic_concepts)} concepts")
-                print(f"   Covered: {len(covered)}, Missing: {len(missing)}")
-                
-                # Show which specific concepts were detected
+                print(f"\n🎯 Concept detection results:")
+                print(f"   Covered: {len(covered)} concepts")
+                print(f"   Missing: {len(missing)} concepts")
                 if covered:
                     print(f"   ✓ Detected: {covered[:5]}")
                 if missing:
                     print(f"   ✗ Missing: {missing[:5]}")
             else:
                 # Fallback to old method if subtopic concepts not found
+                print(f"⚠️ No subtopic concepts found, using keyword-based fallback")
                 missing = cls.identify_missing_concepts(answer, expected_keywords)
                 covered = [c for c in expected_keywords if c not in missing]
         else:
             # Fallback to old method
+            print(f"⚠️ Missing topic/subtopic/question_bank, using keyword-based fallback")
             missing = cls.identify_missing_concepts(answer, expected_keywords)
             covered = [c for c in expected_keywords if c not in missing]
         
         # Check for examples
         has_example = 'example' in answer.lower() or 'instance' in answer.lower()
+        print(f"📝 Has example: {has_example}")
         
         # Simple grammar check
         sentences = re.split(r'[.!?]+', answer)
         good_sentences = sum(1 for s in sentences if s and s[0].isupper())
         grammatical_quality = good_sentences / len(sentences) if sentences else 0
+        print(f"📝 Grammatical quality: {grammatical_quality:.3f}")
         
         # Estimate answer difficulty
         if depth == "deep" and confidence == "high" and has_example:
@@ -274,22 +523,37 @@ class AdaptiveAnalyzer:
             est_difficulty = "easy"
         else:
             est_difficulty = "medium"
+        print(f"📊 Estimated difficulty: {est_difficulty}")
         
-        # Calculate semantic similarity using provided expected_answer
+        # Generate expected answer if not provided
+        final_expected_answer = expected_answer
+        if not final_expected_answer or not final_expected_answer.strip():
+            # Generate using RAG
+            concepts_to_use = covered[:2] if covered else [subtopic] if subtopic else []
+            if concepts_to_use:
+                final_expected_answer = cls.generate_rag_expected_answer(question, concepts_to_use)
+                print(f"📚 Generated RAG expected answer")
+            else:
+                print(f"⚠️ No concepts available for expected answer generation")
+                final_expected_answer = ""
+        
+        # Calculate semantic similarity
         semantic_similarity = 0.0
-        if expected_answer and expected_answer.strip():
+        if final_expected_answer and final_expected_answer.strip():
             try:
                 from interview_analyzer import calculate_semantic_similarity
-                semantic_similarity = calculate_semantic_similarity(answer, expected_answer)
+                semantic_similarity = calculate_semantic_similarity(answer, final_expected_answer)
                 print(f"📊 Semantic similarity calculated: {semantic_similarity:.3f}")
             except Exception as e:
                 print(f"⚠️ Could not calculate semantic similarity: {e}")
                 semantic_similarity = 0.0
-        else:
-            print(f"⚠️ No expected answer provided for question: {question[:50]}...")
-            semantic_similarity = 0.0
-
-        return {
+        
+        # Perform gap analysis
+        gap_analysis_results = []
+        if answer and len(answer.strip()) > 10 and question and covered:
+            gap_analysis_results = cls.perform_gap_analysis(answer, question, covered[:2])
+        
+        result = {
             "keyword_coverage": round(keyword_coverage, 3),
             "depth": depth,
             "missing_concepts": missing[:5],  # Top 5 missing
@@ -302,5 +566,20 @@ class AdaptiveAnalyzer:
             "estimated_difficulty": est_difficulty,
             "expected_keywords": list(expected_keywords),
             "semantic_similarity": round(semantic_similarity, 3),
-            "expected_answer": expected_answer
+            "expected_answer": final_expected_answer,
+            "gap_analysis": gap_analysis_results
         }
+        
+        print("\n" + "█"*80)
+        print("✅ ANALYSIS COMPLETE")
+        print("█"*80)
+        print(f"   Keyword coverage: {result['keyword_coverage']:.3f}")
+        print(f"   Semantic similarity: {result['semantic_similarity']:.3f}")
+        print(f"   Depth: {result['depth']}")
+        print(f"   Confidence: {result['confidence']}")
+        print(f"   Missing concepts: {len(result['missing_concepts'])}")
+        print(f"   Covered concepts: {len(result['covered_concepts'])}")
+        print(f"   Gap analysis points: {len(result['gap_analysis'])}")
+        print("█"*80)
+        
+        return result

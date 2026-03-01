@@ -3,6 +3,7 @@ import json
 import faiss
 import time
 from sentence_transformers import SentenceTransformer
+from functools import lru_cache
 
 # ================== ENV SETUP ==================
 try:
@@ -25,6 +26,58 @@ METAS_PATH = os.path.join(FAISS_DIR, "metas.json")
 KB_CLEAN_PATH = "data/processed/kb_clean.json"
 TOPIC_RULES_PATH = "config/topic_rules.json"
 
+# ================== DOMAIN RESTRICTION ==================
+# Only allow these domains
+ALLOWED_TOPICS = {"Operating Systems", "DBMS", "OOP"}
+
+# ================== TOPIC ALIASES (CRITICAL FIX) ==================
+TOPIC_ALIASES = {
+    "OS": "Operating Systems",
+    "Operating System": "Operating Systems",
+    "Operating Systems": "Operating Systems",
+    
+    "DBMS": "DBMS",
+    "Database": "DBMS",
+    "Databases": "DBMS",
+    
+    "OOP": "OOP",
+    "OOPS": "OOP",
+    "Object Oriented Programming": "OOP",
+}
+
+OUT_OF_DOMAIN_MESSAGE = (
+    "I can only answer questions related to Operating Systems, DBMS, and Object-Oriented Programming. "
+    "Please ask a question from one of these domains."
+)
+
+
+# ================== GLOBAL CACHE ==================
+# Cache for models and data to avoid repeated loading
+_INDEX_CACHE = None
+_METAS_CACHE = None
+_KB_LOOKUP_CACHE = None
+_EMBEDDER_CACHE = None
+_TOPIC_RULES_CACHE = None
+_CACHE_LOADED = False  # Flag to track if cache has been loaded
+
+
+def get_embedder():
+    """Get cached sentence transformer embedder"""
+    global _EMBEDDER_CACHE
+    if _EMBEDDER_CACHE is None:
+        print("🔄 Loading sentence transformer model (cached)...")
+        _EMBEDDER_CACHE = SentenceTransformer("all-MiniLM-L6-v2")
+    return _EMBEDDER_CACHE
+
+
+def get_topic_rules():
+    """Get cached topic rules"""
+    global _TOPIC_RULES_CACHE
+    if _TOPIC_RULES_CACHE is None:
+        _TOPIC_RULES_CACHE = load_json(TOPIC_RULES_PATH)
+        print(f"📚 Loaded topic rules from {TOPIC_RULES_PATH}")
+    return _TOPIC_RULES_CACHE
+
 
 # ================== LOADERS ==================
 def load_json(path):
@@ -33,30 +86,44 @@ def load_json(path):
 
 
 def load_index_and_metas():
-    print(f"📚 Loading FAISS index from {INDEX_PATH}")
-    index = faiss.read_index(INDEX_PATH)
-    metas = load_json(METAS_PATH)
+    """Load FAISS index and metas with caching"""
+    global _INDEX_CACHE, _METAS_CACHE, _CACHE_LOADED
     
-    # Count topics for better debugging
-    topic_counts = {}
-    for meta in metas:
-        topic = meta.get('topic', 'Unknown')
-        topic_counts[topic] = topic_counts.get(topic, 0) + 1
+    if _INDEX_CACHE is None or _METAS_CACHE is None:
+        print(f"📚 Loading FAISS index from {INDEX_PATH}")
+        _INDEX_CACHE = faiss.read_index(INDEX_PATH)
+        _METAS_CACHE = load_json(METAS_PATH)
+        
+        # Count topics for debugging (only once)
+        topic_counts = {}
+        for meta in _METAS_CACHE:
+            topic = meta.get('topic', 'Unknown')
+            topic_counts[topic] = topic_counts.get(topic, 0) + 1
+        
+        print(f"   Loaded {len(_METAS_CACHE)} total chunks")
+        for topic, count in topic_counts.items():
+            print(f"      - {topic}: {count} chunks")
     
-    print(f"   Loaded {len(metas)} total chunks")
-    for topic, count in topic_counts.items():
-        print(f"      - {topic}: {count} chunks")
-    return index, metas
+    return _INDEX_CACHE, _METAS_CACHE
 
 
 def build_kb_lookup():
-    kb = load_json(KB_CLEAN_PATH)
-    print(f"📚 Loaded knowledge base with {len(kb)} items")
-    return {item["id"]: item for item in kb}
+    """Build knowledge base lookup with caching"""
+    global _KB_LOOKUP_CACHE
+    
+    if _KB_LOOKUP_CACHE is None:
+        kb = load_json(KB_CLEAN_PATH)
+        print(f"📚 Loaded knowledge base with {len(kb)} items")
+        _KB_LOOKUP_CACHE = {item["id"]: item for item in kb}
+    
+    return _KB_LOOKUP_CACHE
 
 
 # ================== TOPIC DETECTION ==================
-def get_topic_and_subtopic_from_query(query, topic_rules):
+def get_topic_and_subtopic_from_query(query, topic_rules=None):
+    if topic_rules is None:
+        topic_rules = get_topic_rules()
+    
     q = query.lower()
     for rule in topic_rules:
         for kw in rule["keywords"]:
@@ -65,6 +132,26 @@ def get_topic_and_subtopic_from_query(query, topic_rules):
                 return rule["topic"], rule["subtopic"]
     print(f"   No topic detected")
     return None, None
+
+
+# ================== FIX 7: TOPIC DETECTION FUNCTION ==================
+def detect_topic(question: str, expected_topic: str = None):
+    """
+    Detect topic with fallback to expected topic if provided
+    Used by adaptive_question_bank to ensure topic consistency
+    """
+    # Use RAG voting to detect topic
+    topic, confidence = detect_topic_via_rag(question)
+    
+    # If we have an expected topic and RAG detected something different, log it
+    if expected_topic and topic and topic != expected_topic:
+        print(f"⚠️ RAG topic mismatch: RAG={topic}, expected={expected_topic} → overridden to {expected_topic}")
+        return expected_topic
+    
+    # Return RAG detected topic, or expected if RAG failed
+    if topic:
+        return topic
+    return expected_topic
 
 
 # ================== STRICT TOPIC FILTERING ==================
@@ -119,23 +206,33 @@ def generate_technical_explanation(query, context, topic=None):
     Generate an IN-DEPTH technical explanation for learning purposes.
     Used by the Technical Interview Chatbot.
     """
-    topic_instruction = ""
+    # Normalize topic if needed
     if topic:
-        topic_instruction = f"The question is about {topic}. ONLY discuss {topic} concepts."
+        normalized_topic = TOPIC_ALIASES.get(topic, topic)
+    else:
+        normalized_topic = None
+    
+    # STRICT DOMAIN ENFORCEMENT
+    if normalized_topic and normalized_topic not in ALLOWED_TOPICS:
+        print(f"❌ Explanation blocked for topic: {normalized_topic}")
+        return OUT_OF_DOMAIN_MESSAGE
+    
+    topic_instruction = ""
+    if normalized_topic:
+        topic_instruction = f"The question is about {normalized_topic}. ONLY discuss {normalized_topic} concepts."
     
     prompt = f"""
 You are an expert Computer Science educator providing a DETAILED explanation to help a student learn.
 
-Topic: {topic if topic else 'Computer Science'}
+Topic: {normalized_topic if normalized_topic else 'Computer Science'}
 {topic_instruction}
 
 RULES:
 - Provide a THOROUGH, EDUCATIONAL explanation (4-6 sentences)
-- Include examples where helpful
-- Explain core concepts clearly
-- Connect ideas to help understanding
-- DO NOT mention unrelated topics
-- Focus ONLY on {topic if topic else 'the relevant topic'}
+- ONLY discuss concepts from the specified topic
+- DO NOT answer if topic is outside Operating Systems, DBMS, or OOP
+- DO NOT mention unrelated domains like networking, ML, web, etc.
+- If question is outside allowed domains, refuse politely
 
 Context from knowledge base:
 {context}
@@ -244,141 +341,401 @@ Question:"""
         print(f"❌ Error generating question: {e}")
         return None
 
+
+# ================== RAG VOTING TOPIC DETECTION ==================
+def retrieve_similar_qas(query, topic=None, k=3):
+    """
+    Retrieve similar Q&A pairs from FAISS
+    Used for few-shot examples in question generation
+    """
+    try:
+        # Load data (now cached)
+        topic_rules = get_topic_rules()
+        index, metas = load_index_and_metas()
+        kb_lookup = build_kb_lookup()
+        embedder = get_embedder()  # Use cached embedder
+        
+        # Normalize topic if provided
+        normalized_topic = None
+        if topic:
+            normalized_topic = TOPIC_ALIASES.get(topic, topic)
+        
+        # Detect topic if not provided
+        if not normalized_topic:
+            detected_topic, _ = get_topic_and_subtopic_from_query(query, topic_rules)
+            normalized_topic = TOPIC_ALIASES.get(detected_topic, detected_topic) if detected_topic else None
+        
+        # Get embedding
+        query_emb = embedder.encode([query], normalize_embeddings=True)
+        
+        # Search
+        scores, I = index.search(query_emb, k * 3)
+        
+        results = []
+        seen_ids = set()
+        
+        for idx, score in zip(I[0], scores[0]):
+            if idx < 0 or idx >= len(metas):
+                continue
+                
+            meta = metas[idx]
+            
+            # Filter by topic if specified
+            if normalized_topic and meta.get("topic") != normalized_topic:
+                continue
+            
+            item_id = meta["id"]
+            if item_id in seen_ids:
+                continue
+                
+            seen_ids.add(item_id)
+            
+            # Get full item from KB
+            item = kb_lookup.get(item_id, {})
+            
+            results.append({
+                "id": item_id,
+                "question": item.get("question", meta.get("text", ""))[:150],
+                "answer": item.get("answer", ""),
+                "topic": meta.get("topic"),
+                "subtopic": meta.get("subtopic"),
+                "score": float(score)
+            })
+            
+            if len(results) >= k:
+                break
+        
+        print(f"📤 Retrieved {len(results)} similar Q&A examples")
+        return results
+        
+    except Exception as e:
+        print(f"⚠️ Error in retrieve_similar_qas: {e}")
+        return []
+
+
+def retrieve_relevant_chunks(query, k=5, topic=None):
+    """
+    Retrieve relevant chunks for a query
+    Used for expected answer generation and gap analysis
+    
+    Args:
+        query: The search query
+        k: Number of chunks to retrieve
+        topic: Optional topic filter (if provided, only chunks from this topic are returned)
+    """
+    try:
+        index, metas = load_index_and_metas()
+        kb_lookup = build_kb_lookup()
+        embedder = get_embedder()  # Use cached embedder
+        
+        # Normalize topic if provided
+        normalized_topic = None
+        if topic:
+            normalized_topic = TOPIC_ALIASES.get(topic, topic)
+            print(f"   Normalized topic: {topic} → {normalized_topic}")
+        
+        query_emb = embedder.encode([query], normalize_embeddings=True)
+        
+        # Search with higher k to allow for filtering
+        search_k = k * 3 if normalized_topic else k
+        scores, I = index.search(query_emb, search_k)
+        
+        results = []
+        seen_ids = set()
+        
+        for idx, score in zip(I[0], scores[0]):
+            if idx < 0 or idx >= len(metas):
+                continue
+                
+            meta = metas[idx]
+            
+            # Filter by topic if specified
+            if normalized_topic and meta.get("topic") != normalized_topic:
+                continue
+                
+            item_id = meta["id"]
+            if item_id in seen_ids:
+                continue
+                
+            seen_ids.add(item_id)
+            item = kb_lookup.get(item_id, {})
+            
+            results.append({
+                "id": item_id,
+                "text": meta.get("text", ""),
+                "answer": item.get("answer", meta.get("text", "")),
+                "topic": meta.get("topic"),
+                "subtopic": meta.get("subtopic"),
+                "score": float(score)
+            })
+            
+            if len(results) >= k:
+                break
+        
+        print(f"📤 Retrieved {len(results)} relevant chunks for topic {normalized_topic if normalized_topic else 'all'}")
+        return results
+        
+    except Exception as e:
+        print(f"⚠️ Error in retrieve_relevant_chunks: {e}")
+        return []
+
+
+def detect_topic_via_rag(query, k=5):
+    """
+    RAG VOTING TOPIC DETECTION
+    Returns topic based on majority vote from retrieved chunks
+    """
+    print(f"\n🔍 Detecting topic via RAG voting for: {query[:50]}...")
+    
+    try:
+        # Load data (cached)
+        index, metas = load_index_and_metas()
+        embedder = get_embedder()  # Use cached embedder
+        
+        # Get embedding
+        query_emb = embedder.encode([query], normalize_embeddings=True)
+        
+        # Search
+        scores, I = index.search(query_emb, k)
+        
+        # Count votes per topic
+        votes = {}
+        for idx in I[0]:
+            if idx >= 0 and idx < len(metas):
+                topic = metas[idx].get("topic", "Unknown")
+                votes[topic] = votes.get(topic, 0) + 1
+        
+        if not votes:
+            print("   No votes received")
+            return None, 0.0
+        
+        # Get winner
+        topic = max(votes, key=votes.get)
+        confidence = votes[topic] / k
+        
+        print(f"   Votes: {votes}")
+        print(f"   Winner: {topic} (confidence: {confidence:.2f})")
+        
+        return topic, confidence
+        
+    except Exception as e:
+        print(f"⚠️ Error in detect_topic_via_rag: {e}")
+        return None, 0.0
+
+
 # ================== MAIN ENTRY POINT ==================
+# ================== MAIN ENTRY POINT FOR CHATBOT ==================
 def technical_interview_query(user_query):
     """
-    Main function for technical interview chatbot
-    Returns DETAILED educational explanation
+    Enhanced chatbot query with topic detection and filtering
     """
     print("\n" + "="*80)
-    print(f"📝 TECHNICAL QUERY: {user_query}")
+    print(f"📝 CHATBOT QUERY: {user_query}")
     print("="*80)
     
-    # Load all required data
-    topic_rules = load_json(TOPIC_RULES_PATH)
+    # Load all required data (cached)
+    topic_rules = get_topic_rules()
     index, metas = load_index_and_metas()
     kb_lookup = build_kb_lookup()
-    embedder = SentenceTransformer("all-MiniLM-L6-v2")
+    embedder = get_embedder()
 
-    # Detect topic
-    topic, subtopic = get_topic_and_subtopic_from_query(user_query, topic_rules)
+    # STEP 1: Detect the primary topic from the query
+    detected_topic, detected_subtopic = get_topic_and_subtopic_from_query(user_query, topic_rules)
+    
+    # Normalize detected topic
+    if detected_topic:
+        detected_topic = TOPIC_ALIASES.get(detected_topic, detected_topic)
+    
+    # ================== STRICT DOMAIN ENFORCEMENT ==================
+    if detected_topic is None:
+        print("❌ Query rejected: No valid CS domain detected")
+        return OUT_OF_DOMAIN_MESSAGE, []
 
-    if not topic:
-        print("⚠️ No specific topic detected")
-        return "I can help with technical topics like DBMS, OOPS, and OS. Please ask a specific question.", []
+    if detected_topic not in ALLOWED_TOPICS:
+        print(f"❌ Query rejected: {detected_topic} is not allowed")
+        return OUT_OF_DOMAIN_MESSAGE, []
+    
+    if detected_topic:
+        print(f"\n🔍 Detected topic: {detected_topic} (subtopic: {detected_subtopic})")
+    else:
+        print(f"\n⚠️ No specific topic detected, will use pure semantic search")
+    
+    # STEP 2: Get embeddings and search
+    query_embedding = embedder.encode([user_query], normalize_embeddings=True)
+    
+    # Secondary protection via RAG voting
+    rag_topic, confidence = detect_topic_via_rag(user_query)
+    
+    if rag_topic and rag_topic not in ALLOWED_TOPICS:
+        print(f"❌ RAG voting rejected topic: {rag_topic}")
+        return OUT_OF_DOMAIN_MESSAGE, []
+    
+    # Search with higher k to allow for filtering
+    search_k = 15  # Search more, then filter down
+    scores, I = index.search(query_embedding, search_k)
+    
+    # STEP 3: Filter results by topic if detected
+    retrieved = []
+    seen_ids = set()
+    
+    for idx, score in zip(I[0], scores[0]):
+        if idx < 0 or idx >= len(metas):
+            continue
+            
+        meta = metas[idx]
+        
+        # STRICT domain filter
+        if meta.get("topic") not in ALLOWED_TOPICS:
+            continue
+        
+        # Skip if we've seen this ID
+        if meta["id"] in seen_ids:
+            continue
+        
+        # If topic was detected, prioritize chunks from that topic
+        if detected_topic and meta.get("topic") != detected_topic:
+            # Still allow but with lower priority - we'll collect them separately
+            continue
+            
+        seen_ids.add(meta["id"])
+        meta_copy = meta.copy()
+        meta_copy["_score"] = float(score)
+        retrieved.append(meta_copy)
+        
+        # Stop if we have enough from the detected topic
+        if len(retrieved) >= 5:
+            break
+    
+    # STEP 4: If we don't have enough from detected topic, add best matches from other allowed topics
+    if len(retrieved) < 5:
+        print(f"   Only found {len(retrieved)} chunks from {detected_topic}, adding best from other allowed topics...")
+        for idx, score in zip(I[0], scores[0]):
+            if idx < 0 or idx >= len(metas):
+                continue
+                
+            meta = metas[idx]
+            
+            # STRICT domain filter
+            if meta.get("topic") not in ALLOWED_TOPICS:
+                continue
+            
+            # Skip if already seen
+            if meta["id"] in seen_ids:
+                continue
+            
+            # Add this chunk
+            seen_ids.add(meta["id"])
+            meta_copy = meta.copy()
+            meta_copy["_score"] = float(score)
+            retrieved.append(meta_copy)
+            
+            if len(retrieved) >= 5:
+                break
+    
+    print(f"\n🔍 Retrieved {len(retrieved)} relevant chunks:")
+    for i, r in enumerate(retrieved):
+        print(f"   {i+1}. [{r.get('topic')}/{r.get('subtopic')}] score={r['_score']:.3f}")
 
-    # Retrieve relevant chunks
-    retrieved = get_relevant_chunks_strict(
-        user_query,
-        index,
-        metas,
-        embedder,
-        topic=topic,
-        k=5  # Get more chunks for better context
-    )
-
-    # Build context from retrieved chunks
+    # STEP 5: Build context from retrieved chunks
     context_blocks = []
     for meta in retrieved:
         item = kb_lookup.get(meta["id"])
-        if item and item.get("topic") == topic:
-            # Add the answer text to context
+        if item and item.get("answer"):
+            # Add a small topic marker to help the LLM understand the source
+            topic_marker = f"[{meta.get('topic')} - {meta.get('subtopic')}]"
             answer_text = item.get("answer", "")
-            if answer_text:
-                context_blocks.append(answer_text)
+            context_blocks.append(f"{topic_marker}\n{answer_text}")
     
     context_text = "\n\n".join(context_blocks)
-    
     print(f"\n📚 Context built from {len(context_blocks)} chunks ({len(context_text)} chars)")
     
-    # Generate detailed answer
+    # STEP 6: Generate detailed answer with topic context
     answer = generate_technical_explanation(
         user_query, 
-        context_text, 
-        topic
+        context_text,
+        topic=detected_topic  # Pass the detected topic for better prompting
     )
-
-    if not answer:
-        # Fallback to simpler response
-        answer = f"I can help you learn about {topic}. Please try rephrasing your question or ask about a specific concept."
-        print(f"⚠️ Using fallback response")
-
+    
     print("="*80 + "\n")
     
     return answer, retrieved
 
 
 # ================== AGENTIC INTERVIEW ==================
-# ================== AGENTIC INTERVIEW ==================
-def agentic_expected_answer(user_query, sampled_concepts=None):
+def agentic_expected_answer(user_query, sampled_concepts=None, expected_topic=None):
     """
     Generate concise expected answer for adaptive interviews
-    This is used for scoring, so it should be focused and concise
-    STRICT: Must explicitly mention the sampled concepts
+    Uses controller-provided topic with alias normalization
     """
     print(f"\n📝 GENERATING EXPECTED ANSWER for: {user_query[:50]}...")
     if sampled_concepts:
         print(f"   Sampled concepts: {sampled_concepts}")
     
-    topic_rules = load_json(TOPIC_RULES_PATH)
-    index, metas = load_index_and_metas()
-    embedder = SentenceTransformer("all-MiniLM-L6-v2")
-
-    topic, subtopic = get_topic_and_subtopic_from_query(user_query, topic_rules)
-
-    retrieved = get_relevant_chunks_strict(
+    # 🔥 FIX 2: Handle missing expected_topic gracefully
+    if expected_topic is None:
+        print("⚠️ expected_topic missing — using RAG detection fallback")
+        detected_topic, confidence = detect_topic_via_rag(user_query)
+        
+        if detected_topic is None:
+            print("❌ Could not detect topic — defaulting to Operating Systems")
+            expected_topic = "Operating Systems"
+        else:
+            expected_topic = detected_topic
+            print(f"📌 RAG detected topic: {expected_topic} (confidence: {confidence:.2f})")
+    
+    # 🔥 FIX 1: Normalize topic using aliases
+    normalized_topic = TOPIC_ALIASES.get(expected_topic, expected_topic)
+    print(f"📌 Using normalized topic: {normalized_topic} (from: {expected_topic})")
+    
+    # 🔥 FIX 3: Normalize topic BEFORE retrieval
+    chunks = retrieve_relevant_chunks(
         user_query,
-        index,
-        metas,
-        embedder,
-        topic=topic,
-        k=3
+        k=5,
+        topic=normalized_topic  # Pass normalized topic
     )
-
+    
+    # Filter chunks by topic (additional safety)
+    chunks = [c for c in chunks if c.get("topic") == normalized_topic]
+    print(f"   Retrieved {len(chunks)} chunks for topic {normalized_topic}")
+    
     # Build context
     context_blocks = []
-    for meta in retrieved:
-        item = None
-        # Try to get from kb_lookup if available
-        try:
-            kb_lookup = build_kb_lookup()
-            item = kb_lookup.get(meta["id"])
-        except:
-            pass
-        
-        if item and item.get("answer"):
-            context_blocks.append(item["answer"])
-        else:
-            context_blocks.append(meta.get("text", ""))
+    for chunk in chunks:
+        answer_text = chunk.get("answer", chunk.get("text", ""))
+        if answer_text:
+            context_blocks.append(answer_text)
     
-    context_text = "\n".join(context_blocks)
+    # 🔥 FIX 4: Enhanced context with better structure
+    concept_list = ", ".join(sampled_concepts) if sampled_concepts else "key concepts"
     
-    # ========== STRICT PROMPT WITH CONCEPT ENFORCEMENT ==========
-    concept_hint = ""
-    concept_list_str = ""
-    if sampled_concepts and len(sampled_concepts) > 0:
-        concept_list = ", ".join(sampled_concepts)
-        concept_hint = f"\nCRITICAL REQUIREMENT: Your answer MUST explicitly address these concepts: {concept_list}"
-        concept_list_str = concept_list
-    else:
-        concept_list_str = "the key concepts"
-    
-    prompt = f"""Question: {user_query}{concept_hint}
+    context_text = f"""
+Topic: {normalized_topic}
+Required concepts: {concept_list}
 
-Context information:
+Knowledge:
+{chr(10).join(context_blocks[:3])}
+"""
+    
+    prompt = f"""
+You are an expert technical interviewer.
+
+Generate a concise expected answer.
+
+REQUIREMENTS:
+• Length: 2-4 sentences
+• Must mention ALL required concepts explicitly: {concept_list}
+• Must use provided context only
+• Must be technically accurate and precise
+• Do NOT add explanations or meta-commentary
+• Return ONLY the answer text
+
+Topic: {normalized_topic}
+Question: {user_query}
+
+Relevant context:
 {context_text}
 
-STRICT REQUIREMENTS - MUST FOLLOW EXACTLY:
-
-1. Your answer MUST explicitly mention and explain: {concept_list_str}
-
-2. Be concise (2-3 sentences)
-
-3. Be technically accurate
-
-4. Focus ONLY on the required concepts
-
-Expected answer:"""
+Expected Answer:"""
 
     try:
         response = requests.post(
@@ -387,7 +744,7 @@ Expected answer:"""
                 "model": OLLAMA_MODEL,
                 "prompt": prompt,
                 "stream": False,
-                "options": {"temperature": 0.2, "num_predict": 200}
+                "options": {"temperature": 0.2, "num_predict": 300}
             },
             timeout=30
         )
@@ -395,29 +752,33 @@ Expected answer:"""
         if response.status_code == 200:
             answer = response.json()["response"].strip()
             print(f"✅ Generated expected answer ({len(answer)} chars)")
-            print(f"   Preview: {answer[:100]}...")
             
-            # Verify the answer contains the required concepts
-            if sampled_concepts and len(sampled_concepts) > 0:
+            # Verify concepts
+            if sampled_concepts:
                 answer_lower = answer.lower()
-                missing_concepts = []
-                for concept in sampled_concepts:
-                    if concept.lower() not in answer_lower:
-                        missing_concepts.append(concept)
+                missing = []
+                present = []
+                for c in sampled_concepts:
+                    c_norm = c.lower()
+                    if c_norm in answer_lower:
+                        present.append(c)
+                    else:
+                        missing.append(c)
                 
-                if missing_concepts:
-                    print(f"   ⚠️ Warning: Expected answer missing concepts: {missing_concepts}")
+                if missing:
+                    print(f"   ⚠️ Missing concepts in generated answer: {missing}")
                 else:
-                    print(f"   ✓ All required concepts present")
+                    print(f"   ✓ All concepts present: {present}")
             
-            return answer, retrieved
+            return answer, chunks
         else:
-            print(f"❌ Failed to generate expected answer: {response.status_code}")
-            return "", retrieved
+            print(f"❌ Failed to generate: {response.status_code}")
+            return "", chunks
             
     except Exception as e:
         print(f"❌ Error generating expected answer: {e}")
-        return "", retrieved
+        return "", chunks
+
 
 if __name__ == '__main__':
     print("RAG module loaded and ready.")

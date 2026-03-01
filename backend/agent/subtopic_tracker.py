@@ -267,7 +267,7 @@ class SubtopicTracker:
     
     # ================== 🔥 FIXED: get_next_subtopic with weak_concepts parameter ==================
     
-    def get_next_subtopic(self, topic: str, weak_concepts: Optional[list] = None) -> str:
+    def get_next_subtopic(self, topic: str, weak_concepts: Optional[list] = None, covered_subtopics: Optional[list] = None) -> str:
         """
         STRICT PRIORITY ORDER PER RULES:
 
@@ -276,8 +276,12 @@ class SubtopicTracker:
         3. Mastered subtopics → 20% probability
         """
         all_subtopics = list(self.SUBTOPICS_BY_TOPIC.get(topic, []))
+        
+        if covered_subtopics:
+            all_subtopics = [s for s in all_subtopics if s not in covered_subtopics]
+            
         if not all_subtopics:
-            print(f"⚠️ No subtopics found for {topic}")
+            print(f"⚠️ No available subtopics found for {topic} after filtering covered ones")
             return "core concepts"
         
         # Get attempted subtopics
@@ -386,18 +390,18 @@ class SubtopicTracker:
                     "Joins": ["Inner Join", "Left Join", "Right Join", "Full Join"],
                     "SQL Aggregation": ["GROUP BY", "HAVING", "Subqueries", "COUNT", "SUM"],
                     "Locking": ["Shared Lock", "Exclusive Lock", "Lock Granularity"],
-                    "Deadlocks": ["Wait-for graph", "detection", "prevention", "avoidance"]
+                    "Deadlocks": ["Wait for graph", "detection", "prevention", "avoidance"]
                 },
                 "OOPS": {
                     "Classes": ["class", "object", "constructor", "attributes", "methods"],
                     "Objects": ["instantiation", "state", "behavior", "identity"],
-                    "Encapsulation": ["data hiding", "getters/setters", "access control"],
+                    "Encapsulation": ["data hiding", "getters setters", "access control"],
                     "Abstraction": ["abstract classes", "interfaces", "implementation hiding"],
                     "Inheritance": ["single inheritance", "multiple inheritance", "diamond problem"],
                     "Polymorphism": ["method overloading", "method overriding", "dynamic dispatch"],
                     "Constructors": ["default constructor", "parameterized constructor", "copy constructor"],
                     "Access Modifiers": ["public", "private", "protected"],
-                    "SOLID Principles": ["Single Responsibility", "Open/Closed", "Liskov Substitution"]
+                    "SOLID Principles": ["Single Responsibility", "Open Closed", "Liskov Substitution"]
                 },
                 "OS": {
                     "Processes": ["process states", "PCB", "process creation", "zombie process"],
@@ -412,7 +416,9 @@ class SubtopicTracker:
                     "System Calls": ["fork", "exec", "wait", "open", "read", "write"]
                 }
             }
-            return concept_map.get(topic, {}).get(subtopic, [])
+            # Return lowercase concepts for better matching
+            concepts = concept_map.get(topic, {}).get(subtopic, [])
+            return [c.lower() for c in concepts]
     
     def get_all_attempted_subtopics(self, topic: str = None) -> Dict:
         """Get all attempted subtopics, optionally filtered by topic"""

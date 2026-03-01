@@ -2027,40 +2027,38 @@ def get_user_masteries():
 
 @app.route('/api/query', methods=['POST'])
 @jwt_required
-def rag_query():
-    """
-    Technical Interview Chatbot endpoint
-    Returns DETAILED educational explanations for learning
-    """
+def handle_query():
+    if request.method == 'OPTIONS':
+        return handle_options()
+    
     try:
-        data = request.get_json()
+        data = request.json
         user_query = data.get('query', '').strip()
+        
         if not user_query:
-            return jsonify({'error': 'Query cannot be empty'}), 400
-
-        # Use the DETAILED version for learning
+            return jsonify({'error': 'Query is required'}), 400
         from rag import technical_interview_query
-        answer, retrieved = technical_interview_query(user_query)
-
-        # Extract topic info from first retrieved item
-        topic = retrieved[0]["topic"] if retrieved else None
-        subtopic = retrieved[0]["subtopic"] if retrieved else None
-
-        response_data = {
-            'success': True,
-            'query': user_query,
+        # Call the PURE SEMANTIC SEARCH function
+        answer, retrieved_chunks = technical_interview_query(user_query)
+        
+        # Format response
+        response = {
             'answer': answer,
-            'detected_topic': topic,
-            'detected_subtopic': subtopic,
-            'source_count': len(retrieved),
-            'type': 'detailed_explanation'
+            'sources': [
+                {
+                    'topic': chunk.get('topic'),
+                    'subtopic': chunk.get('subtopic'),
+                    'similarity': chunk.get('_score', 0)
+                }
+                for chunk in retrieved_chunks[:3]
+            ]
         }
-        return jsonify(response_data)
+        
+        return jsonify(response)
+        
     except Exception as e:
-        print(f"❌ Technical Query Error: {str(e)}")
-        import traceback
-        traceback.print_exc()
-        return jsonify({'error': f'Server error: {str(e)}'}), 500
+        print(f"❌ Error in handle_query: {e}")
+        return jsonify({'error': str(e)}), 500
 
 
 @app.route('/api/hr_questions', methods=['POST'])

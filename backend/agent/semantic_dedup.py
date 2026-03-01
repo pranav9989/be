@@ -13,7 +13,7 @@ class SemanticDeduplicator:
     
     def __init__(self):
         self.embedder = SentenceTransformer('all-MiniLM-L6-v2')
-        self.similarity_threshold = 0.85  # Questions above this are duplicates
+        self.similarity_threshold = 0.90  # Questions above this are duplicates
         self.question_cache: Dict[str, Dict] = {}  # session_id -> {questions, embeddings}
     
     def get_embedding(self, text: str) -> np.ndarray:

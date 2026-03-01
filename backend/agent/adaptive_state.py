@@ -330,6 +330,9 @@ class AdaptiveInterviewState:
         # Topics covered in this session
         self.topics_covered_this_session: List[str] = []
         
+        # Subtopics covered in this cycle
+        self.cycle_covered_subtopics: Dict[str, List[str]] = {}
+        
         # Session limits
         self.max_questions_total = 15
         self.max_duration_minutes = 30
@@ -398,6 +401,7 @@ class AdaptiveInterviewState:
             'topic_order': self.topic_order,
             'current_topic_index': self.current_topic_index,
             'followup_count': self.followup_count,
+            'cycle_covered_subtopics': self.cycle_covered_subtopics,
             'masteries': {
                 topic: {
                     'level': m.mastery_level,

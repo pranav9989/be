@@ -198,7 +198,7 @@
   {
     "id": "29",
     "topic": "DBMS",
-    "subtopic": "DDL",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -226,7 +226,7 @@
   {
     "id": "33",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -471,7 +471,7 @@
   {
     "id": "68",
     "topic": "DBMS",
-    "subtopic": "ACID",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -485,7 +485,7 @@
   {
     "id": "70",
     "topic": "DBMS",
-    "subtopic": "DDL",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -583,7 +583,7 @@
   {
     "id": "84",
     "topic": "DBMS",
-    "subtopic": "Logging & Recovery",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -632,7 +632,7 @@
   {
     "id": "91",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -919,7 +919,7 @@
   {
     "id": "132",
     "topic": "DBMS",
-    "subtopic": "ACID",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1066,7 +1066,7 @@
   {
     "id": "153",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1185,7 +1185,7 @@
   {
     "id": "170",
     "topic": "DBMS",
-    "subtopic": "Indexing",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1367,7 +1367,7 @@
   {
     "id": "196",
     "topic": "DBMS",
-    "subtopic": "ER Modeling",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1514,14 +1514,14 @@
   {
     "id": "217",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "218",
     "topic": "DBMS",
-    "subtopic": "ACID",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1535,7 +1535,7 @@
   {
     "id": "220",
     "topic": "DBMS",
-    "subtopic": "Locks",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1549,7 +1549,7 @@
   {
     "id": "222",
     "topic": "DBMS",
-    "subtopic": "Distributed Databases",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1696,7 +1696,7 @@
   {
     "id": "243",
     "topic": "DBMS",
-    "subtopic": "ER Modeling",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1785,23 +1785,1493 @@
     "source": "database_qna.json"
   },
   {
+    "id": "256",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "257",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "258",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "259",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "260",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "261",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "262",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "263",
+    "topic": "DBMS",
+    "subtopic": "Joins",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "264",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "265",
+    "topic": "DBMS",
+    "subtopic": "Indexing",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "266",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "267",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "268",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "269",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "270",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "271",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "272",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "273",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "274",
+    "topic": "DBMS",
+    "subtopic": "Joins",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "275",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "276",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "277",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "278",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "279",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "280",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "281",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "282",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "283",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "284",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "285",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "316",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "317",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "318",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "319",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "320",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "321",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "322",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "323",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "324",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "325",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "326",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "327",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "328",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "329",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "330",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "331",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "332",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "333",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "334",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "335",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "336",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "337",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "338",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "339",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "340",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "341",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "342",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "343",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "344",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "345",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "346",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "347",
+    "topic": "DBMS",
+    "subtopic": "Indexing",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "348",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "349",
+    "topic": "DBMS",
+    "subtopic": "Indexing",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "350",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "351",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "352",
+    "topic": "DBMS",
+    "subtopic": "Indexing",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "353",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "354",
+    "topic": "DBMS",
+    "subtopic": "Indexing",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "355",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "356",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "357",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "358",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "359",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "360",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "361",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "362",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "363",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "364",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "365",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "366",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "367",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "368",
+    "topic": "DBMS",
+    "subtopic": "Indexing",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "369",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "370",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "371",
+    "topic": "DBMS",
+    "subtopic": "Indexing",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "372",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "373",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "374",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "375",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "376",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "377",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "378",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "379",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "380",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "381",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "382",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "383",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "384",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "385",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "386",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "387",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "388",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "389",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "390",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "391",
+    "topic": "DBMS",
+    "subtopic": "Deadlocks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "392",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "393",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "394",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "395",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "396",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "397",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "398",
+    "topic": "DBMS",
+    "subtopic": "Locks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "399",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "400",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "401",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "402",
+    "topic": "DBMS",
+    "subtopic": "Locks",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "403",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "404",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "405",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "406",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "407",
+    "topic": "DBMS",
+    "subtopic": "Locks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "408",
+    "topic": "DBMS",
+    "subtopic": "Locks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "409",
+    "topic": "DBMS",
+    "subtopic": "Locks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "410",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "411",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "412",
+    "topic": "DBMS",
+    "subtopic": "Deadlocks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "413",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "414",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "415",
+    "topic": "DBMS",
+    "subtopic": "Locks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "416",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "417",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "418",
+    "topic": "DBMS",
+    "subtopic": "DDL",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "419",
+    "topic": "DBMS",
+    "subtopic": "Locks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "420",
+    "topic": "DBMS",
+    "subtopic": "Deadlocks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "421",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "422",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "423",
+    "topic": "DBMS",
+    "subtopic": "Deadlocks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "424",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "425",
+    "topic": "DBMS",
+    "subtopic": "Deadlocks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "426",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "427",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "428",
+    "topic": "DBMS",
+    "subtopic": "Isolation Levels",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "429",
+    "topic": "DBMS",
+    "subtopic": "Locks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "430",
+    "topic": "DBMS",
+    "subtopic": "Locks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "431",
+    "topic": "DBMS",
+    "subtopic": "Deadlocks",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "432",
+    "topic": "DBMS",
+    "subtopic": "Locks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "433",
+    "topic": "DBMS",
+    "subtopic": "Locks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "434",
+    "topic": "DBMS",
+    "subtopic": "Deadlocks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "435",
+    "topic": "DBMS",
+    "subtopic": "Deadlocks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "436",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "437",
+    "topic": "DBMS",
+    "subtopic": "Distributed Databases",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "438",
+    "topic": "DBMS",
+    "subtopic": "Locks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "439",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "440",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "441",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "442",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "443",
+    "topic": "DBMS",
+    "subtopic": "Query Optimization",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "444",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "445",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "446",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "447",
+    "topic": "DBMS",
+    "subtopic": "Logging & Recovery",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "448",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "449",
+    "topic": "DBMS",
+    "subtopic": "Deadlocks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "450",
+    "topic": "DBMS",
+    "subtopic": "Distributed Databases",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "451",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "452",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "453",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "454",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "455",
+    "topic": "DBMS",
+    "subtopic": "Logging & Recovery",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "456",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "457",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "458",
+    "topic": "DBMS",
+    "subtopic": "Deadlocks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "459",
+    "topic": "DBMS",
+    "subtopic": "Deadlocks",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "460",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "461",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "462",
+    "topic": "DBMS",
+    "subtopic": "Query Optimization",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "463",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "464",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "465",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "466",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "467",
+    "topic": "DBMS",
+    "subtopic": "NoSQL",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "468",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "469",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "470",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "471",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "472",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "473",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "474",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "475",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "476",
+    "topic": "DBMS",
+    "subtopic": "Distributed Databases",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "477",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "478",
+    "topic": "DBMS",
+    "subtopic": "NoSQL",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "479",
+    "topic": "DBMS",
+    "subtopic": "NoSQL",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "480",
+    "topic": "DBMS",
+    "subtopic": "NoSQL",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "481",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "482",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "483",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "484",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "485",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "486",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "487",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "488",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "489",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "490",
+    "topic": "DBMS",
+    "subtopic": "Aggregations",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "491",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "492",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Beginner",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "493",
+    "topic": "DBMS",
+    "subtopic": "DBMS Architecture",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "494",
+    "topic": "DBMS",
+    "subtopic": "ACID",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
+    "id": "495",
+    "topic": "DBMS",
+    "subtopic": "DML",
+    "difficulty": "Intermediate",
+    "source": "database_qna.json"
+  },
+  {
     "id": "1",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
   {
     "id": "2",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
   {
     "id": "3",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -1857,14 +3327,14 @@
   {
     "id": "11",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Interfaces",
     "difficulty": "Intermediate",
     "source": "oops_qna_simplified.json"
   },
   {
     "id": "12",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Object Relationships",
     "difficulty": "Intermediate",
     "source": "oops_qna_simplified.json"
   },
@@ -1899,14 +3369,14 @@
   {
     "id": "17",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Interfaces",
     "difficulty": "Intermediate",
     "source": "oops_qna_simplified.json"
   },
   {
     "id": "18",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Object Relationships",
     "difficulty": "Intermediate",
     "source": "oops_qna_simplified.json"
   },
@@ -1934,7 +3404,7 @@
   {
     "id": "22",
     "topic": "OOPs",
-    "subtopic": "Polymorphism",
+    "subtopic": "Classes",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -1976,7 +3446,7 @@
   {
     "id": "28",
     "topic": "OOPs",
-    "subtopic": "Constructors",
+    "subtopic": "Classes",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -2088,7 +3558,7 @@
   {
     "id": "44",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Interfaces",
     "difficulty": "Intermediate",
     "source": "oops_qna_simplified.json"
   },
@@ -2130,14 +3600,14 @@
   {
     "id": "50",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
   {
     "id": "51",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -2242,7 +3712,7 @@
   {
     "id": "66",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Inheritance",
     "difficulty": "Intermediate",
     "source": "oops_qna_simplified.json"
   },
@@ -2298,7 +3768,7 @@
   {
     "id": "74",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Interfaces",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -2452,7 +3922,7 @@
   {
     "id": "96",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -2494,7 +3964,7 @@
   {
     "id": "102",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Interfaces",
     "difficulty": "Intermediate",
     "source": "oops_qna_simplified.json"
   },
@@ -2571,14 +4041,14 @@
   {
     "id": "113",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
   {
     "id": "114",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -2592,7 +4062,7 @@
   {
     "id": "116",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Interfaces",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -2823,7 +4293,7 @@
   {
     "id": "149",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Interfaces",
     "difficulty": "Intermediate",
     "source": "oops_qna_simplified.json"
   },
@@ -2907,14 +4377,14 @@
   {
     "id": "161",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
   {
     "id": "162",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -2970,7 +4440,7 @@
   {
     "id": "170",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Interfaces",
     "difficulty": "Intermediate",
     "source": "oops_qna_simplified.json"
   },
@@ -3061,7 +4531,7 @@
   {
     "id": "183",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -3180,14 +4650,14 @@
   {
     "id": "200",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
   {
     "id": "201",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Interfaces",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -3215,7 +4685,7 @@
   {
     "id": "205",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -3285,7 +4755,7 @@
   {
     "id": "215",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -3299,21 +4769,21 @@
   {
     "id": "217",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Interfaces",
     "difficulty": "Intermediate",
     "source": "oops_qna_simplified.json"
   },
   {
     "id": "218",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Abstraction",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
   {
     "id": "219",
     "topic": "OOPs",
-    "subtopic": "Classes",
+    "subtopic": "Objects",
     "difficulty": "Beginner",
     "source": "oops_qna_simplified.json"
   },
@@ -3329,6 +4799,636 @@
     "topic": "OOPs",
     "subtopic": "Objects",
     "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "222",
+    "topic": "OOPs",
+    "subtopic": "Polymorphism",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "223",
+    "topic": "OOPs",
+    "subtopic": "Polymorphism",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "224",
+    "topic": "OOPs",
+    "subtopic": "Polymorphism",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "225",
+    "topic": "OOPs",
+    "subtopic": "Polymorphism",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "226",
+    "topic": "OOPs",
+    "subtopic": "Polymorphism",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "227",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "228",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "229",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "230",
+    "topic": "OOPs",
+    "subtopic": "Abstraction",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "231",
+    "topic": "OOPs",
+    "subtopic": "Interfaces",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "232",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "233",
+    "topic": "OOPs",
+    "subtopic": "Polymorphism",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "234",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "235",
+    "topic": "OOPs",
+    "subtopic": "Classes",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "236",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "237",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "238",
+    "topic": "OOPs",
+    "subtopic": "Polymorphism",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "239",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "240",
+    "topic": "OOPs",
+    "subtopic": "Polymorphism",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "241",
+    "topic": "OOPs",
+    "subtopic": "Polymorphism",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "242",
+    "topic": "OOPs",
+    "subtopic": "Polymorphism",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "243",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "244",
+    "topic": "OOPs",
+    "subtopic": "Classes",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "245",
+    "topic": "OOPs",
+    "subtopic": "Memory Management in OOP",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "246",
+    "topic": "OOPs",
+    "subtopic": "Constructors",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "247",
+    "topic": "OOPs",
+    "subtopic": "Polymorphism",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "248",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "249",
+    "topic": "OOPs",
+    "subtopic": "Interfaces",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "250",
+    "topic": "OOPs",
+    "subtopic": "Encapsulation",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "251",
+    "topic": "OOPs",
+    "subtopic": "Classes",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "252",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "253",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "254",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "255",
+    "topic": "OOPs",
+    "subtopic": "Abstraction",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "256",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "257",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "258",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "259",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "260",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "261",
+    "topic": "OOPs",
+    "subtopic": "Constructors",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "262",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "263",
+    "topic": "OOPs",
+    "subtopic": "Interfaces",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "264",
+    "topic": "OOPs",
+    "subtopic": "Memory Management in OOP",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "265",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "266",
+    "topic": "OOPs",
+    "subtopic": "Memory Management in OOP",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "267",
+    "topic": "OOPs",
+    "subtopic": "Interfaces",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "268",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "269",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "270",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "271",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "272",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "273",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "274",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "275",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "276",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "277",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "278",
+    "topic": "OOPs",
+    "subtopic": "Memory Management in OOP",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "279",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "280",
+    "topic": "OOPs",
+    "subtopic": "Encapsulation",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "281",
+    "topic": "OOPs",
+    "subtopic": "Virtual Functions",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "282",
+    "topic": "OOPs",
+    "subtopic": "Object Relationships",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "283",
+    "topic": "OOPs",
+    "subtopic": "Object Relationships",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "284",
+    "topic": "OOPs",
+    "subtopic": "Object Relationships",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "285",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "286",
+    "topic": "OOPs",
+    "subtopic": "Memory Management in OOP",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "287",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "288",
+    "topic": "OOPs",
+    "subtopic": "Object Relationships",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "289",
+    "topic": "OOPs",
+    "subtopic": "Object Relationships",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "290",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "291",
+    "topic": "OOPs",
+    "subtopic": "Classes",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "292",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "293",
+    "topic": "OOPs",
+    "subtopic": "Memory Management in OOP",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "294",
+    "topic": "OOPs",
+    "subtopic": "Classes",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "295",
+    "topic": "OOPs",
+    "subtopic": "Object Relationships",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "296",
+    "topic": "OOPs",
+    "subtopic": "Memory Management in OOP",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "297",
+    "topic": "OOPs",
+    "subtopic": "Interfaces",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "298",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "299",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "300",
+    "topic": "OOPs",
+    "subtopic": "Memory Management in OOP",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "301",
+    "topic": "OOPs",
+    "subtopic": "Classes",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "302",
+    "topic": "OOPs",
+    "subtopic": "Object Relationships",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "303",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "304",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "305",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "306",
+    "topic": "OOPs",
+    "subtopic": "Abstraction",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "307",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "308",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "309",
+    "topic": "OOPs",
+    "subtopic": "Classes",
+    "difficulty": "Intermediate",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "310",
+    "topic": "OOPs",
+    "subtopic": "Objects",
+    "difficulty": "Beginner",
+    "source": "oops_qna_simplified.json"
+  },
+  {
+    "id": "311",
+    "topic": "OOPs",
+    "subtopic": "Classes",
+    "difficulty": "Intermediate",
     "source": "oops_qna_simplified.json"
   },
   {
@@ -4370,7 +6470,7 @@
   {
     "id": "149",
     "topic": "OS",
-    "subtopic": "Threads",
+    "subtopic": "Processes",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },
@@ -4440,7 +6540,7 @@
   {
     "id": "159",
     "topic": "OS",
-    "subtopic": "I/O Management",
+    "subtopic": "Processes",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },

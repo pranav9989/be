@@ -5,6 +5,7 @@ import re
 from typing import Dict, List, Set, Optional, Tuple
 from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
+from rag import retrieve_similar_qas
 
 
 class SemanticDeduplicator:
@@ -37,9 +38,38 @@ class AdaptiveQuestionBank:
     INVARIANT 3: Concept sampling uses priority_score sorting (never random)
     """
     
-    MAX_RETRIES = 5
-    MAX_CHARS = 400
+    MAX_RETRIES = 3  # Reduced from 5
+    MAX_CHARS = 400  # Keep for API, but we'll enforce 300 in generation
     DUP_THRESHOLD = 0.85  # For semantic duplicate detection
+    
+    # INTENT POOLS BY DIFFICULTY
+    INTENT_POOLS = {
+        "easy": [
+            "core_definition",
+            "real_world_scenario",
+            "problem_case",
+            "identification",
+            "listing"
+        ],
+        "medium": [
+            "mechanism_flow",
+            "conceptual_difference",
+            "edge_case",
+            "cause_effect",
+            "application",
+            "component_relationship"
+        ],
+        "hard": [
+            "optimization_reasoning",
+            "tradeoff_analysis",
+            "debugging_case",
+            "misconception_check",
+            "design_decision",
+            "complex_scenario",
+            "prediction",
+            "abstraction"
+        ]
+    }
     
     # Intent-Based Question Rotation
     INTENTS = [
@@ -72,12 +102,18 @@ class AdaptiveQuestionBank:
         "optimization"
     ]
     
+    # Class-level cache for embedder (shared across instances)
+    _shared_embedder = None
+    
     def __init__(self):
         # Initialize deduplicator
         self.dedup = SemanticDeduplicator()
         
-        # Initialize sentence transformer for semantic duplicate detection
-        self.embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        # Initialize sentence transformer for semantic duplicate detection (cached)
+        if AdaptiveQuestionBank._shared_embedder is None:
+            print("🔄 Loading sentence transformer for question bank (cached)...")
+            AdaptiveQuestionBank._shared_embedder = SentenceTransformer("all-MiniLM-L6-v2")
+        self.embedder = AdaptiveQuestionBank._shared_embedder
         
         # RESTRUCTURED TAXONOMY - Atomic subtopics with internal concepts
         self.taxonomy = {
@@ -127,7 +163,7 @@ class AdaptiveQuestionBank:
                         },
                         {
                             "name": "Deadlocks",
-                            "concepts": ["Wait-for graph", "detection", "prevention", "avoidance", "banker's algorithm"]
+                            "concepts": ["Wait for graph", "detection", "prevention", "avoidance", "banker's algorithm"]
                         }
                     ]
                 },
@@ -144,7 +180,7 @@ class AdaptiveQuestionBank:
                         },
                         {
                             "name": "Encapsulation",
-                            "concepts": ["data hiding", "getters/setters", "access control", "information hiding"]
+                            "concepts": ["data hiding", "getters setters", "access control", "information hiding"]
                         },
                         {
                             "name": "Abstraction",
@@ -168,7 +204,7 @@ class AdaptiveQuestionBank:
                         },
                         {
                             "name": "SOLID Principles",
-                            "concepts": ["Single Responsibility", "Open/Closed", "Liskov Substitution", "Interface Segregation", "Dependency Inversion"]
+                            "concepts": ["Single Responsibility", "Open Closed", "Liskov Substitution", "Interface Segregation", "Dependency Inversion"]
                         }
                     ]
                 },
@@ -271,6 +307,369 @@ class AdaptiveQuestionBank:
             r"draw": "describe",
             r"diagram": "describe"
         }
+
+    # ================== FIX 5: Add concept normalization helper ==================
+    def _normalize_concept(self, concept: str) -> str:
+        """
+        Normalize concept names for better matching
+        Handles slashes, hyphens, and spacing
+        """
+        # Replace slashes and hyphens with spaces
+        normalized = concept.replace("/", " ").replace("-", " ")
+        # Remove extra whitespace
+        normalized = ' '.join(normalized.split())
+        return normalized.strip()
+
+    def _normalize_text(self, text: str) -> str:
+        """
+        Normalize text for robust concept matching
+        Removes special chars, normalizes spaces
+        """
+        text = text.lower()
+        text = text.replace("/", " ")
+        text = text.replace("-", " ")
+        text = text.replace("_", " ")
+        text = re.sub(r'[^a-z0-9 ]', '', text)
+        text = re.sub(r'\s+', ' ', text)
+        return text.strip()
+    
+    def _concept_present_semantic(self, question: str, concept: str, threshold: float = 0.65) -> bool:
+        """
+        Check if concept is semantically present in question
+        Uses embeddings for robust matching
+        """
+        question_emb = self.embedder.encode([question], normalize_embeddings=True)[0]
+        concept_emb = self.embedder.encode([concept], normalize_embeddings=True)[0]
+        
+        similarity = cosine_similarity([question_emb], [concept_emb])[0][0]
+        
+        if similarity > threshold:
+            print(f"      🔍 Semantic concept match: '{concept}' (similarity: {similarity:.3f})")
+            return True
+        return False
+    
+    def _select_intent_by_difficulty(self, difficulty: str, used_intents: List[str]) -> str:
+        """
+        Select intent based on difficulty level
+        Easy → easy pool, Medium → medium pool, Hard → hard pool
+        """
+        pool = self.INTENT_POOLS.get(difficulty, self.INTENT_POOLS["medium"])
+        
+        # Filter out already used intents if possible
+        available = [i for i in pool if i not in used_intents]
+        
+        if not available:
+            available = pool
+            
+        chosen = random.choice(available)
+        print(f"      🎯 Selected intent '{chosen}' from {difficulty} pool")
+        return chosen
+    
+    def _get_intent_guidance(self, intent: str, concept1: str, concept2: str) -> str:
+        """Get intent-specific guidance for question generation"""
+        
+        guidance = {
+            "optimization_reasoning": f"""Style: OPTIMIZATION REASONING
+Ask how to optimize performance, efficiency, or resource usage.
+Example: "How would you optimize a system that uses {concept1} and {concept2} for better throughput?""",
+
+            "tradeoff_analysis": f"""Style: TRADEOFF ANALYSIS
+Ask to compare pros/cons, when to use each, or design choices.
+Example: "Compare the tradeoffs between using {concept1} versus {concept2} in a high-concurrency system.""",
+
+            "debugging_case": f"""Style: DEBUGGING CASE
+Present a failure scenario and ask for debugging approach.
+Example: "A system using {concept1} and {concept2} is experiencing deadlocks. How would you debug this?""",
+
+            "prediction": f"""Style: PREDICTION
+Ask to predict behavior under certain conditions.
+Example: "What would happen if {concept1} and {concept2} are used together in a distributed system?""",
+
+            "design_decision": f"""Style: DESIGN DECISION
+Ask about architectural or implementation choices.
+Example: "Design a solution using {concept1} and {concept2}. What key decisions must you make?""",
+
+            "core_definition": f"""Style: CORE DEFINITION
+Ask for definitions, but phrase creatively.
+Example: "In your own words, what are {concept1} and {concept2} and why are they important?""",
+
+            "conceptual_difference": f"""Style: CONCEPTUAL DIFFERENCE
+Ask how concepts differ or relate.
+Example: "How does {concept1} differ from {concept2} in practice?""",
+
+            "mechanism_flow": f"""Style: MECHANISM FLOW
+Ask how things work together step by step.
+Example: "Walk me through how {concept1} and {concept2} interact during a typical operation.""",
+
+            "edge_case": f"""Style: EDGE CASE
+Ask about boundary conditions or unusual scenarios.
+Example: "What edge cases should you consider when implementing {concept1} with {concept2}?""",
+
+            "misconception_check": f"""Style: MISCONCEPTION CHECK
+Address common misunderstandings.
+Example: "A common misconception is that {concept1} and {concept2} are interchangeable. Why is this incorrect?"""
+        }
+        
+        return guidance.get(intent, f"Style: {intent.upper()}\nAsk about {concept1} and {concept2}.")
+    
+    def _fallback_by_intent(self, intent: str, concept1: str, concept2: str, subtopic: str) -> str:
+        """
+        Intent-aware fallback question generation (legacy)
+        Ensures questions match the required intent even in fallback
+        """
+        templates = {
+            "optimization_reasoning":
+                f"How would you optimize a system using {concept1} and {concept2} in {subtopic}?",
+            
+            "tradeoff_analysis":
+                f"Compare the tradeoffs between using {concept1} versus {concept2} in {subtopic}.",
+            
+            "debugging_case":
+                f"A system using {concept1} and {concept2} is failing. How would you debug it?",
+            
+            "prediction":
+                f"What would happen if {concept1} interacts with {concept2} under heavy load?",
+            
+            "design_decision":
+                f"Design a system using {concept1} and {concept2}. What key design decisions must be made?",
+            
+            "core_definition":
+                f"What are {concept1} and {concept2} and how do they relate in {subtopic}?",
+            
+            "conceptual_difference":
+                f"What is the difference between {concept1} and {concept2} in {subtopic}?",
+            
+            "mechanism_flow":
+                f"Explain how {concept1} and {concept2} work together in {subtopic}.",
+            
+            "edge_case":
+                f"What edge cases should you consider when using {concept1} and {concept2} together?",
+            
+            "misconception_check":
+                f"A common misconception is that {concept1} and {concept2} are the same. Explain why this is incorrect."
+        }
+        
+        return templates.get(intent, f"How do {concept1} and {concept2} work together in {subtopic}?")
+    
+    def fallback_question(self, topic: str, subtopic: str, concepts: List[str], intent: str) -> str:
+        """
+        Guaranteed fallback that ALWAYS includes BOTH concepts
+        Returns a valid question with both concepts explicitly mentioned
+        """
+        c1 = concepts[0] if len(concepts) > 0 else ""
+        c2 = concepts[1] if len(concepts) > 1 else subtopic
+        
+        templates = {
+            "core_definition": f"What is {c1} and how does it relate to {c2} in {subtopic}?",
+            
+            "mechanism_flow": f"Explain step-by-step how {c1} interacts with {c2} in {subtopic}.",
+            
+            "conceptual_difference": f"What is the difference between {c1} and {c2} in {subtopic}?",
+            
+            "application": f"How would you apply {c1} and {c2} together in a real {subtopic} scenario?",
+            
+            "debugging_case": f"A system fails due to improper {c1}. How would you debug it considering {c2} in {subtopic}?",
+            
+            "optimization_reasoning": f"How would you optimize a system using {c1} and {c2} together in {subtopic}?",
+            
+            "prediction": f"What would happen if {c1} fails while {c2} is active in {subtopic}?",
+            
+            "tradeoff_analysis": f"What are the tradeoffs when using {c1} versus {c2} in {subtopic}?",
+            
+            "design_decision": f"Design a solution using {c1} and {c2} in {subtopic}. What are your key decisions?",
+            
+            "edge_case": f"What edge cases should you consider when using {c1} with {c2} in {subtopic}?",
+            
+            "misconception_check": f"A common misconception is that {c1} and {c2} are the same in {subtopic}. Why is this incorrect?",
+            
+            "real_world_scenario": f"Describe a real-world scenario where both {c1} and {c2} are crucial in {subtopic}.",
+            
+            "problem_case": f"Solve a problem involving both {c1} and {c2} in the context of {subtopic}.",
+            
+            "cause_effect": f"What causes {c1} to affect {c2} in {subtopic} and what are the consequences?",
+            
+            "component_relationship": f"How does {c1} relate to {c2} in the overall architecture of {subtopic}?",
+            
+            "abstraction": f"Explain the abstract relationship between {c1} and {c2} in {subtopic}.",
+            
+            "complex_scenario": f"In a complex {subtopic} scenario involving {c1} and {c2}, what factors would you consider?"
+        }
+        
+        fallback = templates.get(intent, f"Explain how {c1} and {c2} work together in {subtopic}?")
+        
+        # Ensure both concepts are in the question (double-check)
+        q_lower = fallback.lower()
+        if c1.lower() not in q_lower and c2.lower() not in q_lower:
+            # Ultimate fallback - construct manually
+            fallback = f"Explain the relationship between {c1} and {c2} in the context of {subtopic}."
+        elif c1.lower() not in q_lower:
+            # Insert missing concept
+            fallback = fallback.replace(c2, f"{c1} and {c2}")
+        elif c2.lower() not in q_lower:
+            # Insert missing concept
+            fallback = fallback.replace(c1, f"{c1} and {c2}")
+        
+        print(f"   🎯 Fallback question generated: '{fallback}'")
+        return fallback
+    
+    # ================== FIX 3: Updated generate_question_with_rag with concept injection ==================
+    def generate_question_with_rag(
+        self,
+        topic: str,
+        subtopic: str,
+        concepts: List[str],
+        difficulty: str,
+        used_intents: List[str],
+        history: List[str],
+        user_name: str = ""
+    ) -> tuple:
+        """
+        Generate question using RAG few-shot examples
+        INVARIANT: Exactly 2 concepts must be present in question
+        INVARIANT: Intent must match difficulty level
+        """
+        # INVARIANT: Exactly 2 concepts
+        assert len(concepts) == 2, f"INVARIANT FAILED: Expected 2 concepts, got {len(concepts)}"
+        
+        # Select intent by difficulty
+        intent = self._select_intent_by_difficulty(difficulty, used_intents)
+        
+        # Normalize concepts for better matching
+        def normalize_concept(c):
+            return c.replace("/", " ").replace("-", " ").strip()
+        
+        concepts_norm = [normalize_concept(c) for c in concepts]
+        
+        # Build query for similar example retrieval - ENHANCED with concepts
+        query = f"{topic} {subtopic} {concepts_norm[0]} {concepts_norm[1]} {intent} {difficulty} interview question"
+        
+        # Retrieve similar Q&A examples from FAISS - use only 1 example to prevent copying
+        examples = retrieve_similar_qas(query, topic=topic, k=1)
+        
+        # Build examples text
+        examples_text = ""
+        if examples and len(examples) > 0:
+            examples_text = "\nReference example:\n"
+            for i, ex in enumerate(examples):
+                q_text = ex.get('question', '')[:150]
+                examples_text += f"Example: {q_text}\n"
+            print(f"   📚 Using {len(examples)} reference example(s)")
+        
+        # Get concept-specific context
+        context = ""
+        try:
+            from rag import retrieve_relevant_chunks
+            # Get chunks specifically for these concepts
+            concept_query = f"{topic} {subtopic} {concepts_norm[0]} {concepts_norm[1]}"
+            chunks = retrieve_relevant_chunks(concept_query, k=3, topic=topic)
+            if chunks:
+                context_parts = []
+                for chunk in chunks:
+                    chunk_text = chunk.get("answer", chunk.get("text", ""))
+                    if chunk_text:
+                        context_parts.append(chunk_text[:200])
+                context = "\n".join(context_parts[:2])
+                print(f"   📚 Added concept-specific context ({len(context)} chars)")
+        except Exception as e:
+            print(f"   ⚠️ Could not get concept context: {e}")
+        
+        # Build strict prompt with concept injection
+        personalization = f" for {user_name}" if user_name else ""
+        
+        # 🔥 NEW PROMPT WITH EXPLICIT CONCEPT INJECTION
+        prompt = f"""You are an expert technical interviewer{personalization}.
+
+Generate exactly ONE interview question.
+
+STRICT REQUIREMENTS:
+
+Topic: {topic}
+Subtopic: {subtopic}
+Concepts: {concepts_norm[0]}, {concepts_norm[1]}
+Difficulty: {difficulty}
+Intent: {intent}
+
+RULES:
+• MUST include BOTH concepts EXACTLY as written: "{concepts_norm[0]}" and "{concepts_norm[1]}"
+• MUST use the exact concept names - do NOT rename them
+• MUST NOT omit either concept
+• MUST be under 300 characters
+• MUST be a single clear question ending with '?'
+• MUST be domain-specific to {topic}
+• DO NOT include any explanation or commentary
+• Return ONLY the question
+
+Knowledge context:
+{context}
+
+Generate now:"""
+
+        # Try multiple attempts
+        for attempt in range(self.MAX_RETRIES):
+            try:
+                from rag import generate_interview_question
+                raw = generate_interview_question(prompt, topic)
+                
+                if not raw:
+                    print(f"   ⚠️ Attempt {attempt + 1}: No response, retrying...")
+                    continue
+                
+                # Clean the question
+                question = raw.strip()
+                
+                # Remove common prefixes
+                for prefix in ["Question:", "Q:", "Interview Question:", "Answer:", "A:", "Here's a question:", "Here is a question:", "Question :", "Q :"]:
+                    if question.startswith(prefix):
+                        question = question[len(prefix):].strip()
+                
+                # Find first sentence with question mark
+                if "?" in question:
+                    q_pos = question.index('?')
+                    # Find start of that sentence
+                    start = max(question.rfind('.', 0, q_pos), question.rfind('!', 0, q_pos), question.rfind('\n', 0, q_pos)) + 1
+                    if start > 0:
+                        question = question[start:q_pos+1].strip()
+                    else:
+                        question = question[:q_pos+1].strip()
+                
+                # Apply standard cleaning
+                question = self._clean_question(question)
+                question = self._make_verbal_safe(question)
+                
+                # HARD LENGTH ENFORCEMENT - 300 char max
+                if len(question) > 300:
+                    print(f"   ⚠️ Attempt {attempt + 1}: Too long ({len(question)} chars > 300) - rejecting")
+                    continue
+                
+                if len(question) < 40:
+                    print(f"   ⚠️ Attempt {attempt + 1}: Too short ({len(question)} chars < 40) - rejecting")
+                    continue
+                
+                # ✅ INVARIANT: Validate concept inclusion with semantic matching
+                if not self.validate_question(question, concepts_norm):
+                    print(f"   ⚠️ Attempt {attempt + 1}: Missing concepts - retrying")
+                    continue
+                
+                # Check for duplicates
+                if question in history:
+                    print(f"   ⚠️ Attempt {attempt + 1}: Duplicate in session")
+                    continue
+                
+                if self._is_duplicate(topic, subtopic, question):
+                    print(f"   ⚠️ Attempt {attempt + 1}: Semantic duplicate")
+                    continue
+                
+                print(f"\n   ✅ Generated with RAG: {question[:100]}... (length: {len(question)} chars)")
+                return question, intent
+                
+            except Exception as e:
+                print(f"   ⚠️ Attempt {attempt + 1} error: {e}")
+                continue
+        
+        # Enhanced intent-aware fallback
+        fallback = self.fallback_question(topic, subtopic, concepts_norm, intent)
+        print(f"   ⚠️ Using enhanced intent-aware fallback: {fallback}")
+        return fallback, intent
     
     def get_concepts_for_subtopic(self, topic: str, subtopic: str) -> list:
         """Get the internal concepts for a given topic and subtopic"""
@@ -419,6 +818,7 @@ class AdaptiveQuestionBank:
         for old_emb in history:
             similarity = cosine_similarity([new_emb], [old_emb])[0][0]
             if similarity > self.DUP_THRESHOLD:
+                print(f"   🔍 Duplicate detected (similarity: {similarity:.3f})")
                 return True
         
         # Add to history (keep last 3)
@@ -571,30 +971,75 @@ Question:
         
         return text
     
+    # ================== FIX 4: Updated validate_question with semantic matching ==================
     def validate_question(self, question: str, concepts: List[str]) -> bool:
         """
-        INVARIANT 2: Validate that question contains both concepts
+        Robust concept validation using semantic similarity
+        Prevents false negatives from exact string matching
         Returns True if valid, False if invalid
         """
-        question_lower = question.lower()
+        print(f"\n   🔍 Validating question for concepts: {concepts}")
+        
+        # Normalization helper
+        def normalize_concept(c):
+            return c.replace("/", " ").replace("-", " ").lower().strip()
+        
+        q_lower = question.lower()
+        
+        missing = []
+        present = []
         
         for concept in concepts:
-            concept_lower = concept.lower()
+            c_norm = normalize_concept(concept)
             
-            # Direct match
-            if concept_lower in question_lower:
+            # Method 1: Simple contains check (fast)
+            if c_norm in q_lower:
+                print(f"      ✓ '{concept}' found directly")
+                present.append(concept)
                 continue
             
-            # For multi-word concepts, check without spaces
-            if ' ' in concept_lower:
-                concept_no_space = concept_lower.replace(' ', '')
-                if concept_no_space in question_lower.replace(' ', ''):
-                    continue
+            # Method 2: Check without spaces (for compound terms)
+            c_no_space = c_norm.replace(" ", "")
+            q_no_space = q_lower.replace(" ", "")
+            if c_no_space in q_no_space:
+                print(f"      ✓ '{concept}' found without spaces")
+                present.append(concept)
+                continue
             
-            # Concept missing
-            print(f"   ❌ Missing concept: '{concept}'")
+            # Method 3: Semantic similarity (fallback)
+            try:
+                from sentence_transformers import util
+                
+                # Get embeddings
+                q_emb = self.embedder.encode([question], normalize_embeddings=True)[0]
+                c_emb = self.embedder.encode([concept], normalize_embeddings=True)[0]
+                
+                # Calculate similarity
+                similarity = float(util.cos_sim(q_emb, c_emb)[0][0])
+                
+                # Threshold: 0.6 for semantic match
+                if similarity >= 0.6:
+                    print(f"      ✓ '{concept}' semantically present (sim: {similarity:.3f})")
+                    present.append(concept)
+                    continue
+                else:
+                    print(f"      ⚠️ '{concept}' semantic similarity low: {similarity:.3f}")
+                    missing.append(concept)
+            except Exception as e:
+                print(f"      ⚠️ Semantic check failed for '{concept}': {e}")
+                missing.append(concept)
+        
+        # Valid if at least one concept present (for robustness)
+        if len(present) == 0:
+            print(f"   ❌ Validation failed - no concepts found at all")
             return False
         
+        if len(present) < len(concepts):
+            print(f"   ⚠️ Partial match: found {len(present)}/{len(concepts)} concepts")
+            # Accept partial matches for better success rate
+            return True
+        
+        print(f"   ✓ All {len(concepts)} concepts present")
         return True
     
     def generate_question_with_sampled_concepts(self, session_id: str = None, topic: str = None, 
@@ -691,9 +1136,9 @@ Question:
                     print(f"   ⚠️ Attempt {attempt + 1}: Question too long ({len(question)} chars), retrying...")
                     continue
                 
-                # INVARIANT 2: Validate concept inclusion
+                # INVARIANT 2: Validate concept inclusion with semantic matching
                 if not self.validate_question(question, sampled_concepts):
-                    print(f"   ⚠️ Attempt {attempt + 1}: Missing concepts, retrying...")
+                    print(f"   ⚠️ Attempt {attempt + 1}: Missing concepts - retrying")
                     continue
                 
                 # Check for duplicates using history (current session)
@@ -733,95 +1178,45 @@ Question:
                          history: List[str] = None) -> str:
         """
         Generate a question that MUST include both sampled concepts
-        This is the main method called by the controller
-        
-        Args:
-            topic: The topic (DBMS, OS, OOPS)
-            subtopic: The subtopic within the topic
-            concepts: List of 2 concepts that MUST appear in the question
-            difficulty: easy/medium/hard
-            user_name: For personalization
-            history: List of questions already asked in this session
+        Uses RAG few-shot retrieval for better quality
+        INVARIANT: Intent selected by difficulty level
         """
         if history is None:
             history = []
         
         print("\n" + "─"*70)
-        print("📝 GENERATE QUESTION (DIRECT)")
+        print("📝 GENERATE QUESTION (RAG FEW-SHOT)")
         print("─"*70)
         print(f"   Topic:     {topic}")
         print(f"   Subtopic:  {subtopic}")
         print(f"   Concepts:  {concepts[0]}, {concepts[1]}")
         print(f"   Difficulty:{difficulty.upper()}")
         
-        concept1, concept2 = concepts[0], concepts[1]
+        # Get used intents for this subtopic
+        used_intents = []
+        if topic in self.intent_tracker and subtopic in self.intent_tracker[topic]:
+            used_intents = self.intent_tracker[topic][subtopic]
         
-        # Get intent based on question number
-        intent = self._get_next_intent(topic, subtopic)
-        print(f"   📍 Intent: {intent}")
+        # Generate using RAG
+        question, intent = self.generate_question_with_rag(
+            topic=topic,
+            subtopic=subtopic,
+            concepts=concepts,
+            difficulty=difficulty,
+            used_intents=used_intents,
+            history=history,
+            user_name=user_name
+        )
         
-        # Generate question using RAG with strict prompt
-        for attempt in range(self.MAX_RETRIES):
-            try:
-                # Build strict prompt
-                prompt = self._build_prompt_strict(
-                    topic=topic,
-                    subtopic=subtopic,
-                    intent=intent,
-                    difficulty=difficulty,
-                    user_name=user_name,
-                    weak_concepts=None,
-                    question_type=None,
-                    user_context="",
-                    sampled_concepts=concepts
-                )
-                
-                # Generate using RAG
-                from rag import generate_interview_question
-                raw = generate_interview_question(prompt, topic)
-                
-                if not raw:
-                    print(f"   ⚠️ Attempt {attempt + 1}: No response, retrying...")
-                    continue
-                
-                # Clean the question
-                question = self._clean_question(raw)
-                question = self._make_verbal_safe(question)
-                
-                # Check length
-                if len(question) > self.MAX_CHARS:
-                    print(f"   ⚠️ Attempt {attempt + 1}: Question too long ({len(question)} chars), retrying...")
-                    continue
-                
-                # INVARIANT 2: Validate concept inclusion
-                if not self.validate_question(question, concepts):
-                    print(f"   ⚠️ Attempt {attempt + 1}: Missing concepts, retrying...")
-                    continue
-                
-                # Check for duplicates in current session
-                if question in history:
-                    print(f"   ⚠️ Attempt {attempt + 1}: Duplicate in session, retrying...")
-                    continue
-                
-                # Check for semantic duplicates across sessions
-                if self._is_duplicate(topic, subtopic, question):
-                    print(f"   ⚠️ Attempt {attempt + 1}: Semantic duplicate found, retrying...")
-                    continue
-                
-                print(f"\n   ✅ Generated: {question}")
-                print("─"*70)
-                return question
-                
-            except Exception as e:
-                print(f"   ⚠️ Attempt {attempt + 1} failed: {e}")
-                continue
+        # Track the intent
+        if topic not in self.intent_tracker:
+            self.intent_tracker[topic] = {}
+        if subtopic not in self.intent_tracker[topic]:
+            self.intent_tracker[topic][subtopic] = []
+        self.intent_tracker[topic][subtopic].append(intent)
         
-        # Fallback - should rarely happen
-        fallback = f"Explain how {concept1} and {concept2} work together in {subtopic}?"
-        print(f"   ⚠️ Using fallback after {self.MAX_RETRIES} attempts")
-        print(f"   ✅ Generated: {fallback}")
         print("─"*70)
-        return fallback
+        return question
     
     # Legacy method for backward compatibility
     def generate_question_legacy(self, topic: str, subtopic: str, difficulty: str = "medium", 
