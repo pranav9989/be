@@ -1,0 +1,58 @@
+[
+  {
+    "id": "resume_chunk_2_0",
+    "chunk_id": 0,
+    "user_id": 2,
+    "text": "NIHAR WALAWALKAR\n+91-9321649058|wnihar04@gmail.com |linkedin |github\nEducation\nVES Institute of TechnologyMumbai, IN\nBachelor of Engineering in AI & Data Science (GPA: 9.14), Minor in Cyber Security 2022 – 2026\nMatoshree Prabodhini Jr. College of Science (HSC)Thane, IN\nPercentage: 73.33 2021 – 2022\nSaraswati Vidyalaya High School (SSC)Thane, IN\nPercentage: 92.20 2019 – 2020\nExperience\nData Science InternJun 2024 – Aug 2024\nRenuka Services and Technology Mumbai, IN",
+    "source": "resume",
+    "chunk_size": 468
+  },
+  {
+    "id": "resume_chunk_2_1",
+    "chunk_id": 1,
+    "user_id": 2,
+    "text": "Renuka Services and Technology Mumbai, IN\n•Built an unsupervised time-series anomaly detection system using a TCN-based autoencoder, leveraging causal and\ndilated convolutions to capture long-range temporal patterns.\n•Implemented an end-to-end pipeline including normalization, sliding-window sequence modeling, reconstruction\nerror analysis, and statistical thresholding (mean + 3σ).\n•Evaluated detection performance on the NAB benchmark using precision, recall, F1-score, and ROC-AUC, with",
+    "source": "resume",
+    "chunk_size": 491
+  },
+  {
+    "id": "resume_chunk_2_2",
+    "chunk_id": 2,
+    "user_id": 2,
+    "text": "emphasis on reducing false positives in imbalanced data.\nProjects\nPlantGuard|Python, Scikit-learn, Pandas, NumPy, Streamlit, Matplotlib, SeabornGitHub\n•Developed a Flask-based plant disease identification website using a ResNet-18 CNN trained on the Plant\nPathology dataset.\n•Implemented deep learning–based image processing to accurately classify plant diseases from user-uploaded images.\n•Preprocessed images, applied data augmentation, and trained the model, achieving 94% test accuracy.",
+    "source": "resume",
+    "chunk_size": 490
+  },
+  {
+    "id": "resume_chunk_2_3",
+    "chunk_id": 3,
+    "user_id": 2,
+    "text": "CodeSync|Next.js, TypeScript, Stream, Convex, Clerk, Tailwind CSS, Monaco EditorGitHub\n•A full-stack platform for remote coding interviews with video calls, screen sharing, and recording features.\n•Integrated a real-time collaborative code editor supporting multiple languages (JS, Python, Java) with built-in\ncoding challenges.\n•Added secure authentication, interview scheduling, and a dashboard for managing sessions and recordings.",
+    "source": "resume",
+    "chunk_size": 434
+  },
+  {
+    "id": "resume_chunk_2_4",
+    "chunk_id": 4,
+    "user_id": 2,
+    "text": "Interview Prep AI|React, Node.js, Express, MongoDB, Google Gemini API, TailwindGitHub\n•Built a full-stack AI-powered interview prep platform with JWT and bcrypt-based authentication.\n•Integrated Google Gemini API to generate role-specific questions, answers, and concept explanations.\n•Enabled personalized sessions, question pinning, and custom notes for organized learning.\nTechnical Skills\nLanguages: Python, SQL, HTML, CSS, JavaScript, C++\nFrameworks: React, Node.js, Flask, Tensorflow, Pytorch",
+    "source": "resume",
+    "chunk_size": 498
+  },
+  {
+    "id": "resume_chunk_2_5",
+    "chunk_id": 5,
+    "user_id": 2,
+    "text": "Developer Tools: GitHub, Figma, Excel, Power BI, Postman, AWS, Jenkins\nLibraries: Pandas, NumPy, Matplotlib, Seaborn\nCertifications\nOracle Data Science Professional; Oracle Generative AI Professional; AWS Cloud Practitioner Essentials; Hugging Face\nDeep RL course; Accenture Data Analytics & Visualization; NVIDIA Applications of AI for Anomaly Detection; AWS\nCloud Developing; Google Cloud Machine Learning in the Enterprise\nAchievements",
+    "source": "resume",
+    "chunk_size": 438
+  },
+  {
+    "id": "resume_chunk_2_6",
+    "chunk_id": 6,
+    "user_id": 2,
+    "text": "Achievements\n•Chosen among top 40 teams from 13,240+ registrations in VoyageHacks 2.0; advanced past the first round.\n•Competed in the V Code competition conducted by the Training and Placement Cell, showcasing coding proficiency\nunder time constraints.",
+    "source": "resume",
+    "chunk_size": 253
+  }
+]

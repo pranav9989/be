@@ -1,5 +1,5 @@
 .env
-myenv
+myenv/
 node_modules
 # Python
 __pycache__/
@@ -20,11 +20,3 @@ env/
 # VSCode / PyCharm
 .vscode/
 .idea/
-
-# Database files
-instance/
-backend/instance/
-
-# Data processing outputs
-data/processed/
-backend/data/processed/
