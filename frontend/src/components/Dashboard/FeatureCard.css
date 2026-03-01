@@ -1,202 +1,139 @@
-/* Professional Interview Prep - Feature Card Styles */
+/* ============================================================
+   FeatureCard – Premium hover cards on the Dashboard
+   ============================================================ */
 
 .feature-card {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.1);
-  text-align: center;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  border: 1px solid #E2E8F0;
-  border-top: 4px solid;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.75rem;
+  cursor: pointer;
+  text-decoration: none;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  /* Fill grid cell */
-  min-height: 260px;
-  /* Slightly shorter for better balance */
-  max-height: 280px;
-  /* Limit maximum height */
+  gap: 1rem;
   position: relative;
   overflow: hidden;
-  cursor: default;
+  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+  animation: slideUp 0.4s ease both;
+}
+
+/* Colored top-accent line */
+.feature-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  border-radius: 20px 20px 0 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+/* Hover glow overlay */
+.feature-card::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  border-radius: 20px;
+  pointer-events: none;
 }
 
 .feature-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 12px 20px -5px rgba(30, 58, 138, 0.15);
-  border-color: #CBD5E1;
+  transform: translateY(-6px);
+  border-color: var(--border-strong);
+  box-shadow: var(--shadow-lg);
 }
 
-.feature-card i {
-  font-size: 2.2rem;
-  /* Slightly smaller */
-  margin-bottom: 0.8rem;
-  /* Reduced spacing */
-  display: block;
-  transition: transform 0.3s ease;
-}
+.feature-card:hover::before { opacity: 1; }
+.feature-card:hover::after  { opacity: 1; }
 
-.feature-card:hover i {
-  transform: scale(1.1);
-}
-
-.feature-card h3 {
-  font-size: 1.25rem;
-  margin-bottom: 0.8rem;
-  color: #1E3A8A;
-  font-weight: 700;
-  min-height: 2.5rem;
-  /* Prevent layout shift */
+/* -- Icon Container -- */
+.feature-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
   display: flex;
   align-items: center;
   justify-content: center;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
 }
 
-.feature-card p {
-  color: #4B5563;
-  line-height: 1.4;
-  /* Tighter line height */
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
-  /* Smaller font */
-  flex-grow: 1;
-  /* Fill available space */
-  overflow: hidden;
-  /* Prevent overflow */
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  /* Show max 3 lines */
-  -webkit-box-orient: vertical;
+.feature-card:hover .feature-icon {
+  transform: scale(1.12) rotate(-5deg);
 }
 
-.feature-btn {
-  background: #1E3A8A;
-  color: white;
-  padding: 0.6rem 1.2rem;
-  border: none;
-  border-radius: 6px;
-  text-decoration: none;
-  display: inline-block;
-  font-weight: 600;
-  font-size: 0.85rem;
-  transition: all 0.2s ease;
-  cursor: pointer;
-  align-self: center;
-  margin-top: auto;
-  /* Push to bottom */
-  min-width: 120px;
-  /* Consistent button width */
+/* -- Text -- */
+.feature-title {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  line-height: 1.3;
 }
 
-.feature-btn:hover {
-  background: #172554;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(30, 58, 138, 0.2);
+.feature-description {
+  font-size: 0.8375rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+  flex: 1;
 }
 
-/* Color variants */
-
-/* Technical & Profile cards */
-.technical-card,
-.profile-card {
-  border-top-color: #1E3A8A;
+.feature-arrow {
+  align-self: flex-end;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  transition: transform 0.25s ease, color 0.25s ease !important;
 }
 
-.technical-card i,
-.profile-card i {
-  color: #1E3A8A;
+.feature-card:hover .feature-arrow {
+  transform: translateX(4px);
 }
 
-/* Resume card */
-.resume-card {
-  border-top-color: #10B981;
-}
+/* ====== Color Variants ====== */
+/* Technical */
+.feature-card.color-technical { --card-color: var(--accent-violet); --card-color-dim: var(--accent-violet-dim); }
+.feature-card.color-technical::before { background: var(--gradient-violet); }
+.feature-card.color-technical::after  { background: radial-gradient(ellipse at top left, var(--accent-violet-glow), transparent 60%); }
+.feature-card.color-technical .feature-icon { background: var(--accent-violet-dim); color: var(--accent-violet); }
+.feature-card.color-technical:hover .feature-arrow { color: var(--accent-violet); }
 
-.resume-card i {
-  color: #10B981;
-}
+/* HR */
+.feature-card.color-hr { --card-color: var(--accent-emerald); --card-color-dim: var(--accent-emerald-dim); }
+.feature-card.color-hr::before { background: linear-gradient(135deg, #059669, #34D399); }
+.feature-card.color-hr::after  { background: radial-gradient(ellipse at top left, rgba(52,211,153,0.15), transparent 60%); }
+.feature-card.color-hr .feature-icon { background: var(--accent-emerald-dim); color: var(--accent-emerald); }
+.feature-card.color-hr:hover .feature-arrow { color: var(--accent-emerald); }
 
-/* HR card */
-.hr-card {
-  border-top-color: #F59E0B;
-}
+/* Resume */
+.feature-card.color-resume { --card-color: var(--accent-gold); --card-color-dim: var(--accent-gold-dim); }
+.feature-card.color-resume::before { background: var(--gradient-gold); }
+.feature-card.color-resume::after  { background: radial-gradient(ellipse at top left, var(--accent-gold-glow), transparent 60%); }
+.feature-card.color-resume .feature-icon { background: var(--accent-gold-dim); color: var(--accent-gold); }
+.feature-card.color-resume:hover .feature-arrow { color: var(--accent-gold); }
 
-.hr-card i {
-  color: #F59E0B;
-}
+/* Profile */
+.feature-card.color-profile { --card-color: var(--accent-teal); --card-color-dim: var(--accent-teal-dim); }
+.feature-card.color-profile::before { background: linear-gradient(135deg, #0891B2, #22D3EE); }
+.feature-card.color-profile::after  { background: radial-gradient(ellipse at top left, rgba(34,211,238,0.12), transparent 60%); }
+.feature-card.color-profile .feature-icon { background: var(--accent-teal-dim); color: var(--accent-teal); }
+.feature-card.color-profile:hover .feature-arrow { color: var(--accent-teal); }
 
-/* Button colors based on card type */
-.resume-card .feature-btn {
-  background: #10B981;
-}
+/* Streaming */
+.feature-card.color-streaming { --card-color: #F472B6; }
+.feature-card.color-streaming::before { background: linear-gradient(135deg, #DB2777, #F472B6); }
+.feature-card.color-streaming::after  { background: radial-gradient(ellipse at top left, rgba(244,114,182,0.12), transparent 60%); }
+.feature-card.color-streaming .feature-icon { background: rgba(244,114,182,0.12); color: #F472B6; }
+.feature-card.color-streaming:hover .feature-arrow { color: #F472B6; }
 
-.resume-card .feature-btn:hover {
-  background: #059669;
-}
-
-.hr-card .feature-btn {
-  background: #F59E0B;
-}
-
-.hr-card .feature-btn:hover {
-  background: #D97706;
-}
-
-/* Streaming card */
-.streaming-card {
-  border-top-color: #8B5CF6;
-}
-
-.streaming-card i {
-  color: #8B5CF6;
-}
-
-.streaming-card .feature-btn {
-  background: #8B5CF6;
-}
-
-.streaming-card .feature-btn:hover {
-  background: #7C3AED;
-}
-
-/* Agentic Interview card */
-.agentic-card {
-  border-top-color: #2563EB;
-  /* same blue family as primary */
-}
-
-.agentic-card i {
-  color: #2563EB;
-}
-
-.agentic-card .feature-btn {
-  background: #2563EB;
-}
-
-.agentic-card .feature-btn:hover {
-  background: #1D4ED8;
-}
-
-
-/* Responsive adjustments */
-@media (max-width: 1199px) and (min-width: 768px) {
-  .feature-card {
-    min-height: 240px;
-  }
-
-  .feature-card p {
-    -webkit-line-clamp: 3;
-  }
-}
-
-@media (max-width: 767px) {
-  .feature-card {
-    min-height: 220px;
-    max-height: none;
-  }
-
-  .feature-card p {
-    -webkit-line-clamp: 2;
-  }
-}
+/* Agentic */
+.feature-card.color-agentic { --card-color: var(--accent-gold); }
+.feature-card.color-agentic::before { background: linear-gradient(135deg, #D4A853, #7B6FEB); }
+.feature-card.color-agentic::after  { background: radial-gradient(ellipse at top left, var(--accent-gold-glow), transparent 60%); }
+.feature-card.color-agentic .feature-icon { background: var(--accent-gold-dim); color: var(--accent-gold); }
+.feature-card.color-agentic:hover .feature-arrow { color: var(--accent-gold); }

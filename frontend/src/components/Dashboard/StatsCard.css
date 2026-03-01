@@ -1,33 +1,59 @@
-.stat-card {
+/* ============================================================
+   StatsCard – Animated stats counters on Dashboard
+   ============================================================ */
+
+.stat-card-component {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem 1rem;
   text-align: center;
-  padding: 1.5rem;
-  background: white;
-  border-radius: 12px;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  border: 1px solid #E2E8F0;
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
   align-items: center;
-  min-height: 120px; /* Ensure consistent height for all stats cards */
+  gap: 0.5rem;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+  animation: scaleIn 0.4s ease both;
 }
 
-.stat-card:hover {
+.stat-card-component::before {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--gradient-gold);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+
+.stat-card-component:hover {
+  border-color: var(--border-strong);
   transform: translateY(-3px);
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.1);
-  border-color: #CBD5E1;
+  box-shadow: var(--shadow-md);
+}
+
+.stat-card-component:hover::before {
+  opacity: 1;
 }
 
 .stat-number {
-  font-size: 2.5rem;
+  font-size: 2.25rem;
   font-weight: 800;
-  color: #1E3A8A; /* Navy Blue for primary numbers */
-  margin-bottom: 0.5rem;
+  letter-spacing: -0.04em;
+  line-height: 1;
+  background: var(--gradient-text-gold);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
 }
 
 .stat-label {
-  font-size: 0.95rem;
-  color: #64748B; /* Dark gray for clear labels */
+  font-size: 0.8rem;
   font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.01em;
 }

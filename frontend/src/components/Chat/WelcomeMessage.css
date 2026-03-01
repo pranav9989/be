@@ -1,74 +1,69 @@
+/* ============================================================
+   WelcomeMessage – Empty state shown before first message
+   ============================================================ */
+
 .welcome-message {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   text-align: center;
-  padding: 4rem 2rem;
-  margin-top: 2rem;
+  padding: 3rem 1.5rem;
+  gap: 2rem;
+  flex: 1;
+  animation: fadeIn 0.5s ease;
 }
 
-.welcome-content {
-  max-width: 600px;
+.welcome-icon {
+  width: 72px;
+  height: 72px;
+  background: var(--gradient-gold);
+  border-radius: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.75rem;
+  color: #0F0F0F;
+  animation: float 3s ease-in-out infinite;
+  box-shadow: var(--shadow-glow-gold);
+}
+
+.welcome-message h3 {
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: -0.02em;
+  margin-bottom: 0.5rem;
+}
+
+.welcome-message p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  max-width: 400px;
   margin: 0 auto;
 }
 
-.welcome-content i {
-  font-size: 5rem;
-  color: #74b9ff;
-  margin-bottom: 2rem;
-  animation: float 3s ease-in-out infinite;
-}
-
-@keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
-}
-
-.welcome-content h2 {
-  color: #2c3e50;
-  margin-bottom: 1.5rem;
-  font-size: 2.5rem;
-  font-weight: 700;
-}
-
-.welcome-content p {
-  color: #6c757d;
-  font-size: 1.2rem;
-  margin-bottom: 3rem;
-  line-height: 1.6;
-}
-
-.features {
+.welcome-topics {
   display: flex;
-  justify-content: center;
-  gap: 2.5rem;
   flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: center;
+  max-width: 480px;
 }
 
-.feature {
-  display: flex;
-  align-items: center;
-  gap: 0.7rem;
-  color: #00b894;
-  font-weight: 600;
-  padding: 0.8rem 1.2rem;
-  background: rgba(0,184,148,0.1);
-  border-radius: 25px;
-  border: 1px solid rgba(0,184,148,0.2);
+.welcome-topic-tag {
+  padding: 0.375rem 0.875rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  transition: all 0.2s ease;
 }
 
-@media (max-width: 768px) {
-  .welcome-message {
-    padding: 3rem 1rem;
-  }
-  
-  .welcome-content h2 {
-    font-size: 2rem;
-  }
-  
-  .welcome-content i {
-    font-size: 4rem;
-  }
-  
-  .features {
-    flex-direction: column;
-    gap: 1rem;
-  }
+.welcome-topic-tag:hover {
+  background: var(--accent-gold-dim);
+  border-color: var(--border-accent);
+  color: var(--text-primary);
 }

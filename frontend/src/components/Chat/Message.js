@@ -10,31 +10,37 @@ const Message = ({ message }) => {
       .replace(/`(.*?)`/g, '<code>$1</code>');
   };
 
+  const initials = message.role === 'user' ? 'U' : 'AI';
+
   return (
-    <div className={`message ${message.role}`}>
+    <div className={`message-wrapper ${message.role}`}>
       <div className="message-avatar">
-        <i className={`fas ${message.role === 'user' ? 'fa-user' : 'fa-robot'}`}></i>
+        {initials}
       </div>
-      <div className="message-content">
-        <div 
-          className="message-text"
-          dangerouslySetInnerHTML={{ __html: formatMessageText(message.content) }}
-        />
-        {message.role === 'assistant' && !message.isError && message.metadata && (
-          <div className="message-meta">
-            {message.metadata.topic && (
-              <span className="topic-badge">
-                {message.metadata.topic}
-                {message.metadata.subtopic && ` → ${message.metadata.subtopic}`}
-              </span>
-            )}
-            {message.metadata.sourceCount && (
-              <div className="sources-info">
-                <i className="fas fa-books"></i> Based on {message.metadata.sourceCount} knowledge sources
-              </div>
-            )}
-          </div>
-        )}
+      <div className="msg-body">
+        <div className={`message-bubble${message.isError ? ' error' : ''}`}>
+          <div
+            className="message-content"
+            dangerouslySetInnerHTML={{ __html: formatMessageText(message.content) }}
+          />
+          {message.role === 'assistant' && !message.isError && message.metadata && (
+            <div className="message-metadata">
+              {message.metadata.topic && (
+                <span className="meta-tag">
+                  <i className="fas fa-tag"></i>
+                  {message.metadata.topic}
+                  {message.metadata.subtopic && ` → ${message.metadata.subtopic}`}
+                </span>
+              )}
+              {message.metadata.sourceCount && (
+                <span className="meta-tag">
+                  <i className="fas fa-book"></i>
+                  {message.metadata.sourceCount} sources
+                </span>
+              )}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

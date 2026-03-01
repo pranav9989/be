@@ -1,98 +1,51 @@
+/* ============================================================
+   LoadingSpinner – Full-screen branded loader
+   ============================================================ */
+
 .loading-overlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    backdrop-filter: blur(5px);
+  position: fixed;
+  inset: 0;
+  background: var(--bg-primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  animation: fadeIn 0.2s ease;
 }
 
 .loading-spinner {
-    background: white;
-    padding: 3rem;
-    border-radius: 12px;
-    text-align: center;
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
-    min-width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1.25rem;
 }
 
+/* -- Spinner Ring -- */
 .spinner {
-    width: 50px;
-    height: 50px;
-    border: 5px solid #f3f3f3;
-    border-top: 5px solid #667eea;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-    margin: 0 auto 1.5rem;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 3px solid var(--border-strong);
+  border-top-color: var(--accent-gold);
+  animation: global-spin 0.8s linear infinite;
+  position: relative;
 }
 
+.spinner::after {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  border-top-color: var(--accent-violet);
+  animation: global-spin 1.2s linear infinite reverse;
+}
+
+/* -- Message -- */
 .loading-spinner p {
-    color: #2c3e50;
-    font-weight: 500;
-    font-size: 1.1rem;
-    margin: 0;
-}
-
-@keyframes spin {
-    0% { 
-        transform: rotate(0deg); 
-    }
-    100% { 
-        transform: rotate(360deg); 
-    }
-}
-
-/* Optional: Different color variants */
-.loading-spinner.primary .spinner {
-    border-top-color: #667eea;
-}
-
-.loading-spinner.success .spinner {
-    border-top-color: #27ae60;
-}
-
-.loading-spinner.warning .spinner {
-    border-top-color: #f39c12;
-}
-
-.loading-spinner.error .spinner {
-    border-top-color: #e74c3c;
-}
-
-/* Responsive design */
-@media (max-width: 768px) {
-    .loading-spinner {
-        padding: 2rem;
-        margin: 1rem;
-    }
-    
-    .spinner {
-        width: 40px;
-        height: 40px;
-        border-width: 4px;
-    }
-    
-    .loading-spinner p {
-        font-size: 1rem;
-    }
-}
-
-/* Dark mode support */
-@media (prefers-color-scheme: dark) {
-    .loading-spinner {
-        background: #2c3e50;
-    }
-    
-    .loading-spinner p {
-        color: #ecf0f1;
-    }
-    
-    .spinner {
-        border-color: #34495e;
-    }
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  animation: pulse-ring 1.5s ease-in-out infinite;
 }

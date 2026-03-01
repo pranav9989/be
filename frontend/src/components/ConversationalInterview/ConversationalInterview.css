@@ -1,402 +1,229 @@
-.conversational-interview-main {
-  padding: 150px 2rem 2rem; /* Adjusted padding-top for fixed header */
-  max-width: 900px;
-  margin: 0 auto;
+/* ============================================================
+   ConversationalInterview – Spoken AI interview page
+   Shares the premium dark theme from the global design system
+   ============================================================ */
+
+/* -- Reuse base container pattern -- */
+.conversational-interview-container,
+.conv-interview-container {
+  min-height: 100vh;
+  background: var(--bg-primary);
   display: flex;
   flex-direction: column;
-  align-items: center;
+}
+
+.conv-main,
+.conversational-main {
+  flex: 1;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.75rem;
+  animation: slideUp 0.4s ease both;
+}
+
+/* -- Intro Section -- */
+.conv-intro,
+.interview-intro {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 3rem 2rem;
   text-align: center;
 }
 
-.interview-card {
-  background: var(--bg-white);
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
-  border: 1px solid var(--border-light);
-  padding: 3rem 2rem;
-  margin-top: 2rem;
-  width: 100%;
-  max-width: 600px;
-}
-
-.interview-card h2 {
-  color: var(--primary-navy);
-  font-size: 2rem;
-  margin-bottom: 1rem;
-}
-
-.interview-card p {
-  color: var(--text-dark);
-  font-size: 1rem;
-  margin-bottom: 2rem;
-}
-
-.controls {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1.5rem;
-  margin-bottom: 1rem;
-}
-
-.controls button {
-  font-size: 1.1rem;
-  padding: 0.8rem 2rem;
-  border-radius: 8px;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-width: 200px;
-  justify-content: center;
-}
-
-.controls button:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.btn-danger {
-  background: #DC2626;
-  color: white;
-  border: none;
-}
-
-.btn-danger:hover:not(:disabled) {
-  background: #B91C1C;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
-}
-
-.recording-active {
-  animation: pulse-button 1.5s ease-in-out infinite;
-}
-
-@keyframes pulse-button {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.7);
-  }
-  50% {
-    box-shadow: 0 0 0 10px rgba(220, 38, 38, 0);
-  }
-}
-
-.recording-indicator {
-  position: relative;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.recording-dot {
-  width: 16px;
-  height: 16px;
-  background: #DC2626;
-  border-radius: 50%;
-  animation: blink 1s ease-in-out infinite;
-}
-
-@keyframes blink {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.3;
-  }
-}
-
-.pulse-ring {
-  position: absolute;
-  width: 40px;
-  height: 40px;
-  border: 3px solid #DC2626;
-  border-radius: 50%;
-  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-.pulse-ring-delayed {
-  position: absolute;
-  width: 40px;
-  height: 40px;
-  border: 3px solid #DC2626;
-  border-radius: 50%;
-  animation: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-  animation-delay: 1s;
-}
-
-@keyframes pulse-ring {
-  0% {
-    transform: scale(0.8);
-    opacity: 1;
-  }
-  100% {
-    transform: scale(2);
-    opacity: 0;
-  }
-}
-
-.recording-text {
-  color: #DC2626;
-  font-weight: 600;
-  font-size: 1rem;
-  animation: fade-in-out 2s ease-in-out infinite;
-}
-
-@keyframes fade-in-out {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.6;
-  }
-}
-
-.error-message {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background: #FEE2E2;
-  border: 1px solid #FCA5A5;
-  border-radius: 8px;
-  color: #991B1B;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  text-align: left;
-}
-
-.transcript-section,
-.interviewer-response-section {
-  margin-top: 2.5rem;
-  background: var(--soft-gray);
-  padding: 1.5rem;
-  border-radius: 8px;
-  text-align: left;
-  border: 1px solid var(--border-light);
-}
-
-.transcript-section h3,
-.interviewer-response-section h3 {
-  color: var(--primary-navy);
-  font-size: 1.1rem;
-  margin-bottom: 0.8rem;
-}
-
-.transcript-section p,
-.interviewer-response-section p {
-  color: var(--text-dark);
-  line-height: 1.6;
-}
-
-@media (max-width: 768px) {
-  .conversational-interview-main {
-    padding-top: 100px; /* Adjust for smaller screens */
-  }
-
-  .interview-card {
-    padding: 2rem 1rem;
-    margin-top: 1rem;
-  }
-
-  .interview-card h2 {
-    font-size: 1.5rem;
-  }
-
-  .controls button {
-    font-size: 1rem;
-    padding: 0.7rem 1.5rem;
-  }
-
-  .transcript-section,
-  .interviewer-response-section,
-  .speech-analysis-section {
-    margin-top: 1.5rem;
-    padding: 1rem;
-  }
-}
-
-/* Speech Analysis Styles */
-.speech-analysis-section {
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  margin-top: 1.5rem;
-  padding: 1.5rem;
-}
-
-.speech-analysis-section h3 {
-  color: #1e293b;
-  margin-bottom: 1.5rem;
-  font-size: 1.3rem;
-}
-
-.speech-analysis-section h4 {
-  color: #374151;
-  margin-bottom: 0.5rem;
-  font-size: 1.1rem;
-}
-
-/* Overall Score */
-.analysis-score {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.score-circle {
-  width: 80px;
-  height: 80px;
-  border-radius: 50%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  color: white;
-  font-weight: bold;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.score-number {
-  font-size: 1.5rem;
-  line-height: 1;
-}
-
-.score-label {
-  font-size: 0.8rem;
-  opacity: 0.9;
-}
-
-.performance-level {
-  font-size: 1.2rem;
-  color: #374151;
-}
-
-/* Detailed Scores */
-.detailed-scores {
-  margin-bottom: 1.5rem;
-}
-
-.score-item {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
+.conv-intro h2,
+.interview-intro h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--text-primary);
   margin-bottom: 0.75rem;
 }
 
-.score-item label {
-  min-width: 80px;
+.conv-intro p,
+.interview-intro p { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 2rem; }
+
+/* Microphone Button */
+.mic-btn,
+.record-btn,
+.start-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 1rem 2rem;
+  border-radius: 100px;
+  border: none;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  font-size: 1rem;
   font-weight: 600;
-  color: #374151;
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
-.score-bar {
-  flex: 1;
-  height: 8px;
-  background: #e5e7eb;
-  border-radius: 4px;
-  overflow: hidden;
+.mic-btn.idle, .start-btn {
+  background: var(--gradient-gold);
+  color: #0F0F0F;
+  box-shadow: 0 4px 20px var(--accent-gold-glow);
 }
 
-.score-fill {
-  height: 100%;
-  border-radius: 4px;
-  transition: width 0.3s ease;
+.mic-btn.recording,
+.record-btn.recording {
+  background: var(--color-error);
+  color: white;
+  box-shadow: 0 0 0 4px rgba(239,68,68,0.3);
+  animation: pulse-ring 1.5s ease-in-out infinite;
 }
 
-.score-value {
-  min-width: 35px;
-  text-align: right;
-  font-weight: 600;
-  color: #374151;
+.mic-btn:hover,
+.start-btn:hover,
+.record-btn:hover {
+  transform: scale(1.05);
 }
 
-/* Key Metrics */
-.key-metrics {
+/* Audio Visualizer / Waveform */
+.audio-visualizer,
+.waveform {
   display: flex;
-  gap: 2rem;
-  margin-bottom: 1.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  height: 48px;
+  margin: 1.5rem auto;
+}
+
+.audio-bar,
+.wave-bar {
+  width: 4px;
+  height: 8px;
+  background: var(--accent-gold);
+  border-radius: 2px;
+  transition: height 0.1s ease;
+}
+
+/* -- Status display -- */
+.conv-status,
+.interview-status {
+  text-align: center;
+  padding: 1rem;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* -- Transcript / Feedback Panel -- */
+.transcript-panel,
+.feedback-panel,
+.conv-transcript {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.75rem;
+}
+
+.transcript-panel h3,
+.feedback-panel h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.transcript-text,
+.feedback-text {
+  font-size: 0.9rem;
+  line-height: 1.7;
+  color: var(--text-secondary);
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+/* -- Q&A Turn Cards -- */
+.turn-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 1.25rem;
+  margin-bottom: 1rem;
+  animation: slideUp 0.25s ease;
+}
+
+.turn-question {
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+}
+
+.turn-question::before {
+  content: 'Q';
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--gradient-violet);
+  border-radius: 6px;
+  color: white;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.turn-answer {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  padding-left: calc(24px + 0.625rem);
+  line-height: 1.6;
+}
+
+/* Feedback/Score badge */
+.score-badge,
+.feedback-score {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 100px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  background: var(--accent-gold-dim);
+  color: var(--accent-gold);
+  border: 1px solid var(--border-accent);
+  margin-top: 0.5rem;
+}
+
+/* Control buttons */
+.conv-controls,
+.interview-controls {
+  display: flex;
+  gap: 0.875rem;
+  justify-content: center;
   flex-wrap: wrap;
 }
 
-.metric {
+/* Loading overlay for conversation */
+.conv-thinking {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  padding: 0.5rem 1rem;
-  background: white;
-  border-radius: 6px;
-  border: 1px solid #e2e8f0;
-}
-
-.metric-label {
-  font-size: 0.8rem;
-  color: #6b7280;
-  margin-bottom: 0.25rem;
-}
-
-.metric-value {
-  font-size: 1.2rem;
-  font-weight: 600;
-  color: #1f2937;
-}
-
-/* Feedback and Suggestions */
-.feedback-section {
-  margin-bottom: 1.5rem;
-}
-
-.feedback-item {
-  margin-bottom: 0.5rem;
-  padding: 0.5rem;
-  background: white;
-  border-left: 4px solid #3b82f6;
-  border-radius: 4px;
-  font-size: 0.9rem;
-}
-
-.suggestions-section {
-  background: white;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  gap: 0.75rem;
+  justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
   padding: 1rem;
 }
 
-.suggestions-section ul {
-  margin: 0;
-  padding-left: 1.5rem;
-}
+.conv-thinking i { color: var(--accent-gold); }
 
-.suggestions-section li {
-  margin-bottom: 0.5rem;
-  color: #374151;
-}
-
-/* Mobile Responsive */
-@media (max-width: 768px) {
-  .speech-analysis-section {
-    padding: 1rem;
-  }
-
-  .analysis-score {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .key-metrics {
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .score-item {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0.5rem;
-  }
-
-  .score-bar {
-    width: 100%;
-  }
+@media (max-width: 640px) {
+  .conv-main, .conversational-main { padding: 1rem; }
 }

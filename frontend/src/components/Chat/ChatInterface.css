@@ -1,161 +1,139 @@
-/* Professional Interview Prep - Chat Interface */
+/* ============================================================
+   ChatInterface – Technical interview chat layout
+   ============================================================ */
 
 .chat-interface-container {
   min-height: 100vh;
-  /* Swapped purple gradient for Clean Background */
-  background: #F8FAFC; 
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-primary);
 }
 
 .chat-main-content {
   display: flex;
-  height: calc(100vh - 80px);
-  border-top: 1px solid #E2E8F0;
+  flex: 1;
+  height: calc(100vh - 64px);
+  overflow: hidden;
 }
 
+/* -- Chat Section -- */
 .chat-section {
   flex: 1;
   display: flex;
   flex-direction: column;
-  background: white;
+  overflow: hidden;
+  background: var(--bg-primary);
 }
 
 .chat-container {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  height: 100%;
+  overflow: hidden;
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 1rem;
 }
 
+/* -- Chat Messages Area -- */
 .chat-messages {
   flex: 1;
   overflow-y: auto;
-  padding: 2rem;
-  /* Clean, non-distracting background */
-  background: #F8FAFC; 
+  padding: 1.5rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  scroll-behavior: smooth;
 }
 
-/* Scrollbar - Navy & Gray Theme */
-.chat-messages::-webkit-scrollbar {
-  width: 6px;
+.chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-messages::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 2px; }
+
+/* -- Typing Indicator -- */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.875rem 1.125rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px 16px 16px 4px;
+  width: fit-content;
+  max-width: 140px;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  animation: slideUp 0.25s ease;
 }
 
-.chat-messages::-webkit-scrollbar-track {
-  background: #F1F5F9;
-  border-radius: 3px;
+.typing-indicator i {
+  font-size: 0.5rem;
+  color: var(--accent-gold);
+  animation: bounce-dots 1.4s ease-in-out infinite;
 }
 
-.chat-messages::-webkit-scrollbar-thumb {
-  /* Navy thumb for a professional feel */
-  background: #1E3A8A; 
-  border-radius: 3px;
-}
+.typing-indicator i:nth-child(2) { animation-delay: 0.16s; }
+.typing-indicator i:nth-child(3) { animation-delay: 0.32s; }
 
+/* -- Chat Input -- */
 .chat-input-container {
-  background: white;
-  border-top: 1px solid #E2E8F0;
-  padding: 1.5rem 2rem;
+  padding: 1rem 0 1.5rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-primary);
 }
 
 .chat-input-wrapper {
   display: flex;
-  gap: 1rem;
-  align-items: center;
-  background: white;
-  border-radius: 12px; /* Slightly more professional than full pill-shape */
-  padding: 0.75rem 1.25rem;
-  border: 2px solid #E2E8F0;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  max-width: 900px;
-  margin: 0 auto;
-  transition: all 0.2s ease;
+  gap: 0.625rem;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border);
+  border-radius: 16px;
+  padding: 0.5rem;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .chat-input-wrapper:focus-within {
-  /* Navy Blue focus signal */
-  border-color: #1E3A8A; 
-  box-shadow: 0 0 0 4px rgba(30, 58, 138, 0.1);
-  transform: translateY(-1px);
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 3px var(--accent-gold-dim);
 }
 
 .chat-input {
   flex: 1;
+  background: transparent;
   border: none;
   outline: none;
-  background: transparent;
-  font-size: 1rem;
-  color: #1F2937; /* Dark Gray text */
-  font-family: inherit;
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9375rem;
+  padding: 0.5rem 0.75rem;
+  caret-color: var(--accent-gold);
 }
 
-.chat-input::placeholder {
-  color: #94A3B8;
-  font-style: normal;
-}
+.chat-input::placeholder { color: var(--text-placeholder); }
 
 .send-btn {
-  /* Using Gold for the primary action button */
-  background: #F59E0B; 
-  color: white;
+  width: 40px;
+  height: 40px;
+  background: var(--gradient-gold);
   border: none;
-  width: 44px;
-  height: 44px;
-  border-radius: 8px;
+  border-radius: 12px;
+  color: #0F0F0F;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 6px rgba(245, 158, 11, 0.2);
-  font-size: 1.1rem;
+  font-size: 0.9rem;
+  flex-shrink: 0;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.2s ease !important;
 }
 
 .send-btn:hover:not(:disabled) {
-  background: #D97706; /* Darker Gold */
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(245, 158, 11, 0.3);
+  transform: scale(1.08);
 }
 
 .send-btn:disabled {
-  background: #E2E8F0;
-  color: #94A3B8;
+  opacity: 0.4;
   cursor: not-allowed;
   transform: none;
-  box-shadow: none;
-}
-
-.typing-indicator {
-  /* Success Green for the "Assistant is thinking" signal */
-  color: #10B981; 
-  font-size: 0.9rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.3rem;
-  font-weight: 600;
-  margin: 0.5rem 0;
-}
-
-.typing-indicator i {
-  animation: typing 1.4s infinite ease-in-out;
-  font-size: 0.5rem;
-}
-
-/* Maintain your existing typing animation */
-@keyframes typing {
-  0%, 60%, 100% { transform: translateY(0); }
-  30% { transform: translateY(-5px); }
-}
-
-@media (max-width: 768px) {
-  .chat-main-content {
-    flex-direction: column;
-    height: auto;
-  }
-  
-  .chat-messages {
-    padding: 1rem;
-  }
-  
-  .chat-input-container {
-    padding: 1rem;
-  }
 }

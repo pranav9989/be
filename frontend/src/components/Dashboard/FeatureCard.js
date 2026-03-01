@@ -6,18 +6,20 @@ const FeatureCard = ({ title, description, icon, link, color }) => {
   const navigate = useNavigate();
 
   const handleButtonClick = (e) => {
-    e.stopPropagation(); // Prevent card click when button is clicked
+    e.stopPropagation();
     navigate(link);
   };
 
   return (
-    <div className={`feature-card ${color}-card`}>
-      <i className={icon}></i>
-      <h3>{title}</h3>
-      <p>{description}</p>
-      <button className="feature-btn" onClick={handleButtonClick}>
-        Get Started
-      </button>
+    <div className={`feature-card color-${color}`} onClick={() => navigate(link)}>
+      <div className="feature-icon">
+        <i className={icon}></i>
+      </div>
+      <div className="feature-title">{title}</div>
+      <p className="feature-description">{description}</p>
+      <span className="feature-arrow">
+        <i className="fas fa-arrow-right"></i>
+      </span>
     </div>
   );
 };

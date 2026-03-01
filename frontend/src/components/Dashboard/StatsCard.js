@@ -3,7 +3,7 @@ import './StatsCard.css';
 
 const StatsCard = ({ number, label }) => {
   return (
-    <div className="stat-card">
+    <div className="stat-card-component">
       <div className="stat-number">{number}</div>
       <div className="stat-label">{label}</div>
     </div>

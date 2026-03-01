@@ -86,18 +86,37 @@ class AssemblyAIWebSocketStreamer:
         if not pcm_bytes or len(pcm_bytes) == 0:
             return
 
+        # Auto-reconnect if thread died mysteriously
+        if not self.is_active and hasattr(self, 'ws_thread') and self.ws_thread and not self.ws_thread.is_alive():
+            if not getattr(self, '_is_reconnecting', False):
+                self._is_reconnecting = True
+                print("⚠️ AssemblyAI connection dropped. Auto-reconnecting...")
+                def _reconnect():
+                    try:
+                        self.start()
+                    except Exception as e:
+                        print(f"Reconnect failed: {e}")
+                    finally:
+                        self._is_reconnecting = False
+                import threading
+                threading.Thread(target=_reconnect, daemon=True).start()
+
         # If not active yet, buffer the audio
         if not self.is_active:
             with self.buffer_lock:
                 self.early_audio_buffer.append(pcm_bytes)
-            print(f"📦 Buffered audio (connection not active yet)")
+            # Log periodically to avoid spam
+            if len(self.early_audio_buffer) % 50 == 1:
+                print(f"📦 Buffered audio (connection not active yet - {len(self.early_audio_buffer)} chunks)")
             return
         
         # If not ready yet, buffer the audio
         if not self.is_ready:
             with self.buffer_lock:
                 self.early_audio_buffer.append(pcm_bytes)
-            print(f"📦 Buffered audio (session not ready yet)")
+            # Log periodically to avoid spam
+            if len(self.early_audio_buffer) % 50 == 1:
+                print(f"📦 Buffered audio (session not ready yet - {len(self.early_audio_buffer)} chunks)")
             return
 
         # Session is ready - send audio directly

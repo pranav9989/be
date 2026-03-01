@@ -4,15 +4,19 @@ import './WelcomeMessage.css';
 const WelcomeMessage = () => {
   return (
     <div className="welcome-message">
-      <div className="welcome-content">
-        <i className="fas fa-robot"></i>
-        <h2>Welcome to CS Interview Assistant!</h2>
+      <div className="welcome-icon">
+        <i className="fas fa-brain"></i>
+      </div>
+      <div>
+        <h3>Welcome to Technical Interview</h3>
         <p>Ask me anything about Database Management Systems (DBMS), Object-Oriented Programming (OOPs), or Operating Systems (OS).</p>
-        <div className="features">
-          <span className="feature"><i className="fas fa-check"></i> AI-Powered Responses</span>
-          <span className="feature"><i className="fas fa-check"></i> Topic Detection</span>
-          <span className="feature"><i className="fas fa-check"></i> Source References</span>
-        </div>
+      </div>
+      <div className="welcome-topics">
+        <span className="welcome-topic-tag">📊 DBMS</span>
+        <span className="welcome-topic-tag">🧬 OOPs</span>
+        <span className="welcome-topic-tag">⚙️ Operating Systems</span>
+        <span className="welcome-topic-tag">✅ AI-Powered</span>
+        <span className="welcome-topic-tag">📚 Source References</span>
       </div>
     </div>
   );

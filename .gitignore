@@ -7,6 +7,7 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
+uploads/
 
 # Virtual environments
 venv/
@@ -19,3 +20,11 @@ env/
 # VSCode / PyCharm
 .vscode/
 .idea/
+
+# Database files
+instance/
+backend/instance/
+
+# Data processing outputs
+data/processed/
+backend/data/processed/

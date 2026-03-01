@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import Header from '../Layout/Header';
 import SkillsManager from './SkillsManager';
+import InterviewHistory from './InterviewHistory';
 import { profileAPI, statsAPI, progressAPI } from '../../services/api';
+import ActionPlanGenerator from '../ActionPlan/ActionPlanGenerator';
 import './Profile.css';
 
 const Profile = ({ user, onLogout }) => {
@@ -19,6 +21,9 @@ const Profile = ({ user, onLogout }) => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [resetTopic, setResetTopic] = useState(null);
+  
+  // Tabs: 'overview', 'history'
+  const [activeTab, setActiveTab] = useState('overview');
 
   useEffect(() => {
     loadStats();
@@ -304,6 +309,33 @@ const Profile = ({ user, onLogout }) => {
           />
         </div>
 
+        {/* Tab switcher */}
+        <div style={{ display: 'flex', gap: '15px', marginBottom: '25px', opacity: editing ? 0.3 : 1, pointerEvents: editing ? 'none' : 'auto' }}>
+           <button 
+             className={`btn ${activeTab === 'overview' ? 'btn-primary' : 'btn-secondary'}`}
+             onClick={() => setActiveTab('overview')}
+             style={{ padding: '10px 20px', fontSize: '1.05rem', background: activeTab === 'overview' ? '' : 'rgba(255,255,255,0.05)', color: activeTab === 'overview' ? '' : '#aaa', border: 'none'}}
+           >
+             <i className="fas fa-chart-pie"></i> Mastery Overview
+           </button>
+           <button 
+             className={`btn ${activeTab === 'history' ? 'btn-primary' : 'btn-secondary'}`}
+             onClick={() => setActiveTab('history')}
+             style={{ padding: '10px 20px', fontSize: '1.05rem', background: activeTab === 'history' ? '' : 'rgba(255,255,255,0.05)', color: activeTab === 'history' ? '' : '#aaa', border: 'none'}}
+           >
+             <i className="fas fa-history"></i> Interview History & Revision
+           </button>
+           <button 
+             className={`btn ${activeTab === 'action_plan' ? 'btn-primary' : 'btn-secondary'}`}
+             onClick={() => setActiveTab('action_plan')}
+             style={{ padding: '10px 20px', fontSize: '1.05rem', background: activeTab === 'action_plan' ? '' : 'rgba(255,255,255,0.05)', color: activeTab === 'action_plan' ? '' : '#aaa', border: 'none'}}
+           >
+             <i className="fas fa-magic"></i> Study Action Plan
+           </button>
+        </div>
+
+        {activeTab === 'overview' && !editing && (
+        <div className="overview-wrapper">
         {/* Learning Progress Section */}
         {progress && (
           <div className="progress-section">
@@ -735,6 +767,18 @@ const Profile = ({ user, onLogout }) => {
             <div className="stat-label">Questions Answered</div>
           </div>
         </div>
+        </div>
+        )}
+
+        {activeTab === 'history' && !editing && (
+          <InterviewHistory />
+        )}
+
+        {activeTab === 'action_plan' && !editing && (
+          <div style={{ marginTop: '20px' }}>
+            <ActionPlanGenerator />
+          </div>
+        )}
       </main>
     </div>
   );
