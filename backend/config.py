@@ -25,16 +25,16 @@ class Config:
     JWT_SECRET_KEY = os.getenv('JWT_SECRET_KEY', 'your-jwt-secret-key-here')
     JWT_ACCESS_TOKEN_EXPIRE = timedelta(hours=24)
 
-    # Gemini model settings
-    GEMINI_MODEL = os.getenv("GEMINI_MODEL", "models/gemini-flash-latest")
+    # Mistral model settings
+    MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-large-latest")
 
     # RAG system paths
     PROJECT_ROOT = Path(__file__).resolve().parents[1]
     RAG_DIRS = [
-        PROJECT_ROOT / "data" / "processed" / "faiss_gemini",
-        Path("data") / "processed" / "faiss_gemini"
+        PROJECT_ROOT / "data" / "processed" / "faiss_mistral",
+        Path("data") / "processed" / "faiss_mistral"
     ]
-    INDEX_CANDIDATES = ["faiss_index_gemini.idx", "index.faiss", "faiss_index_gemini.faiss", "faiss_index.idx"]
+    INDEX_CANDIDATES = ["faiss_index_mistral.idx", "index.faiss", "faiss_index_mistral.faiss", "faiss_index.idx"]
     METAS_CANDIDATES = ["metas.json", "metas.jsonl", "metas_full.json"]
     CONFIG_DIR = PROJECT_ROOT / "config"
     TOPIC_RULES_FILE = CONFIG_DIR / "topic_rules.json"

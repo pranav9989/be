@@ -17,6 +17,11 @@ class User(UserMixin, db.Model):
     skills = db.Column(db.Text, nullable=True)
     resume_filename = db.Column(db.String(255), nullable=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    # Password reset
+    reset_token = db.Column(db.String(100), nullable=True, unique=True)
+    reset_token_expiry = db.Column(db.DateTime, nullable=True)
+
     interviews = db.relationship('InterviewSession', backref='user', lazy=True)
 
     def check_password(self, password):
@@ -432,4 +437,84 @@ class SubtopicMastery(db.Model):
             'last_asked': self.last_asked.isoformat(),
             'status': self.subtopic_status,  # 'not_started', 'ongoing', 'mastered'
             'concept_count': len(json.loads(self.concept_data)) if self.concept_data else 0
+        }
+
+class StudyActionPlan(db.Model):
+    """Stores generated study action plans for users"""
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False, index=True)
+    days = db.Column(db.Integer, nullable=False)
+    topics = db.Column(db.String(255), nullable=False) # comma separated topics
+    plan_markdown = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, index=True)
+    
+    user = db.relationship('User', backref=db.backref('study_plans', lazy='dynamic'))
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'days': self.days,
+            'topics': self.topics.split(',') if self.topics else [],
+            'plan_markdown': self.plan_markdown,
+            'created_at': self.created_at.isoformat()
+        }
+
+class DebuggingSession(db.Model):
+    """Tracks a full debugging interview session"""
+    __tablename__ = 'debugging_session'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    start_time = db.Column(db.DateTime, default=datetime.utcnow)
+    end_time = db.Column(db.DateTime, nullable=True)
+    count = db.Column(db.Integer, default=0)
+    avg_score = db.Column(db.Float, default=0.0)
+    summary = db.Column(db.Text, nullable=True)
+    
+    challenges = db.relationship('DebuggingChallenge', backref='session', lazy=True, cascade="all, delete-orphan")
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'start_time': self.start_time.isoformat(),
+            'end_time': self.end_time.isoformat() if self.end_time else None,
+            'count': self.count,
+            'avg_score': round(self.avg_score, 2),
+            'summary': self.summary,
+            'challenges': [c.to_dict() for c in self.challenges]
+        }
+
+class DebuggingChallenge(db.Model):
+    """Tracks an individual question within a debugging session"""
+    __tablename__ = 'debugging_challenge'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    session_id = db.Column(db.Integer, db.ForeignKey('debugging_session.id'), nullable=False)
+    
+    # Challenge Content
+    language = db.Column(db.String(20), default='python')
+    topic = db.Column(db.String(100))
+    buggy_code = db.Column(db.Text, nullable=False)
+    expected_answer = db.Column(db.Text, nullable=False)
+    correct_code = db.Column(db.Text, nullable=True)
+    
+    # User Performance
+    user_explanation = db.Column(db.Text, nullable=True)
+    ai_score = db.Column(db.Float, default=0.0)
+    ai_feedback = db.Column(db.Text, nullable=True)
+    
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'language': self.language,
+            'topic': self.topic,
+            'buggy_code': self.buggy_code,
+            'expected_answer': self.expected_answer,
+            'correct_code': self.correct_code,
+            'user_explanation': self.user_explanation,
+            'ai_score': self.ai_score,
+            'ai_feedback': self.ai_feedback,
+            'created_at': self.created_at.isoformat()
         }

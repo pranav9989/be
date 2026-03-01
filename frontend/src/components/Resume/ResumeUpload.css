@@ -1,727 +1,616 @@
+/* ============================================================
+   ResumeUpload.css — Premium Resume Analysis & Mock Interview UI
+   ============================================================ */
+
 .resume-upload-container {
   min-height: 100vh;
-  background: #F8FAFC;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
 }
 
 .resume-main {
+  flex: 1;
+  max-width: 1100px;
+  width: 100%;
+  margin: 0 auto;
   padding: 2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  animation: slideUp 0.4s ease both;
 }
 
-.message {
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  font-size: 0.9rem;
+/* ── Mock Interview Overlay ──────────────────────────────── */
+.mock-interview-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg-primary);
+  z-index: 1000;
+  overflow-y: auto;
 }
 
-.message.success {
-  background: #ECFDF5;
-  color: #065F46;
-  border: 1px solid #10B981;
+/* ── Page Hero ───────────────────────────────────────────── */
+.ru-page-hero {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  padding: 1.5rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
 }
 
-.message.error {
-  background: #FEF2F2;
-  color: #991B1B;
-  border: 1px solid #EF4444;
+.ru-hero-icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  background: var(--gradient-gold);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.5rem;
+  color: #0F0F0F;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px var(--accent-gold-glow);
+  animation: float 3s ease-in-out infinite;
 }
 
+.ru-hero-text h1 {
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  letter-spacing: -0.04em;
+  margin: 0 0 0.25rem;
+}
+
+.ru-hero-amp { color: var(--accent-gold); }
+
+.ru-hero-text p {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.6;
+}
+
+/* ── Upload Section ──────────────────────────────────────── */
 .upload-section {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
+  padding: 2rem;
   text-align: center;
-  margin-bottom: 3rem;
-  background: white;
-  border-radius: 15px;
-  padding: 3rem 2rem;
-  box-shadow: 0 4px 15px rgba(30, 58, 138, 0.1);
 }
 
 .upload-section h2 {
-  font-size: 2.5rem;
-  color: #1E3A8A;
-  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.25rem;
+  letter-spacing: -0.03em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
 }
 
-.upload-section p {
-  font-size: 1.2rem;
-  color: #64748B;
-  margin-bottom: 3rem;
+.upload-section h2 i { color: var(--accent-gold); }
+
+.upload-section > p {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin-bottom: 1.5rem;
 }
 
+/* ── Drop Zone ───────────────────────────────────────────── */
 .upload-area {
-  border: 3px dashed #74b9ff;
-  border-radius: 15px;
-  padding: 3rem 2rem;
-  background: rgba(116, 185, 255, 0.05);
-  transition: all 0.3s ease;
+  border: 2px dashed var(--border-strong);
+  border-radius: 18px;
+  padding: 2.5rem 2rem;
   cursor: pointer;
-  margin-bottom: 2rem;
+  transition: all 0.3s ease;
+  background: var(--bg-elevated);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.625rem;
+  position: relative;
+  overflow: hidden;
+  margin-bottom: 1.5rem;
+}
+
+.upload-area::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: 18px;
+  background: var(--gradient-gold);
+  opacity: 0;
+  z-index: -1;
+  transition: opacity 0.3s ease;
 }
 
 .upload-area:hover,
 .upload-area.dragover {
-  border-color: #0984e3;
-  background: rgba(116, 185, 255, 0.1);
-  transform: translateY(-2px);
+  border-color: var(--accent-gold);
+  background: var(--accent-gold-dim);
+  transform: scale(1.01);
 }
 
-.upload-icon {
-  font-size: 4rem;
-  color: #1E3A8A;
-  margin-bottom: 1rem;
+.upload-area:hover::before,
+.upload-area.dragover::before { opacity: 0.15; }
+
+.upload-area.has-file {
+  border-style: solid;
+  border-color: rgba(212,168,83,0.4);
+  background: rgba(212,168,83,0.05);
 }
 
-.upload-text {
-  font-size: 1.2rem;
-  color: #1E3A8A;
-  margin-bottom: 0.5rem;
-  font-weight: 500;
+.upload-icon { font-size: 2.5rem; color: var(--accent-gold); animation: float 3s ease-in-out infinite; }
+
+.upload-file-icon { font-size: 2.5rem; }
+.upload-file-icon .fa-file-pdf { color: #ef4444; }
+.upload-file-icon .fa-file-word { color: #3b82f6; }
+
+.upload-text { font-size: 1rem; font-weight: 600; color: var(--text-primary); }
+.upload-subtext { font-size: 0.8125rem; color: var(--text-muted); }
+.upload-change { color: var(--accent-gold); text-decoration: underline; cursor: pointer; }
+
+/* ── Job Description ─────────────────────────────────────── */
+.job-description-section { text-align: left; }
+
+.job-description-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin-bottom: 0.625rem;
 }
 
-.upload-subtext {
-  color: #64748B;
-  font-size: 1rem;
-}
+.job-description-label i { color: var(--accent-gold); }
+.required-star { color: var(--color-error); }
 
-.progress-bar {
+.job-description-textarea {
   width: 100%;
-  height: 8px;
-  background: #E2E8F0;
-  border-radius: 4px;
-  margin: 1rem 0;
-  overflow: hidden;
-  display: none;
+  min-height: 120px;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 0.875rem 1rem;
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
 }
 
-.progress-bar.show {
-  display: block;
+.job-description-textarea::placeholder { color: var(--text-placeholder); }
+
+.job-description-textarea:focus {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 3px var(--accent-gold-dim);
+}
+
+.job-description-help {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.375rem;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+
+.job-description-help i { color: var(--accent-gold); }
+
+/* ── Progress Bar ────────────────────────────────────────── */
+.progress-bar {
+  height: 4px;
+  background: var(--bg-elevated);
+  border-radius: 100px;
+  margin-top: 1rem;
+  overflow: hidden;
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #10B981, #059669);
-  width: 0%;
-  transition: width 0.3s ease;
-  border-radius: 4px;
+  background: var(--gradient-gold);
+  border-radius: 100px;
+  transition: width 0.4s ease;
 }
 
-.upload-btn {
-  background: linear-gradient(135deg, #1E3A8A, #1e40af);
-  color: white;
-  padding: 1rem 2rem;
-  border: none;
-  border-radius: 12px;
-  font-size: 1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 1rem;
-  display: inline-flex;
+/* ── Error ───────────────────────────────────────────────── */
+.upload-error {
+  margin-top: 0.75rem;
+  padding: 0.75rem 1rem;
+  background: rgba(239,68,68,0.1);
+  border: 1px solid rgba(239,68,68,0.25);
+  border-radius: 10px;
+  font-size: 0.875rem;
+  color: var(--color-error);
+  display: flex;
   align-items: center;
   gap: 0.5rem;
+  text-align: left;
+}
+
+/* ── Upload Button ───────────────────────────────────────── */
+.upload-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1.25rem;
+  padding: 0.875rem 2rem;
+  background: var(--gradient-gold);
+  border: none;
+  border-radius: 12px;
+  color: #0F0F0F;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease, opacity 0.2s;
+  box-shadow: 0 2px 10px var(--accent-gold-glow);
 }
 
 .upload-btn:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 8px 25px rgba(30, 58, 138, 0.3);
+  box-shadow: 0 6px 20px var(--accent-gold-glow);
 }
 
+.upload-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
+/* ── Results Section ─────────────────────────────────────── */
 .results-section {
-  background: white;
-  border-radius: 15px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
   padding: 2rem;
-  box-shadow: 0 4px 15px rgba(30, 58, 138, 0.1);
-  animation: slideIn 0.5s ease-out;
+  animation: slideUp 0.4s ease both;
 }
 
-.results-header h3 {
-  color: #10B981;
-  font-size: 1.8rem;
-  margin-bottom: 0.5rem;
+.results-header {
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: space-between;
+  margin-bottom: 1.75rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+
+.results-header-left h3 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.25rem;
+  display: flex;
+  align-items: center;
   gap: 0.5rem;
 }
 
-.result-card {
-  background: #F8FAFC;
+.results-header-left h3 i { color: var(--accent-gold); }
+.results-header-left p { color: var(--text-muted); font-size: 0.8rem; margin: 0; }
+
+.start-mock-btn-inline {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.625rem 1.25rem;
+  background: var(--gradient-gold);
+  border: none;
   border-radius: 10px;
-  padding: 1.5rem;
-  border-left: 4px solid #1E3A8A;
-  transition: all 0.3s ease;
+  color: #0F0F0F;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px var(--accent-gold-glow);
+  flex-shrink: 0;
 }
 
-.skill-tag {
-  background: #1E3A8A;
-  color: white;
-  padding: 0.3rem 0.8rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
-  font-weight: 500;
-  margin: 0.2rem;
-  display: inline-block;
-}
+.start-mock-btn-inline:hover { opacity: 0.9; transform: translateY(-1px); }
 
-.job-description-textarea {
-  width: 100%;
-  padding: 1rem;
-  border: 2px solid #e1e8ed;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-family: inherit;
-  resize: vertical;
-  min-height: 100px;
-  transition: border-color 0.3s ease;
-  background: white;
-}
-
-.job-description-textarea:focus {
-  outline: none;
-  border-color: #3498db;
-  box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
-}
-
-.job-description-label i {
-  color: #1E3A8A;
-}
-
-/* Required field indicator */
-.required-star {
-  color: #EF4444;
-  font-size: 1.2rem;
-  margin-left: 0.25rem;
-}
-
-.job-description-help {
-  color: #64748B;
-  font-size: 0.85rem;
-  margin-top: 0.5rem;
-  display: block;
-}
-
-/* Analysis Results */
-.analysis-card {
-  background: white;
-  border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 4px 15px rgba(30, 58, 138, 0.1);
-  border: 1px solid #E2E8F0;
-  margin-bottom: 2rem;
-}
-
+/* ── Analysis Grid ───────────────────────────────────────── */
 .analysis-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 2rem;
-  margin-bottom: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.25rem;
+  margin-bottom: 1.75rem;
 }
 
-@media (max-width: 768px) {
-  .analysis-grid {
-    grid-template-columns: 1fr;
-  }
+/* ── Analysis Card ───────────────────────────────────────── */
+.analysis-card {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 1.5rem;
 }
 
-.analysis-card h4,
-.analysis-item h5,
-.analysis-card h4 i,
-.analysis-item h5 i {
-  color: #1E3A8A;
-}
-
-.analysis-item {
-  margin-bottom: 1.5rem;
-}
-
-.analysis-item h5 {
-  margin-bottom: 0.75rem;
-  font-size: 1rem;
+.analysis-card h4 {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--border);
 }
 
-.skills-list {
+.analysis-card h4 i { color: var(--accent-gold); }
+
+.analysis-item { margin-bottom: 1.25rem; }
+.analysis-item:last-child { margin-bottom: 0; }
+
+.analysis-item h5 {
   display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.625rem;
+}
+
+.analysis-item h5 i { color: var(--accent-gold); font-size: 0.75rem; }
+
+/* ── Score Ring ──────────────────────────────────────────── */
+.match-score {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
   flex-wrap: wrap;
+}
+
+.score-ring-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.score-ring-svg { display: block; }
+
+.score-ring-inner {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+}
+
+.score-ring-inner strong { font-size: 1.1rem; font-weight: 800; line-height: 1; }
+.score-ring-inner span   { font-size: 0.58rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; }
+
+.fit-meta {
+  display: flex;
+  flex-direction: column;
   gap: 0.5rem;
 }
 
+/* ── Gap Severity & Experience Fit ───────────────────────── */
+.gap-severity {
+  display: inline-block;
+  padding: 0.3rem 0.75rem;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.severity-high   { background: var(--color-error-dim);   color: var(--color-error); }
+.severity-medium { background: var(--color-warning-dim);  color: var(--color-warning); }
+.severity-low    { background: var(--color-success-dim);  color: var(--color-success); }
+
+.experience-fit {
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.85rem;
+  font-weight: 500;
+}
+
+.experience-fit.good      { color: var(--color-success); }
+.experience-fit.needs-work { color: var(--color-warning); }
+
+/* ── Skill Tags ──────────────────────────────────────────── */
+.skills-list { display: flex; flex-wrap: wrap; gap: 0.375rem; }
+
+.skill-tag {
+  padding: 0.25rem 0.625rem;
+  border-radius: 100px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  transition: all 0.15s;
+}
+
+.skill-tag:hover { border-color: rgba(212,168,83,0.4); color: var(--accent-gold); }
+
 .skill-tag.match {
-  background: #D1FAE5;
-  color: #065F46;
+  background: var(--color-success-dim);
+  border-color: rgba(34,197,94,0.3);
+  color: var(--color-success);
 }
 
 .skill-tag.missing {
-  background: #FEE2E2;
-  color: #991B1B;
+  background: var(--color-error-dim);
+  border-color: rgba(239,68,68,0.3);
+  color: var(--color-error);
 }
 
-/* Match Score Circle */
-.match-score {
-  text-align: center;
-  margin-bottom: 2rem;
-}
-
-.score-circle {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #1E3A8A 0%, #1e40af 100%);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  margin: 0 auto 1rem auto;
-  box-shadow: 0 4px 15px rgba(30, 58, 138, 0.3);
-}
-
-.score-number {
-  font-size: 2rem;
-  font-weight: bold;
-  color: white;
-  line-height: 1;
-}
-
-.score-label {
-  font-size: 0.8rem;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-/* Enhanced Job Fit Analysis */
-.semantic-score {
-  text-align: center;
-  margin: 0.5rem 0;
-  padding: 0.5rem;
-  background: #F1F5F9;
-  border-radius: 8px;
-}
-
-.semantic-score .score-label {
-  display: block;
-  font-size: 0.8rem;
-  color: #64748B;
-  margin-bottom: 0.2rem;
-}
-
-.semantic-score .score-value {
-  font-size: 1.2rem;
-  font-weight: bold;
-  color: #1E3A8A;
-}
-
-.gap-severity {
-  text-align: center;
-  padding: 0.5rem;
-  border-radius: 20px;
-  font-weight: 600;
-  font-size: 0.9rem;
-  margin: 1rem auto;
-  max-width: 150px;
-}
-
-.gap-severity.severity-low {
-  background: #D1FAE5;
-  color: #065F46;
-}
-
-.gap-severity.severity-medium {
-  background: #FEF3C7;
-  color: #92400E;
-}
-
-.gap-severity.severity-high {
-  background: #FEE2E2;
-  color: #991B1B;
-}
-
-/* Internships and Certifications */
-.internships-list,
-.projects-list {
-  list-style: none;
-  padding: 0;
-  margin: 0.5rem 0;
-}
-
-.internships-list li,
-.projects-list li {
-  padding: 0.5rem;
-  margin-bottom: 0.5rem;
-  background: #F8FAFC;
-  border-radius: 6px;
-  border-left: 3px solid #1E3A8A;
-  font-size: 0.9rem;
-  line-height: 1.4;
-}
-
-.certifications-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0.5rem 0;
-}
+/* ── Cert Tags ───────────────────────────────────────────── */
+.certifications-list { display: flex; flex-wrap: wrap; gap: 0.375rem; }
 
 .cert-tag {
-  background: #F1F5F9;
-  color: #1E3A8A;
-  padding: 0.3rem 0.8rem;
-  border-radius: 20px;
-  font-size: 0.8rem;
+  padding: 0.25rem 0.625rem;
+  background: var(--accent-teal-dim, rgba(45,212,191,0.1));
+  color: var(--accent-teal, #2DD4BF);
+  border-radius: 100px;
+  font-size: 0.75rem;
   font-weight: 500;
-  border: 1px solid #CBD5E1;
 }
 
-/* Section gaps */
-.section-gap {
-  background: #F8FAFC;
-  padding: 0.5rem;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-  font-size: 0.9rem;
-}
-
-.section-name {
-  font-weight: 600;
-  color: #1E3A8A;
-  text-transform: capitalize;
-  margin-right: 0.5rem;
-}
-
-.section-skills {
-  color: #475569;
-}
-
-.experience-fit {
-  font-weight: 500;
-  padding: 0.25rem 0;
-}
-
-.experience-fit.good {
-  color: #10B981;
-}
-
-.experience-fit.needs-work {
-  color: #F59E0B;
-}
-
-.no-data {
-  color: #94A3B8;
-  font-style: italic;
-  font-size: 0.9rem;
-}
-
-/* Mock Interview CTA Section */
-.mock-interview-section {
-  background: linear-gradient(135deg, #1E3A8A 0%, #1e40af 100%);
-  border-radius: 15px;
-  padding: 3rem 2rem;
-  text-align: center;
-  margin-top: 2rem;
-}
-
-.interview-ready h4 {
-  color: white;
-  font-size: 1.8rem;
-  margin-bottom: 1rem;
-}
-
-.interview-ready h4 i {
-  color: #F59E0B;
-}
-
-.interview-ready p {
-  color: rgba(255, 255, 255, 0.9);
-  font-size: 1.1rem;
-  margin-bottom: 2rem;
-  max-width: 600px;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-.mock-interview-btn {
-  background: #F59E0B;
-  color: #1E3A8A;
-  border: none;
-  padding: 1rem 2rem;
-  border-radius: 50px;
-  font-size: 1.2rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  box-shadow: 0 4px 15px rgba(245, 158, 11, 0.3);
-}
-
-.mock-interview-btn:hover {
-  transform: translateY(-2px);
-  background: #fbbf24;
-  box-shadow: 0 6px 20px rgba(245, 158, 11, 0.4);
-}
-
-/* Animations */
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(20px);
-  }
-
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-/* Improved Projects Display */
-.projects-grid {
+/* ── Internships ─────────────────────────────────────────── */
+.internships-list { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 0.4rem; }
+.internships-list li {
+  font-size: 0.8375rem;
+  color: var(--text-secondary);
   display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  margin-top: 0.5rem;
+  align-items: flex-start;
+  gap: 0.4rem;
 }
+.internships-list li::before { content: '◦'; color: var(--accent-gold); margin-top: 1px; }
+
+/* ── Projects ────────────────────────────────────────────── */
+.projects-grid { display: flex; flex-direction: column; gap: 0.75rem; }
 
 .project-card {
-  background: #F8FAFC;
-  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
   padding: 1rem;
-  border-left: 3px solid #1E3A8A;
-  transition: all 0.2s ease;
+  transition: border-color 0.2s;
 }
 
-.project-card:hover {
-  transform: translateX(5px);
-  box-shadow: 0 2px 8px rgba(30, 58, 138, 0.1);
-}
-
-.project-header {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.5rem;
-}
+.project-card:hover { border-color: rgba(212,168,83,0.35); }
 
 .project-name {
-  font-size: 1rem;
+  font-size: 0.875rem;
   font-weight: 600;
-  color: #1E3A8A;
-  margin: 0;
+  color: var(--text-primary);
+  margin-bottom: 0.4rem;
 }
 
-.project-tech {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.3rem;
-}
+.project-tech { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.4rem; }
 
 .tech-badge {
-  background: #E2E8F0;
-  color: #1E3A8A;
-  padding: 0.2rem 0.5rem;
-  border-radius: 12px;
+  padding: 0.175rem 0.5rem;
+  background: var(--accent-violet-dim, rgba(123,111,235,0.12));
+  color: var(--accent-violet, #9E95F5);
+  border-radius: 100px;
   font-size: 0.7rem;
   font-weight: 500;
 }
 
-.project-description {
-  font-size: 0.9rem;
-  color: #475569;
-  margin: 0;
-  line-height: 1.5;
-}
+.project-description { font-size: 0.8125rem; color: var(--text-muted); line-height: 1.5; margin: 0; }
 
-/* Improved Certifications */
-.certifications-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 0.5rem 0;
-}
+/* ── Experience Text ─────────────────────────────────────── */
+.experience-text { font-size: 0.875rem; color: var(--text-primary); font-weight: 500; }
 
-.cert-tag {
-  background: linear-gradient(135deg, #1E3A8A10, #1e40af10);
-  color: #1E3A8A;
-  padding: 0.4rem 1rem;
+/* ── Mock Interview CTA ──────────────────────────────────── */
+.mock-interview-section { margin-top: 0.5rem; }
+
+.interview-ready {
+  background: linear-gradient(135deg, rgba(212,168,83,0.08) 0%, rgba(123,111,235,0.06) 100%);
+  border: 1px solid rgba(212,168,83,0.25);
   border-radius: 20px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  border: 1px solid #1E3A8A30;
-  transition: all 0.2s ease;
-}
-
-.cert-tag:hover {
-  background: #1E3A8A;
-  color: white;
-  transform: translateY(-2px);
-}
-
-/* Improved Job Fit Analysis Cards */
-.analysis-card {
-  background: white;
-  border-radius: 16px;
-  padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(30, 58, 138, 0.08);
-  border: 1px solid #E2E8F0;
-  transition: all 0.3s ease;
-}
-
-.analysis-card:hover {
-  box-shadow: 0 8px 30px rgba(30, 58, 138, 0.12);
-}
-
-/* Score Circle Enhancement */
-.match-score {
+  padding: 2rem;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  margin-bottom: 2rem;
+  gap: 1.5rem;
+  flex-wrap: wrap;
 }
 
-.score-circle {
-  width: 140px;
-  height: 140px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #1E3A8A, #2563EB);
+.interview-ready-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  background: var(--gradient-gold);
   display: flex;
-  flex-direction: column;
+  align-items: center;
   justify-content: center;
+  font-size: 1.75rem;
+  color: #0F0F0F;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px var(--accent-gold-glow);
+}
+
+.interview-ready-content { flex: 1; min-width: 200px; }
+
+.interview-ready h4 {
+  display: flex;
   align-items: center;
-  margin: 0 auto 1rem auto;
-  box-shadow: 0 10px 25px rgba(30, 58, 138, 0.3);
-  position: relative;
+  gap: 0.5rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 0.5rem;
 }
 
-.score-circle::after {
-  content: '';
-  position: absolute;
-  top: -5px;
-  left: -5px;
-  right: -5px;
-  bottom: -5px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.1);
-  animation: pulse 2s infinite;
-}
+.interview-ready h4 i { color: var(--accent-gold); }
+.interview-ready p { color: var(--text-muted); font-size: 0.875rem; line-height: 1.65; margin: 0 0 0.875rem; }
 
-@keyframes pulse {
-  0% {
-    transform: scale(1);
-    opacity: 1;
-  }
-
-  50% {
-    transform: scale(1.05);
-    opacity: 0.5;
-  }
-
-  100% {
-    transform: scale(1);
-    opacity: 1;
-  }
-}
-
-.score-number {
-  font-size: 2.2rem;
-  font-weight: bold;
-  color: white;
-  line-height: 1;
-}
-
-.score-label {
-  font-size: 0.9rem;
-  color: rgba(255, 255, 255, 0.9);
-}
-
-/* Semantic Score Card */
-.semantic-score {
-  text-align: center;
-  margin: 1rem 0;
-  padding: 1rem;
-  background: linear-gradient(135deg, #F1F5F9, #F8FAFC);
-  border-radius: 12px;
-  border: 1px solid #E2E8F0;
-}
-
-.semantic-score .score-label {
-  display: block;
-  font-size: 0.85rem;
-  color: #64748B;
-  margin-bottom: 0.3rem;
-}
-
-.semantic-score .score-value {
-  font-size: 1.5rem;
-  font-weight: bold;
-  color: #1E3A8A;
-  background: white;
-  display: inline-block;
-  padding: 0.2rem 1rem;
-  border-radius: 20px;
-  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
-}
-
-/* Gap Severity Enhancement */
-.gap-severity {
-  text-align: center;
-  padding: 0.6rem 1rem;
-  border-radius: 30px;
-  font-weight: 600;
-  font-size: 0.95rem;
-  margin: 1rem auto;
-  max-width: 180px;
-  letter-spacing: 0.5px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-}
-
-.gap-severity.severity-low {
-  background: linear-gradient(135deg, #D1FAE5, #A7F3D0);
-  color: #065F46;
-  border: 1px solid #10B981;
-}
-
-.gap-severity.severity-medium {
-  background: linear-gradient(135deg, #FEF3C7, #FDE68A);
-  color: #92400E;
-  border: 1px solid #F59E0B;
-}
-
-.gap-severity.severity-high {
-  background: linear-gradient(135deg, #FEE2E2, #FECACA);
-  color: #991B1B;
-  border: 1px solid #EF4444;
-}
-
-/* Skills List Enhancement */
-.skills-list {
+.interview-features {
   display: flex;
   flex-wrap: wrap;
+  gap: 0.625rem;
+}
+
+.interview-features span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.3rem 0.75rem;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-size: 0.775rem;
+  color: var(--text-muted);
+}
+
+.interview-features span i { color: var(--accent-gold); }
+
+.mock-interview-btn {
+  display: inline-flex;
+  align-items: center;
   gap: 0.5rem;
-  margin: 0.5rem 0;
+  padding: 0.9rem 1.75rem;
+  background: var(--gradient-gold);
+  border: none;
+  border-radius: 12px;
+  color: #0F0F0F;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.2s cubic-bezier(0.34,1.56,0.64,1), box-shadow 0.2s ease;
+  box-shadow: 0 4px 16px var(--accent-gold-glow);
+  flex-shrink: 0;
 }
 
-.skill-tag {
-  padding: 0.4rem 1rem;
-  border-radius: 30px;
-  font-size: 0.85rem;
-  font-weight: 500;
-  transition: all 0.2s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+.mock-interview-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 8px 24px var(--accent-gold-glow);
 }
 
-.skill-tag:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+/* ── No data ─────────────────────────────────────────────── */
+.no-data { font-size: 0.8125rem; color: var(--text-muted); font-style: italic; }
+
+/* ── Responsive ──────────────────────────────────────────── */
+@media (max-width: 768px) {
+  .resume-main { padding: 1rem; }
+  .analysis-grid { grid-template-columns: 1fr; }
+  .interview-ready { flex-direction: column; text-align: center; align-items: center; }
+  .interview-features { justify-content: center; }
+  .ru-page-hero { flex-direction: column; text-align: center; }
+  .results-header { flex-direction: column; align-items: flex-start; }
 }
 
-.skill-tag.match {
-  background: linear-gradient(135deg, #D1FAE5, #A7F3D0);
-  color: #065F46;
-  border: 1px solid #10B981;
-}
-
-.skill-tag.missing {
-  background: linear-gradient(135deg, #FEE2E2, #FECACA);
-  color: #991B1B;
-  border: 1px solid #EF4444;
+@media (max-width: 480px) {
+  .match-score { flex-direction: column; align-items: flex-start; }
+  .upload-btn { width: 100%; }
+  .mock-interview-btn { width: 100%; justify-content: center; }
 }

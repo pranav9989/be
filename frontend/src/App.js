@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { authAPI } from './services/api';
+import { useTheme } from './hooks/useTheme';
 import Login from './components/Auth/Login';
 import Signup from './components/Auth/Signup';
 import Dashboard from './components/Dashboard/Dashboard';
@@ -8,15 +9,20 @@ import ChatInterface from './components/Chat/ChatInterface';
 import Profile from './components/Profile/Profile';
 import HRInterview from './components/HRInterview/HRInterview';
 import ResumeUpload from './components/Resume/ResumeUpload';
-import ConversationalInterview from './components/ConversationalInterview/ConversationalInterview';
-import InterviewStreamer from './components/LiveStreamingInterview/InterviewStreamer';
 import LoadingSpinner from './components/Layout/LoadingSpinner';
 import AgenticInterview from './components/AgenticInterview/AgenticInterview';
+import GapAnalysis from './components/Resume/GapAnalysis';
+import ForgotPassword from './components/Auth/ForgotPassword';
+import ResetPassword from './components/Auth/ResetPassword';
 import './App.css';
 
-function App() {
+// Root-level component that initializes theme on mount (prevents FOUC)
+function AppContent() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Initialize the theme system (applies data-theme to <html>)
+  useTheme();
 
   useEffect(() => {
     checkAuthStatus();
@@ -61,6 +67,8 @@ function App() {
             path="/signup"
             element={!user ? <Signup onLogin={handleLogin} /> : <Navigate to="/dashboard" />}
           />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route
             path="/dashboard"
             element={user ? <Dashboard user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
@@ -81,23 +89,24 @@ function App() {
             path="/upload-resume"
             element={user ? <ResumeUpload user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
           />
-          <Route
-            path="/conversational-interview"
-            element={user ? <ConversationalInterview user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
-          />
-          <Route
-            path="/live-streaming-interview"
-            element={user ? <InterviewStreamer userId={user.id} onLogout={handleLogout} /> : <Navigate to="/login" />}
-          />
+
           <Route path="/" element={<Navigate to={user ? "/dashboard" : "/login"} />} />
           <Route
             path="/agentic-interview"
             element={user ? <AgenticInterview user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
           />
+          <Route
+            path="/gap-analysis"
+            element={user ? <GapAnalysis user={user} onLogout={handleLogout} /> : <Navigate to="/login" />}
+          />
         </Routes>
       </div>
     </Router>
   );
+}
+
+function App() {
+  return <AppContent />;
 }
 
 export default App;

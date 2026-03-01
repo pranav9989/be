@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """
-app.py — Flask app (improved RAG + Gemini handling)
-Drop-in replacement for your reference app.py. Keeps templates/routes intact,
-but improves RAG initialization, FAISS usage, and Gemini calls.
+app.py — Flask app (Mistral-powered Adaptive Interview)
+Drop-in replacement for your reference app.py. Fully migrated to Mistral API
+for RAG, Mock Interviews, and Coding exercises.
 """
 
 import os
@@ -17,7 +17,7 @@ from pathlib import Path
 from datetime import datetime, timedelta
 from io import BytesIO
 
-from models import User, InterviewSession
+from models import User, InterviewSession, StudyActionPlan, UserMastery
 
 def save_pcm_as_wav(pcm_bytes, path):
     """Save raw PCM bytes as proper WAV file (16-bit, 16kHz, mono)"""
@@ -41,7 +41,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
 from dotenv import load_dotenv
-import google.generativeai as genai
+# import google.generativeai as genai # REMOVED
 from resume_processor import process_resume_for_faiss, search_resume_faiss, get_resume_chunks
 from assemblyai_websocket_stream import AssemblyAIWebSocketStreamer, warmup_assemblyai
 from interview_analyzer import (
@@ -67,28 +67,7 @@ import requests
 from flask import request, Response, jsonify
 import os
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "gemma3:1b"
-
-def ollama_generate(prompt, timeout=60):
-    try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False
-            },
-            timeout=timeout
-        )
-
-        if response.status_code == 200:
-            return response.json()["response"]
-        else:
-            return None
-    except Exception as e:
-        print("Ollama error:", e)
-        return None
+# Removed Ollama in favor of Mistral (migrated to rag.py)
 
 class SpeechMetrics:
     """
@@ -155,15 +134,24 @@ load_dotenv()
 # -------------------- App config --------------------
 app = Flask(__name__)
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'your-secret-key-here')
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///interview_prep.db'
+
+# Robust Absolute Paths for Windows/Linux
+BASE_DIR = os.path.abspath(os.path.dirname(__file__)) # /backend
+PROJECT_ROOT = os.path.dirname(BASE_DIR)              # /root
+INSTANCE_PATH = os.path.join(PROJECT_ROOT, 'instance')
+UPLOAD_PATH = os.path.join(PROJECT_ROOT, 'uploads')
+
+os.makedirs(INSTANCE_PATH, exist_ok=True)
+os.makedirs(UPLOAD_PATH, exist_ok=True)
+os.makedirs(os.path.join(PROJECT_ROOT, 'data', 'processed'), exist_ok=True)
+
+# Database in absolute path
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(INSTANCE_PATH, 'interview_prep.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
-app.config['UPLOAD_FOLDER'] = 'uploads'
+app.config['UPLOAD_FOLDER'] = UPLOAD_PATH
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024
 app.config['JWT_SECRET_KEY'] = os.getenv('JWT_SECRET_KEY', 'your-jwt-secret-key-here')
 app.config['JWT_ACCESS_TOKEN_EXPIRE'] = timedelta(hours=24)
-
-os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
-os.makedirs('backend/instance', exist_ok=True)
 
 # DB + auth
 from models import db
@@ -174,9 +162,22 @@ db.init_app(app)
 # Import models to ensure they're registered
 from models import UserMastery, InterviewSession, QuestionHistory, SubtopicMastery
 
-# Create tables
+# Create tables + auto-migrate new columns
 with app.app_context():
     db.create_all()
+
+    # Idempotent migration: add reset_token columns if they don't exist yet
+    # (db.create_all does NOT alter existing tables, so we do it manually)
+    from sqlalchemy import text
+    with db.engine.connect() as _conn:
+        for _col, _type in [("reset_token", "TEXT"), ("reset_token_expiry", "DATETIME")]:
+            try:
+                _conn.execute(text(f"ALTER TABLE user ADD COLUMN {_col} {_type}"))
+                _conn.commit()
+                print(f"[Migration] Added column: user.{_col}")
+            except Exception:
+                pass  # Column already exists — safe to ignore
+
 
 CORS(app, supports_credentials=True)
 login_manager = LoginManager()
@@ -324,14 +325,17 @@ def finalize_user_answer(session_key):
 
         except Exception as e:
             print(f"⚠️ Could not get expected answer: {e}")
-            expected_answer = question  # Simple fallback
+            import traceback
+            traceback.print_exc()
+            expected_answer = ""  # Fixed fallback to prevent scoring against the question itself
         
         # 🔥 Call handle_answer with the expected_answer parameter
         with app.app_context():
             agent_response = adaptive_controller.handle_answer(
                 session_id=adaptive_session_id,
                 answer=final_answer,
-                expected_answer=expected_answer  # ✅ Pass it here!
+                expected_answer=expected_answer,  # ✅ Pass it here!
+                stress_test=session.get("stress_test", False) # Pass curveball intention
             )
 
         # Check if we got an error
@@ -561,15 +565,15 @@ def jwt_required(f):
         return f(*args, **kwargs)
     return decorated_function
 
-# -------------------- RAG & Gemini state --------------------
+# -------------------- RAG & Mistral state --------------------
 # File paths
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 RAG_DIRS = [
-    PROJECT_ROOT / "data" / "processed" / "faiss_gemini",
-    Path("data") / "processed" / "faiss_gemini"
+    PROJECT_ROOT / "data" / "processed" / "faiss_mistral",
+    Path("data") / "processed" / "faiss_mistral"
 ]
 # possible index filenames used across versions
-INDEX_CANDIDATES = ["faiss_index_gemini.idx", "index.faiss", "faiss_index_gemini.faiss", "faiss_index.idx"]
+INDEX_CANDIDATES = ["faiss_index_mistral.idx", "index.faiss", "faiss_index_mistral.faiss", "faiss_index.idx"]
 METAS_CANDIDATES = ["metas.json", "metas.jsonl", "metas_full.json"]
 
 CONFIG_DIR = PROJECT_ROOT / "config"
@@ -582,11 +586,11 @@ rag_metas = None   # dict: int_id -> meta
 rag_embedder = None
 topic_rules = None
 
-# Gemini model name (allow override via env)
-GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-flash-latest")
+# Mistral model name (allow override via env)
+MISTRAL_MODEL = os.getenv("MISTRAL_MODEL", "mistral-large-latest")
 
-def get_gemini_api_key():
-    for name in ("GEMINI_API_KEY", "GEMIN_API_KEY", "GOOGLE_API_KEY"):
+def get_mistral_api_key():
+    for name in ("MISTRAL_API_KEY",):
         v = os.getenv(name)
         if v:
             return v
@@ -1118,6 +1122,48 @@ def stop_interview(data, sid=None):
             'qa_pairs': final_stats.get('qa_pairs', [])
         }
 
+        # 💾 SAVE TO DATABASE
+        with app.app_context():
+            try:
+                from models import db, InterviewSession
+                from datetime import datetime
+                import json
+                
+                questions = []
+                # Restructure answers into the Mock interview format so the frontend can display evaluations
+                formatted_answers = {'user_answers': {}, 'evaluations': {}}
+                
+                for idx, qa in enumerate(final_stats.get('qa_pairs', [])):
+                    questions.append({'question': qa.get('question', '')})
+                    formatted_answers['user_answers'][str(idx)] = qa.get('answer', '')
+                    
+                    similarity = qa.get('similarity', 0)
+                    kw_coverage = qa.get('keyword_coverage', 0)
+                    
+                    formatted_answers['evaluations'][str(idx)] = {
+                        'ideal_answer': qa.get('expected_answer', ''),
+                        'grade': 'A' if similarity > 0.8 else 'B' if similarity > 0.6 else 'C' if similarity > 0.4 else 'D',
+                        'score': int(similarity * 100),
+                        'strengths': 'Good coverage' if kw_coverage > 0.5 else 'Needs more detail',
+                        'improvements': 'Focus on key terms' if kw_coverage <= 0.5 else 'Expand concepts further'
+                    }
+
+                session_record = InterviewSession(
+                    user_id=user_id,
+                    session_type='agentic',
+                    questions=json.dumps({'questions': questions, 'answers': formatted_answers}),
+                    created_at=datetime.utcnow(),
+                    completed_at=datetime.utcnow(),
+                    score=results.get('semantic_similarity', 0) * 100,
+                    duration=final_stats.get('total_duration', 0)
+                )
+                db.session.add(session_record)
+                db.session.commit()
+                print(f"✅ Agentic Voice session {session_record.id} saved to DB for user {user_id}")
+            except Exception as db_err:
+                db.session.rollback()
+                print(f"❌ Failed to save Agentic Voice session: {db_err}")
+
         socketio.emit('interview_complete', analysis_results, room=room)
         print(f"🛑 Interview stopped for user {user_id} — FINAL metrics delivered")
 
@@ -1202,7 +1248,8 @@ def start_interview(data):
         "first_voice_recorded": False,
         "session_start_time": time.time(),  # 🔥 CRITICAL: Wall-clock start time
         "questions_answered": 0,
-        "speech_metrics": SpeechMetrics()
+        "speech_metrics": SpeechMetrics(),
+        "stress_test": data.get('stress_test', False) # Curveball mode flag
     }
 
     # Get timestamp for audio file
@@ -1702,7 +1749,85 @@ def signup():
     })
 
 
+@app.route('/api/forgot-password', methods=['POST'])
+def forgot_password():
+    """
+    Step 1 of password reset: Accept email, generate a secure token,
+    store it with a 15-minute expiry, and email a reset link.
+    Always returns 200 to prevent email enumeration attacks.
+    """
+    import secrets
+    from email_service import send_password_reset_email
+
+    data = request.get_json() or {}
+    email = (data.get('email') or '').strip().lower()
+
+    if not email:
+        return jsonify({'success': False, 'message': 'Email is required'}), 400
+
+    user = User.query.filter_by(email=email).first()
+
+    if user:
+        # Generate a cryptographically secure token (64 hex chars)
+        token = secrets.token_urlsafe(48)
+        user.reset_token = token
+        user.reset_token_expiry = datetime.utcnow() + timedelta(minutes=15)
+        db.session.commit()
+
+        email_sent = send_password_reset_email(user.email, token)
+        if not email_sent:
+            print(f"[WARNING] Reset token generated for {email} but email failed to send.")
+
+    # Always return the same message (security: don't reveal if email exists)
+    return jsonify({
+        'success': True,
+        'message': "If that email is registered, you'll receive a reset link shortly."
+    }), 200
+
+
+@app.route('/api/reset-password', methods=['POST'])
+def reset_password():
+    """
+    Step 2 of password reset: Validate the token, update the password hash,
+    and invalidate the token so it cannot be reused.
+    """
+    data = request.get_json() or {}
+    token = (data.get('token') or '').strip()
+    new_password = data.get('new_password') or ''
+
+    if not token:
+        return jsonify({'success': False, 'message': 'Reset token is missing'}), 400
+
+    if not new_password or len(new_password) < 6:
+        return jsonify({'success': False, 'message': 'Password must be at least 6 characters'}), 400
+
+    user = User.query.filter_by(reset_token=token).first()
+
+    if not user:
+        return jsonify({'success': False, 'message': 'Invalid or already-used reset link'}), 400
+
+    if not user.reset_token_expiry or datetime.utcnow() > user.reset_token_expiry:
+        user.reset_token = None
+        user.reset_token_expiry = None
+        db.session.commit()
+        return jsonify({'success': False, 'message': 'This reset link has expired. Please request a new one'}), 400
+
+    # Token is valid — update password and clear the token (one-time use)
+    user.password_hash = generate_password_hash(new_password)
+    user.reset_token = None
+    user.reset_token_expiry = None
+    db.session.commit()
+
+    print(f"[Auth] Password successfully reset for user: {user.email}")
+
+    return jsonify({
+        'success': True,
+        'message': 'Password updated successfully. You can now log in.'
+    }), 200
+
+
 @app.route("/api/tts/murf", methods=["POST"])
+
 def murf_tts():
     data = request.get_json()
     text = data.get("text")
@@ -1867,6 +1992,7 @@ def upload_resume():
             })
         else:
             return jsonify({'success': False, 'message': 'Could not extract text from resume'})
+
 
 
 @app.route('/api/user/progress', methods=['GET'])
@@ -2089,10 +2215,11 @@ Format:
 ]
 """
 
-        response_text = ollama_generate(prompt)
+        from rag import mistral_generate
+        response_text = mistral_generate(prompt)
 
         if not response_text:
-            raise Exception("No response from Ollama")
+            raise Exception("No response from Mistral")
 
         try:
             questions = json.loads(response_text)
@@ -2305,10 +2432,11 @@ Rules:
   }}
 """
 
-        response_text = ollama_generate(prompt, timeout=90)
+        from rag import mistral_generate
+        response_text = mistral_generate(prompt, timeout=90)
 
         if not response_text:
-            raise Exception("No response from Ollama")
+            raise Exception("No response from Mistral")
 
         try:
             questions = json.loads(response_text)
@@ -2333,6 +2461,496 @@ Rules:
         traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)})
 
+
+# ============================================================
+#  MOCK INTERVIEW — Mistral-powered question generation & evaluation
+# ============================================================
+
+@app.route('/api/mock_interview/questions', methods=['POST'])
+@jwt_required
+def mock_interview_questions():
+    """Generate targeted interview questions using Mistral."""
+    try:
+        from mock_interview_engine import generate_interview_questions
+        from resume_processor import search_resume_faiss, get_resume_chunks
+
+        data = request.get_json() or {}
+        job_description = data.get('job_description', '').strip()
+        question_count  = max(3, min(15, int(data.get('question_count', 8))))
+        variation_seed  = data.get('variation_seed', '')
+
+        if not job_description:
+            return jsonify({'success': False, 'error': 'Job description is required'}), 400
+        if not g.current_user.resume_filename:
+            return jsonify({'success': False, 'error': 'Please upload your resume first'}), 400
+
+        search_results = search_resume_faiss(
+            f"skills experience projects for: {job_description[:300]}",
+            g.current_user.id, top_k=8
+        )
+        resume_context = "\n".join(r['text'] for r in search_results)
+
+        if not resume_context:
+            chunks = get_resume_chunks(g.current_user.id)
+            resume_context = "\n".join(c['text'] for c in chunks[:8])
+
+        skills     = json.loads(g.current_user.skills) if g.current_user.skills else []
+        experience = g.current_user.experience_years or 0
+
+        questions = generate_interview_questions(
+            resume_context=resume_context,
+            job_description=job_description,
+            skills=skills,
+            experience=experience,
+            question_count=question_count,
+            variation_seed=variation_seed
+        )
+
+        return jsonify({'success': True, 'questions': questions, 'question_count': len(questions)})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/mock_interview/evaluate_answer', methods=['POST'])
+@jwt_required
+def mock_interview_evaluate_answer():
+    """Evaluate a single interview answer using Mistral."""
+    try:
+        from mock_interview_engine import evaluate_answer
+        from resume_processor import search_resume_faiss
+
+        data = request.get_json() or {}
+        question        = data.get('question', {})
+        user_answer     = data.get('answer', '').strip()
+        job_description = data.get('job_description', '')
+
+        if not question or not question.get('question'):
+            return jsonify({'success': False, 'error': 'Question data is required'}), 400
+
+        resume_context = ""
+        if g.current_user.resume_filename:
+            results = search_resume_faiss(question.get('question', ''), g.current_user.id, top_k=3)
+            resume_context = " ".join(r['text'] for r in results)[:600]
+
+        evaluation = evaluate_answer(
+            question=question,
+            user_answer=user_answer,
+            resume_context=resume_context,
+            job_description=job_description
+        )
+        return jsonify({'success': True, 'evaluation': evaluation})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/mock_interview/session_summary', methods=['POST'])
+@jwt_required
+def mock_interview_session_summary():
+    """Generate overall session performance summary and save to DB."""
+    try:
+        from mock_interview_engine import generate_session_summary
+
+        data = request.get_json() or {}
+        questions       = data.get('questions', [])
+        answers         = data.get('answers', {})
+        evaluations     = data.get('evaluations', {})
+        job_description = data.get('job_description', '')
+
+        answers_int     = {int(k): v for k, v in answers.items()}
+        evaluations_int = {int(k): v for k, v in evaluations.items()}
+
+        summary = generate_session_summary(
+            questions=questions,
+            answers=answers_int,
+            evaluations=evaluations_int,
+            job_description=job_description
+        )
+
+        try:
+            session_record = InterviewSession(
+                user_id=g.current_user.id,
+                session_type='mock_resume',
+                score=summary.get('avg_score'),
+                questions=json.dumps(
+                    [{'q': q.get('question','')[:80]} for q in questions]
+                ),
+                duration=data.get('duration_minutes', 0)
+            )
+            db.session.add(session_record)
+            db.session.commit()
+        except Exception as db_err:
+            print(f"[session_summary] DB save non-critical: {db_err}")
+
+        return jsonify({'success': True, 'summary': summary})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============================================================
+#  CODE DEBUGGING INTERVIEW — Adaptive Bug Generation
+# ============================================================
+
+@app.route('/api/generate_debugging_scenario', methods=['POST'])
+@jwt_required
+def generate_debugging_scenario():
+    """Generate a buggy code snippet based on the user's weakest concepts."""
+    try:
+        # Migrated to Mistral in rag.py
+        from rag import mistral_generate
+        
+        # 1. Fetch user's weakest concepts to make it adaptive
+        weakest_concept = "Basic Algorithms"
+        topic = "General Programming"
+        
+        masteries = UserMastery.query.filter_by(user_id=g.current_user.id).all()
+        weakest_score = 1.0
+        
+        for m in masteries:
+            concept_data = m.get_concept_masteries()
+            for concept_name, cd in concept_data.items():
+                if cd.get('mastery_level', 1.0) < weakest_score:
+                    weakest_score = cd.get('mastery_level', 1.0)
+                    weakest_concept = concept_name
+                    topic = m.topic
+
+        print(f"🎯 Code Debugging targeting weakest concept: {weakest_concept} in {topic}")
+
+        # 2. Prompt Ollama to generate a buggy scenario
+        prompt = f"""
+        You are a Senior Staff Engineer conducting a technical interview.
+        You need to test the candidate's architectural and debugging skills by presenting them with a broken code block.
+        
+        Topic: {topic}
+        Specific concept to test: {weakest_concept}
+        
+        Create a 15-line Python code snippet that contains ONE logical or architectural bug related to {weakest_concept}.
+        Do NOT include syntax errors. The bug must be logical.
+        
+        Return ONLY a JSON object with this exact format:
+        {{
+            "buggy_code": "def example():\\n    ...",
+            "topic": "{weakest_concept}",
+            "expected_answer": "The bug is on line X where Y happens. To fix it, you need to change Y to Z because..."
+        }}
+        """
+        
+        response_text = mistral_generate(prompt, timeout=120)
+        
+        if not response_text:
+            raise Exception("No response from Mistral")
+            
+        # Extract JSON
+        try:
+            # Try to find JSON block if Ollama returned markdown
+            import re
+            json_match = re.search(r'```json\n(.*?)\n```', response_text, re.DOTALL)
+            if json_match:
+                response_text = json_match.group(1)
+            else:
+                json_match = re.search(r'({.*})', response_text, re.DOTALL)
+                if json_match:
+                    response_text = json_match.group(1)
+                    
+            scenario = json.loads(response_text)
+        except Exception as e:
+            print(f"Failed to parse Mistral JSON: {e}\nRaw output: {response_text}")
+            # Fallback scenario
+            scenario = {
+                "buggy_code": "def calculate_average(numbers):\n    total = sum(numbers)\n    return total / len(numbers)\n\n# Note: What happens if the list is empty?",
+                "topic": "Edge Cases",
+                "expected_answer": "The bug is a potential ZeroDivisionError. If the 'numbers' list is empty, len(numbers) is 0, causing a division by zero. To fix it, check if not numbers: return 0 before calculating the average."
+            }
+
+        return jsonify({
+            'success': True,
+            'scenario': scenario
+        })
+
+    except Exception as e:
+        print("Debugging Scenario error:", e)
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+# --- New Iterative Code Debugging Routes ---
+
+@app.route('/api/debugging/start', methods=['POST'])
+@jwt_required
+def start_debugging_session():
+    try:
+        from models import DebuggingSession
+        session = DebuggingSession(user_id=g.current_user.id)
+        db.session.add(session)
+        db.session.commit()
+        return jsonify({'success': True, 'session_id': session.id})
+    except Exception as e:
+        print("Error starting debugging session:", e)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/debugging/next', methods=['POST'])
+@jwt_required
+def get_next_debugging_challenge():
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        
+        from models import DebuggingSession, DebuggingChallenge
+        session = DebuggingSession.query.get(session_id)
+        if not session or session.user_id != g.current_user.id:
+            return jsonify({'success': False, 'error': 'Invalid session'}), 403
+            
+        # Determine topic targeting based on weakness
+        weakest_concept = "General Logic"
+        topic = "Programming"
+        masteries = UserMastery.query.filter_by(user_id=g.current_user.id).all()
+        weakest_score = 1.0
+        for m in masteries:
+            concept_data = m.get_concept_masteries()
+            for name, cd in concept_data.items():
+                if cd.get('mastery_level', 1.0) < weakest_score:
+                    weakest_score = cd.get('mastery_level', 1.0)
+                    weakest_concept = name
+                    topic = m.topic
+
+        from debugging_engine import generate_challenge
+        prev_challenges = [c.to_dict() for c in session.challenges]
+        challenge_data = generate_challenge(weakest_concept, topic, prev_challenges)
+        
+        if not challenge_data:
+            return jsonify({'success': False, 'error': 'AI failed to generate challenge'}), 500
+            
+        challenge = DebuggingChallenge(
+            session_id=session.id,
+            language=challenge_data['language'],
+            topic=challenge_data['topic'],
+            buggy_code=challenge_data['buggy_code'],
+            expected_answer=challenge_data['expected_answer'],
+            correct_code=challenge_data['correct_code']
+        )
+        db.session.add(challenge)
+        db.session.commit()
+        
+        return jsonify({
+            'success': True, 
+            'challenge': challenge.to_dict()
+        })
+    except Exception as e:
+        print("Error fetching next challenge:", e)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/debugging/evaluate', methods=['POST'])
+@jwt_required
+def evaluate_debugging_challenge():
+    try:
+        data = request.get_json()
+        challenge_id = data.get('challenge_id')
+        user_explanation = data.get('explanation')
+        
+        from models import DebuggingChallenge
+        challenge = DebuggingChallenge.query.get(challenge_id)
+        if not challenge or challenge.session.user_id != g.current_user.id:
+            return jsonify({'success': False, 'error': 'Invalid challenge'}), 403
+            
+        from debugging_engine import evaluate_explanation
+        eval_result = evaluate_explanation(challenge.expected_answer, user_explanation, challenge.language)
+        
+        challenge.user_explanation = user_explanation
+        challenge.ai_score = eval_result['score']
+        challenge.ai_feedback = eval_result['feedback']
+        db.session.commit()
+        
+        # Update session stats
+        session = challenge.session
+        challenges_with_scores = [c for c in session.challenges if c.ai_score > 0]
+        if challenges_with_scores:
+            session.count = len(challenges_with_scores)
+            session.avg_score = sum(c.ai_score for c in challenges_with_scores) / len(challenges_with_scores)
+            db.session.commit()
+            
+        return jsonify({
+            'success': True, 
+            'evaluation': eval_result,
+            'correct_code': challenge.correct_code
+        })
+    except Exception as e:
+        print("Error evaluating challenge:", e)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/debugging/end', methods=['POST'])
+@jwt_required
+def end_debugging_session():
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        
+        from models import DebuggingSession
+        session = DebuggingSession.query.get(session_id)
+        if not session or session.user_id != g.current_user.id:
+            return jsonify({'success': False, 'error': 'Invalid session'}), 403
+            
+        session.end_time = datetime.utcnow()
+        
+        # Generate final summary
+        from rag import mistral_generate
+        perf_data = [f"Topic: {c.topic}, Lang: {c.language}, Score: {c.ai_score}" for c in session.challenges]
+        prompt = f"Summarize the user's performance across these debugging challenges: {', '.join(perf_data)}. Provide a 2-sentence wrap-up."
+        session.summary = mistral_generate(prompt)
+        
+        db.session.commit()
+        return jsonify({'success': True, 'session': session.to_dict()})
+    except Exception as e:
+        print("Error ending debugging session:", e)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/profile/debugging_history', methods=['GET'])
+@jwt_required
+def get_debugging_history():
+    try:
+        from models import DebuggingSession
+        sessions = DebuggingSession.query.filter_by(user_id=g.current_user.id).order_by(DebuggingSession.start_time.desc()).all()
+        return jsonify({
+            'success': True, 
+            'history': [s.to_dict() for s in sessions if s.count > 0]
+        })
+    except Exception as e:
+        print("Error fetching debugging history:", e)
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================
+#  POST-INTERVIEW "ACTION PLAN" GENERATION
+# ============================================================
+
+@app.route('/api/generate_action_plan', methods=['POST'])
+@jwt_required
+def generate_action_plan():
+    """Generate a personalized study plan based on user's weak concepts and time available."""
+    try:
+        from rag import mistral_generate as ollama_generate
+        
+        data = request.get_json() or {}
+        days = int(data.get('days', 7))
+        selected_topics = data.get('topics', ['General Programming'])
+
+        # Fetch user's weak concepts for the selected topics
+        from rag import mistral_generate as ollama_generate
+        weak_concepts_by_topic = {}
+        masteries = UserMastery.query.filter_by(user_id=g.current_user.id).all()
+        
+        for m in masteries:
+            if m.topic in selected_topics:
+                weak_concepts = []
+                concept_data = m.get_concept_masteries()
+                for concept_name, cd in concept_data.items():
+                    if cd.get('mastery_level', 1.0) < 0.6: # Threshold for 'weak'
+                        weak_concepts.append(concept_name)
+                
+                if weak_concepts:
+                    weak_concepts_by_topic[m.topic] = weak_concepts
+
+        # Format weak concepts string for the prompt
+        weaknesses_str = ""
+        if weak_concepts_by_topic:
+            for topic, concepts in weak_concepts_by_topic.items():
+                weaknesses_str += f"- {topic}: {', '.join(concepts)}\n"
+        else:
+            weaknesses_str = "No specific weak concepts identified yet. General review needed for selected topics."
+
+        print(f"📅 Action Plan requested for {days} days on topics: {selected_topics}")
+
+        # Prompt Ollama to generate a markdown action plan
+        prompt = f"""
+        You are an expert technical interviewer and career coach.
+        Create a personalized {days}-day study plan for a software engineering candidate.
+        
+        The candidate has selected these core topics to study:
+        {', '.join(selected_topics)}
+        
+        Based on their previous interview performance, they have demonstrated weaknesses in these specific technical concepts:
+        {weaknesses_str}
+        
+        Provide a detailed, day-by-day markdown schedule.
+        - The schedule should heavily focus on improving their identified weaknesses.
+        - Include actionable tasks, resource suggestions (e.g., Leetcode, documentation), and conceptual review goals.
+        - Ensure the pace is realistic for {days} days.
+        
+        CRITICAL FORMATTING RULES:
+        1. Return ONLY valid markdown text.
+        2. Do NOT wrap the entire response in ```markdown or any backticks.
+        3. Do NOT use backticks for the title or headers.
+        4. Use standard Markdown headers: # for title, ## for Days, ### for Sessions.
+        5. Use standard bullet points (-) for tasks.
+        6. No introductory or concluding remarks outside the markdown schedule itself.
+        """
+        
+        from rag import mistral_generate
+        response_text = mistral_generate(prompt, timeout=300)
+        
+        if not response_text:
+            raise Exception("No response from Mistral after 300s")
+
+        # Save to database
+        try:
+            from models import StudyActionPlan
+            plan_record = StudyActionPlan(
+                user_id=g.current_user.id,
+                days=days,
+                topics=",".join(selected_topics), # Fixed variable name to selected_topics
+                plan_markdown=response_text
+            )
+            db.session.add(plan_record)
+            db.session.commit()
+            print(f"✅ Saved Action Plan for user {g.current_user.id}")
+        except Exception as db_err:
+            print(f"[generate_action_plan] DB save non-critical: {db_err}")
+
+        return jsonify({
+            'success': True,
+            'plan_markdown': response_text
+        })
+
+    except Exception as e:
+        print("Action Plan Generation error:", e)
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/profile/action_plans', methods=['GET'])
+@jwt_required
+def get_action_plans():
+    """Retrieve all saved study action plans for the current user."""
+    try:
+        # Use the imported StudyActionPlan model correctly
+        from models import StudyActionPlan
+        plans = StudyActionPlan.query.filter_by(user_id=g.current_user.id).order_by(StudyActionPlan.created_at.desc()).all()
+        return jsonify({
+            'success': True,
+            'action_plans': [plan.to_dict() for plan in plans]
+        })
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/resume/analysis', methods=['GET'])
+@jwt_required
+def get_resume_analysis():
+    """Return stored resume data for the current user."""
+    try:
+        user   = g.current_user
+        skills = json.loads(user.skills) if user.skills else []
+        return jsonify({
+            'success': True,
+            'has_resume': bool(user.resume_filename),
+            'resume_filename': user.resume_filename,
+            'skills': skills,
+            'experience_years': user.experience_years or 0,
+        })
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 
 @app.route('/api/user_stats', methods=['GET'])
@@ -2367,14 +2985,55 @@ def get_topics():
         return jsonify({'error': f'Error loading topics: {str(e)}'}), 500
 
 
+# ==============================================================================
+# ── DATA SCIENCE CODING PRACTICE ROUTES ───────────────────────────────────────
+# ==============================================================================
+import coding_engine as ce
+
+@app.route('/api/coding/questions', methods=['POST'])
+@jwt_required
+def get_coding_questions():
+    """Generate Data Science coding questions"""
+    data = request.json
+    count = int(data.get('question_count', 3))
+    difficulty = data.get('difficulty', 'medium')
+    
+    try:
+        questions = ce.generate_coding_questions(question_count=count, difficulty=difficulty)
+        return jsonify({'success': True, 'questions': questions})
+    except Exception as e:
+        print(f"Error generating coding questions: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+@app.route('/api/coding/evaluate', methods=['POST'])
+@jwt_required
+def evaluate_coding_answer():
+    """Evaluate user's SQL or Pandas code"""
+    data = request.json
+    question = data.get('question', {})
+    user_code = data.get('user_code', '')
+    language = data.get('language', 'sql')
+    
+    try:
+        evaluation = ce.evaluate_coding_answer(
+            question=question,
+            user_code=user_code,
+            language=language
+        )
+        return jsonify({'success': True, 'evaluation': evaluation})
+    except Exception as e:
+        print(f"Error evaluating coding answer: {e}")
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     try:
         # Check if required files exist
         import os
         files_exist = all([
-            os.path.exists("data/processed/faiss_gemini/index.faiss"),
-            os.path.exists("data/processed/faiss_gemini/metas.json"),
+            os.path.exists("data/processed/faiss_mistral/index.faiss"),
+            os.path.exists("data/processed/faiss_mistral/metas.json"),
             os.path.exists("data/processed/kb_clean.json"),
             os.path.exists("config/topic_rules.json")
         ])
@@ -2423,6 +3082,56 @@ def save_interview_session():
 
     except Exception as e:
         db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@app.route('/api/user/history', methods=['GET'])
+@jwt_required
+def get_user_history():
+    """Fetch complete interview history for the user across all session types."""
+    try:
+        type_filter = request.args.get('type')
+        
+        # 1. Fetch InterviewSession records
+        query = InterviewSession.query.filter_by(user_id=g.current_user.id)
+        if type_filter and type_filter != 'debugging':
+            query = query.filter_by(session_type=type_filter)
+        sessions = query.order_by(InterviewSession.created_at.desc()).all()
+        
+        history = []
+        for s in sessions:
+            history.append({
+                'id': s.id,
+                'session_type': s.session_type,
+                'created_at': s.created_at.isoformat(),
+                'score': s.score,
+                'duration': s.duration,
+                'data': json.loads(s.questions) if s.questions else {}
+            })
+            
+        # 2. Fetch DebuggingSession records (if not filtered out)
+        if not type_filter or type_filter == 'debugging':
+            from models import DebuggingSession
+            debug_sessions = DebuggingSession.query.filter_by(user_id=g.current_user.id).filter(DebuggingSession.count > 0).order_by(DebuggingSession.start_time.desc()).all()
+            for ds in debug_sessions:
+                history.append({
+                    'id': f"debug_{ds.id}", # unique ID for frontend
+                    'session_type': 'debugging',
+                    'created_at': ds.start_time.isoformat(),
+                    'score': ds.avg_score * 100, # normalized to 100
+                    'duration': None,
+                    'data': {
+                        'summary': ds.summary,
+                        'challenges': [c.to_dict() for c in ds.challenges]
+                    }
+                })
+        
+        # Sort combined history by created_at desc
+        history.sort(key=lambda x: x['created_at'], reverse=True)
+        
+        return jsonify({'success': True, 'history': history})
+    except Exception as e:
+        print(f"Error fetching history: {e}")
         return jsonify({'success': False, 'error': str(e)}), 500
 
 
@@ -2494,6 +3203,47 @@ def get_interview_history():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
 
+@app.route('/api/resume/gap-analysis', methods=['POST'])
+@jwt_required
+def gap_analysis():
+    """Compare user's resume with a job description to find missing skills"""
+    try:
+        data = request.json
+        job_description = data.get('job_description')
+        if not job_description:
+            return jsonify({'success': False, 'error': 'Job description is required'}), 400
+
+        user = g.current_user
+        if not user.skills or user.skills == "[]" or user.skills == "":
+            return jsonify({'success': False, 'error': 'No skills found. Please upload your resume first.'}), 400
+
+        try:
+            resume_data = json.loads(user.skills)
+        except:
+            resume_data = user.skills # fallback if it's just raw text
+        
+        # Add years of experience
+        resume_data_payload = {
+            "skills": resume_data,
+            "experience_years": user.experience_years
+        }
+        
+        from rag import generate_resume_gap_analysis
+        result_json_str = generate_resume_gap_analysis(resume_data_payload, job_description)
+        
+        if not result_json_str:
+            return jsonify({'success': False, 'error': 'Failed to generate gap analysis.'}), 500
+            
+        analysis_data = json.loads(result_json_str)
+        return jsonify({
+            'success': True,
+            'gap_analysis': analysis_data
+        })
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 # Serve React build in production
 @app.route('/<path:path>')

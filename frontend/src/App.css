@@ -1,63 +1,7 @@
-/* Professional Interview Prep Theme */
-:root {
-  --navy-primary: #1E3A8A;
-  --success-green: #10B981;
-  --bg-clean: #F8FAFC;
-  --text-main: #1F2937;
-  --gold-accent: #F59E0B;
-}
-
+/* App.css – Root layout wrapper */
 .App {
-  text-align: center;
-  background-color: var(--bg-clean); /* Light, readable background */
   min-height: 100vh;
-  color: var(--text-main);
-}
-
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
-  /* Optional: Filter to make logo match the Navy or Gold theme */
-  filter: drop-shadow(0 0 20px rgba(30, 58, 138, 0.2));
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
-}
-
-.App-header {
-  /* Changed from dark gray to Navy Blue */
-  background-color: var(--navy-primary); 
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white; /* High contrast white text on navy */
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-}
-
-.App-link {
-  /* Changed from light blue to Success Green or Gold */
-  color: var(--success-green);
-  text-decoration: none;
-  font-weight: 600;
-  transition: color 0.3s ease;
-}
-
-.App-link:hover {
-  color: var(--gold-accent); /* Achievement signal on hover */
-  text-decoration: underline;
-}
-
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
 }

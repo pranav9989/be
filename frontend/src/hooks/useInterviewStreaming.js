@@ -303,6 +303,7 @@ export const useInterviewStreaming = (userId) => {
                         if (pendingAudioRef.current.length === 1) {
                             console.log('📦 Buffering audio until backend is ready...');
                         }
+                        return; // STOP HERE! Do not send to backend until it signals ready
                     }
 
                     if (socketRef.current?.connected) {
@@ -527,7 +528,7 @@ export const useInterviewStreaming = (userId) => {
     }, [isRecording, interviewDone, stopRecording]);
 
 
-    const startRecording = useCallback(async () => {
+    const startRecording = useCallback(async (stressTest = false) => {
         try {
             setError(null);
             setAnalysis(null);
@@ -548,7 +549,10 @@ export const useInterviewStreaming = (userId) => {
             await cleanupAudio();
 
             // Start the interview
-            socketRef.current.emit('start_interview', { user_id: userId });
+            socketRef.current.emit('start_interview', { 
+                user_id: userId,
+                stress_test: stressTest
+            });
 
         } catch (err) {
             console.error('Error starting interview:', err);

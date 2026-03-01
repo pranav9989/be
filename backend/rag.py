@@ -12,14 +12,14 @@ try:
 except Exception:
     pass
 
-import requests
+from mistralai import Mistral
 
-OLLAMA_URL = "http://localhost:11434/api/generate"
-OLLAMA_MODEL = "gemma3:1b"
-
+MISTRAL_API_KEY = os.getenv("MISTRAL_API_KEY")
+mistral_client = Mistral(api_key=MISTRAL_API_KEY)
+MISTRAL_MODEL = "mistral-large-latest"
 
 # ================== PATHS ==================
-FAISS_DIR = "data/processed/faiss_gemini"
+FAISS_DIR = "data/processed/faiss_mistral"
 INDEX_PATH = os.path.join(FAISS_DIR, "index.faiss")
 METAS_PATH = os.path.join(FAISS_DIR, "metas.json")
 
@@ -130,7 +130,6 @@ def get_topic_and_subtopic_from_query(query, topic_rules=None):
             if kw in q:
                 print(f"   Detected topic: {rule['topic']} -> {rule['subtopic']}")
                 return rule["topic"], rule["subtopic"]
-    print(f"   No topic detected")
     return None, None
 
 
@@ -160,10 +159,8 @@ def get_relevant_chunks_strict(query, index, metas, model, topic=None, k=5):
     
     query_embedding = model.encode([query], normalize_embeddings=True)
     start_time = time.time()
-    scores, I = index.search(query_embedding, k * 8)  # Search more to filter
+    scores, I = index.search(query_embedding, k * 8)
     search_time = time.time() - start_time
-    
-    print(f"   Search completed in {search_time:.3f}s, found {len(I[0])} candidates")
     
     results = []
     seen_ids = set()
@@ -171,31 +168,17 @@ def get_relevant_chunks_strict(query, index, metas, model, topic=None, k=5):
     for idx, score in zip(I[0], scores[0]):
         if idx < 0 or idx >= len(metas):
             continue
-            
         meta = metas[idx]
-        
         if topic is not None and meta["topic"] != topic:
             continue
-        
         if meta["id"] in seen_ids:
             continue
-            
         seen_ids.add(meta["id"])
-        
-        # Add similarity score to meta
         meta_copy = meta.copy()
         meta_copy["_score"] = float(score)
         results.append(meta_copy)
-        
         if len(results) == k:
             break
-    
-    print(f"   Retrieved {len(results)} relevant chunks:")
-    for i, r in enumerate(results):
-        # Truncate text for display
-        text_preview = r.get("text", "")[:80] + "..." if len(r.get("text", "")) > 80 else r.get("text", "")
-        print(f"      {i+1}. [{r.get('topic')}/{r.get('subtopic')}] score={r['_score']:.3f}")
-        print(f"         {text_preview}")
     
     return results
 
@@ -242,103 +225,70 @@ Student Question: {query}
 Detailed Educational Answer:
 """
 
-    print(f"\n🤖 Generating detailed explanation for: {query[:50]}...")
+    print(f"\n🪄 Generating detailed explanation via Mistral...")
     start_time = time.time()
     
     try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.3,
-                    "num_predict": 1024
-                }
-            },
-            timeout=120
+        response = mistral_client.chat.complete(
+            model=MISTRAL_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3
         )
 
         elapsed = time.time() - start_time
-        
-        if response.status_code == 200:
-            answer = response.json()["response"].strip()
-            print(f"✅ Generated answer in {elapsed:.1f}s ({len(answer)} chars)")
+        answer = response.choices[0].message.content.strip()
+        print(f"✅ Generated answer in {elapsed:.1f}s")
+        return answer
             
-            # Log the answer (first few lines)
-            print("\n📝 ANSWER PREVIEW:")
-            preview_lines = answer.split('\n')[:5]
-            for line in preview_lines:
-                if line.strip():
-                    print(f"   {line[:100]}")
-            if len(answer.split('\n')) > 5:
-                print("   ...")
-            
-            return answer
-        else:
-            print(f"❌ Ollama error: {response.status_code} - {response.text}")
-            return f"❌ Ollama error: {response.status_code}"
-            
-    except requests.exceptions.Timeout:
-        print(f"❌ Ollama timeout after {time.time() - start_time:.1f}s")
-        return "❌ Ollama timeout - please try again"
     except Exception as e:
-        print(f"❌ Error calling Ollama: {e}")
-        return f"❌ Error: {str(e)}"
+        print(f"❌ Mistral error: {e}")
+        return f"❌ Error triggering Mistral: {str(e)}"
+
+# ================== GENERIC MISTRAL GENERATION ==================
+def mistral_generate(prompt, timeout=120):
+    print(f"\n🪄 Generating response via Mistral API...")
+    start_time = time.time()
+    try:
+        response = mistral_client.chat.complete(
+            model=MISTRAL_MODEL,
+            messages=[{"role": "user", "content": prompt}]
+        )
+        elapsed = time.time() - start_time
+        text = response.choices[0].message.content.strip()
+        print(f"✅ Generation complete in {elapsed:.1f}s")
+        return text
+    except Exception as e:
+        print(f"❌ Error generating Mistral response: {e}")
+        return None
+
+def ollama_generate(prompt, timeout=120):
+    return mistral_generate(prompt, timeout)
 
 
 # ================== GENERATE INTERVIEW QUESTION ==================
 def generate_interview_question(prompt, topic=None):
-    """
-    Generate a SINGLE interview question based on the prompt.
-    STRICT: Returns ONLY the question text, no explanations, no introductions.
-    Used by the adaptive question bank.
-    """
-    # Add strict instruction to the prompt
     full_prompt = f"""{prompt}
 
-CRITICAL INSTRUCTION - FOLLOW EXACTLY:
-- Return ONLY the question text - nothing else
-- NO introductions like "Here's a question:" or "Interviewer:"
-- NO explanations or commentary
-- NO markdown formatting
-- NO bullet points or numbering
-- Just the question itself, ending with a question mark
+CRITICAL INSTRUCTION:
+- Return ONLY the question text
+- NO introductions or commentary
 - Maximum 400 characters
 
 Question:"""
 
-    print(f"\n🤖 Generating interview question...")
+    print(f"\n🪄 Generating interview question via Mistral...")
     start_time = time.time()
-    
     try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": full_prompt,
-                "stream": False,
-                "options": {
-                    "temperature": 0.3,
-                    "num_predict": 300
-                }
-            },
-            timeout=30
+        response = mistral_client.chat.complete(
+            model=MISTRAL_MODEL,
+            messages=[{"role": "user", "content": full_prompt}],
+            temperature=0.3
         )
-        
         elapsed = time.time() - start_time
-        
-        if response.status_code == 200:
-            question = response.json()["response"].strip()
-            print(f"✅ Generated question in {elapsed:.1f}s ({len(question)} chars)")
-            print(f"   Preview: {question[:100]}...")
-            return question
-        else:
-            print(f"❌ Ollama error: {response.status_code}")
-            return None
+        question = response.choices[0].message.content.strip()
+        return question
     except Exception as e:
-        print(f"❌ Error generating question: {e}")
+        print(f"❌ Mistral interview error: {e}")
         return None
 
 
@@ -779,6 +729,48 @@ Expected Answer:"""
         print(f"❌ Error generating expected answer: {e}")
         return "", chunks
 
+
+# ================== RESUME GAP ANALYSIS ==================
+def generate_resume_gap_analysis(resume_data, job_description):
+    print(f"\n🪄 Generating Resume Gap Analysis via Mistral...")
+    start_time = time.time()
+    
+    prompt = f"""You are an expert tech recruiter and career coach.
+Your task is to compare a candidate's resume data against a target Job Description.
+Identify the gaps in their skills and provide a 2-week study plan to help them prepare.
+
+Candidate Resume Data:
+{json.dumps(resume_data, indent=2)}
+
+Target Job Description:
+{job_description}
+
+You MUST return your response as a valid JSON object with the following exact structure (do not include markdown block formatting, just the raw JSON):
+{{
+  "match_score": <an integer between 0 and 100 representing how well they fit>,
+  "missing_skills": ["skill1", "skill2", "skill3"],
+  "study_plan": [
+    {{"day": 1, "topic": "Name of topic", "description": "What to study"}},
+    {{"day": 2, "topic": "Name of topic", "description": "What to study"}},
+    ... (up to day 14)
+  ]
+}}
+"""
+
+    try:
+        response = mistral_client.chat.complete(
+            model=MISTRAL_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.3,
+            response_format={"type": "json_object"}
+        )
+        elapsed = time.time() - start_time
+        answer = response.choices[0].message.content.strip()
+        print(f"✅ Generated gap analysis in {elapsed:.1f}s")
+        return answer
+    except Exception as e:
+        print(f"❌ Mistral gap analysis error: {e}")
+        return None
 
 if __name__ == '__main__':
     print("RAG module loaded and ready.")

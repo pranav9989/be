@@ -54,26 +54,20 @@ const Dashboard = ({ user, onLogout }) => {
       link: "/profile",
       color: "profile"
     },
-    {
-      title: "Conversational AI Interviewer",
-      description: "Engage in real-time spoken interviews with AI, get instant feedback and analysis.",
-      icon: "fas fa-microphone-alt",
-      link: "/conversational-interview",
-      color: "hr" // Using 'hr' color for now, can be changed later
-    },
-    {
-      title: "Live Streaming Interview",
-      description: "Experience real-time speech recognition with live captions, just like a professional interview.",
-      icon: "fas fa-broadcast-tower",
-      link: "/live-streaming-interview",
-      color: "streaming"
-    },
+
     {
       title: "Agentic Interview",
       description: "A fully autonomous, voice-first interview where AI asks, listens, thinks, and adapts in real time.",
       icon: "fas fa-brain",
       link: "/agentic-interview",
       color: "agentic"
+    },
+    {
+      title: "Resume vs Reality",
+      description: "Paste a target Job Description to instantly find skill gaps and get a personalized 2-week study plan.",
+      icon: "fas fa-bullseye",
+      link: "/gap-analysis",
+      color: "gold"
     }
   ];
 

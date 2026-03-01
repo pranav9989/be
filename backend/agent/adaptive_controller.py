@@ -346,7 +346,7 @@ class AdaptiveInterviewController:
         print(f"⚠️ Using fallback question after {max_attempts} attempts")
         return fallback, subtopic, sampled_concepts
     
-    def handle_answer(self, session_id: str, answer: str, expected_answer: str = "") -> dict:
+    def handle_answer(self, session_id: str, answer: str, expected_answer: str = "", stress_test: bool = False) -> dict:
         state = self.sessions.get(session_id)
         if not state:
             return {"error": "Session not found"}
@@ -558,9 +558,9 @@ class AdaptiveInterviewController:
         if action == "DEEPEN":
             return self._deepen_question(state, session_id)
         
-        return self._generate_followup(state, analysis_for_decision, session_id)
+        return self._generate_followup(state, analysis_for_decision, session_id, stress_test)
 
-    def _generate_followup(self, state, analysis, session_id) -> dict:
+    def _generate_followup(self, state, analysis, session_id, stress_test=False) -> dict:
         state.followup_count += 1
         
         topic = state.current_topic
@@ -601,13 +601,21 @@ class AdaptiveInterviewController:
         
         print(f"\n   ✅ NEXT DIFFICULTY: {next_difficulty.upper()} (score: {prev_score:.2f})")
         
+        # 🔥 STRESS TEST INJECTION 🔥
+        # If stress mode is active, tell the AI to act skeptical/challenging for the followup
+        user_context_override = ""
+        if stress_test:
+            print("\n   ⚠️ STRESS TEST MODE ACTIVE: Injecting adversarial prompt")
+            user_context_override = "STRESS TEST MODE: Act slightly skeptical. Challenge the user's previous answer and ask them to explicitly defend their technical reasoning or point out a potential flaw in what they just said."
+
         question, subtopic, sampled_concepts = self._generate_question(
             session_id=session_id,
             topic=topic,
             difficulty=next_difficulty,
             user_name=state.user_name,
             force_subtopic=state.current_subtopic,
-            weak_concepts=weak_concepts
+            weak_concepts=weak_concepts,
+            user_context=user_context_override  # Pass adversarial context down
         )
         
         asked_questions = [r.question for r in state.history]

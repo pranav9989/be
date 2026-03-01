@@ -1,197 +1,291 @@
-/* Professional Interview Prep - HR Interview Styles */
+/* ============================================================
+   HRInterview – HR Interview practice page
+   ============================================================ */
 
 .hr-interview-container {
   min-height: 100vh;
-  /* Swapped purple gradient for the Clean Background */
-  background: #F8FAFC; 
-  padding: 20px;
+  background: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
 }
 
 .hr-main {
-  max-width: 1200px;
+  flex: 1;
+  max-width: 900px;
+  width: 100%;
   margin: 0 auto;
   padding: 2rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
-  padding-top: 100px; /* Space for fixed header */
+  animation: slideUp 0.4s ease both;
 }
 
-/* Message Styles */
-.message {
-  padding: 1rem 1.5rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  font-size: 0.95rem;
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  font-weight: 600;
-  animation: slideIn 0.3s ease;
-}
-
-.message.success {
-  background: #ECFDF5;
-  color: #065F46;
-  border: 1px solid #10B981;
-}
-
-.message.error {
-  background: #FEF2F2;
-  color: #991B1B;
-  border: 1px solid #EF4444;
-}
-
-/* Intro Section */
+/* -- Intro Section -- */
 .intro-section {
-  background: white;
-  border-radius: 12px;
-  box-shadow: 0 4px 6px -1px rgba(30, 58, 138, 0.1);
-  overflow: hidden;
-  border: 1px solid #E2E8F0;
-}
-
-.intro-content {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 24px;
   padding: 3rem 2rem;
   text-align: center;
 }
 
-.intro-section h2 {
-  font-size: 2.5rem;
-  /* Navy Blue for Professionalism */
-  color: #1E3A8A; 
-  margin-bottom: 1rem;
-  font-weight: 800;
+.intro-content h2 {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 0.75rem;
+  letter-spacing: -0.03em;
 }
 
-.intro-section p {
-  color: #4B5563;
-  font-size: 1.15rem;
-  margin-bottom: 2.5rem;
-  max-width: 600px;
+.intro-content > p {
+  color: var(--text-muted);
+  font-size: 0.9rem;
+  margin-bottom: 2rem;
+  max-width: 480px;
   margin-left: auto;
   margin-right: auto;
-  line-height: 1.6;
 }
 
-/* Action Buttons */
-.btn {
-  padding: 1rem 2rem;
-  border: none;
-  border-radius: 8px;
-  font-size: 1.05rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.2s ease;
+.action-buttons {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* -- Loading state -- */
+.loading {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  min-width: 200px;
   justify-content: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin-top: 1.5rem;
 }
 
-.btn-primary {
-  /* Success Green for 'Start' */
-  background: #10B981;
-  color: white;
-  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
-}
+.loading i { color: var(--accent-gold); }
 
-.btn-primary:hover:not(:disabled) {
-  background: #059669;
-  transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(16, 185, 129, 0.3);
-}
-
-.btn-secondary {
-  /* Navy for History/Secondary actions */
-  background: #1E3A8A;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  background: #172554;
-  transform: translateY(-2px);
-}
-
-/* Interview Section */
+/* -- Interview Section -- */
 .interview-section {
-  background: white;
-  border-radius: 12px;
-  padding: 2.5rem;
-  border: 1px solid #E2E8F0;
-  box-shadow: 0 10px 25px rgba(30, 58, 138, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
 }
 
 .interview-header {
-  border-bottom: 2px solid #F1F5F9;
-  padding-bottom: 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.25rem 1.5rem;
 }
 
 .interview-header h3 {
-  color: #1E3A8A;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
 }
 
 .progress {
-  /* Navy background for progress capsule */
-  background: #F1F5F9;
-  color: #1E3A8A;
-  border: 1px solid #E2E8F0;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-muted);
+  background: var(--bg-elevated);
+  padding: 0.3rem 0.75rem;
+  border-radius: 100px;
+  border: 1px solid var(--border);
 }
 
-/* Questions */
-.question-card {
-  background: #F8FAFC;
-  border-radius: 12px;
-  padding: 2rem;
-  /* Navy side-accent */
-  border-left: 5px solid #1E3A8A; 
+/* -- Questions Container -- */
+.questions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
 }
 
-.question-number {
-  /* Gold for 'Achievement' in completing questions */
-  background: #F59E0B;
-  color: white;
-  width: 36px;
-  height: 36px;
-  box-shadow: 0 4px 10px rgba(245, 158, 11, 0.2);
+/* -- Session Controls -- */
+.session-controls {
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+  flex-wrap: wrap;
 }
 
-.answer-input:focus {
-  outline: none;
-  border-color: #10B981; /* Green focus when answering */
-  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+/* -- Session History -- */
+.session-history {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 1.75rem;
 }
 
-/* History List */
+.session-history h3 {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--border);
+}
+
+/* -- Empty History -- */
+.empty-history {
+  text-align: center;
+  padding: 2.5rem 1rem;
+  color: var(--text-muted);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.empty-history i {
+  font-size: 2rem;
+  color: var(--text-muted);
+  opacity: 0.5;
+}
+
+.empty-history p {
+  font-size: 0.9rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.empty-history small {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* -- History List -- */
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+}
+
 .history-item {
-  border-left: 4px solid #10B981; /* Green for completed sessions */
-  background: white;
-  border-top: 1px solid #E2E8F0;
-  border-right: 1px solid #E2E8F0;
-  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1rem 1.25rem;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  transition: all 0.2s ease;
+  flex-wrap: wrap;
+}
+
+.history-item:hover {
+  border-color: var(--border-strong);
+  transform: translateX(3px);
+}
+
+.session-date {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  flex-shrink: 0;
+}
+
+.session-stats {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  flex: 1;
 }
 
 .btn-view-session {
-  background: #F1F5F9;
-  color: #1E3A8A;
-  border: 1px solid #E2E8F0;
-  font-weight: 600;
+  padding: 0.35rem 0.875rem;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-family: 'Inter', sans-serif;
+  font-size: 0.8rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
 }
 
 .btn-view-session:hover {
-  background: #1E3A8A;
-  color: white;
+  background: var(--accent-gold-dim);
+  border-color: var(--border-accent);
+  color: var(--accent-gold);
 }
 
-/* Loading Icon */
-.loading i {
-  color: #F59E0B; /* Gold spinner */
+/* Question Card */
+.question-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 1.5rem;
+  animation: slideUp 0.3s ease both;
 }
 
-@media (max-width: 768px) {
-  .btn {
-    width: 100%;
-    max-width: none;
-  }
+.question-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+}
+
+.question-number {
+  width: 32px;
+  height: 32px;
+  background: var(--gradient-gold);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: #0F0F0F;
+  flex-shrink: 0;
+}
+
+.question-text {
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  line-height: 1.6;
+  padding-top: 0.25rem;
+}
+
+.answer-input {
+  width: 100%;
+  min-height: 120px;
+  background: var(--bg-input);
+  border: 1.5px solid var(--border);
+  border-radius: 12px;
+  padding: 1rem;
+  color: var(--text-primary);
+  font-family: 'Inter', sans-serif;
+  font-size: 0.9rem;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.answer-input::placeholder { color: var(--text-placeholder); }
+
+.answer-input:focus {
+  border-color: var(--accent-gold);
+  box-shadow: 0 0 0 3px var(--accent-gold-dim);
+}
+
+.character-count {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .hr-main { padding: 1rem; }
+  .action-buttons { flex-direction: column; }
+  .session-controls { flex-direction: column; }
 }

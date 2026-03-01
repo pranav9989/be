@@ -1,5 +1,5 @@
 .env
-myenv
+myenv/
 node_modules
 # Python
 __pycache__/
@@ -7,6 +7,7 @@ __pycache__/
 *.pyo
 *.pyd
 .Python
+uploads/
 
 # Virtual environments
 venv/
