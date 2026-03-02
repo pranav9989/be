@@ -43,9 +43,9 @@
     "id": "resume_chunk_1_5",
     "chunk_id": 5,
     "user_id": 1,
-    "text": "•Certifications Fundamentals of Deep Learning, Applications of AI for Anomaly Detection, SQL\n(Intermediate) Certificate\nSkills\n•Programming Languages : Python, JavaScript, Java.\n•Tools & Technologies : Git, Github, NumPy, Pandas, Matplotlib, Sk-learn, Tensorflow, HTML, CSS,\nExpressJs, NodeJs, StreamLit.\n•Databases : MySQL, Microsoft Server SQL Management Studio, MongoDB.\nExtra Curricular\n•Solved 500+ DSA problems on Leetcode and GFG, enhancing problem-solving and coding skills.",
+    "text": "•Certifications Fundamentals of Deep Learning, Applications of AI for Anomaly Detection, SQL\n(Intermediate) Certificate\nSkills\n•Programming Languages : Java, Python, JavaScript.\n•Tools & Technologies : Git, Github, NumPy, Pandas, Matplotlib, Sk-learn, Tensorflow, HTML, CSS,\nExpressJs, NodeJs, StreamLit.\n•Databases : MySQL, MongoDB.\nExtra Curricular\n•Solved 500+ DSA problems on Leetcode and GFG, enhancing problem-solving and coding skills.",
     "source": "resume",
-    "chunk_size": 482
+    "chunk_size": 442
   },
   {
     "id": "resume_chunk_1_6",

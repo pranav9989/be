@@ -2,6 +2,7 @@ import os
 import json
 import faiss
 import time
+import requests  # Keep for backward compatibility
 from sentence_transformers import SentenceTransformer
 from functools import lru_cache
 
@@ -32,17 +33,26 @@ ALLOWED_TOPICS = {"Operating Systems", "DBMS", "OOP"}
 
 # ================== TOPIC ALIASES (CRITICAL FIX) ==================
 TOPIC_ALIASES = {
+    # OS variations
     "OS": "Operating Systems",
     "Operating System": "Operating Systems",
     "Operating Systems": "Operating Systems",
+    "Os": "Operating Systems",  # Add this
+    "os": "Operating Systems",  # Add this
+    "oS": "Operating Systems",
     
+    # DBMS variations
     "DBMS": "DBMS",
     "Database": "DBMS",
     "Databases": "DBMS",
+    "dbms": "DBMS",  # Add this
     
+    # OOP variations
     "OOP": "OOP",
     "OOPS": "OOP",
+    "OOPs": "OOP",  # Add this
     "Object Oriented Programming": "OOP",
+    "Object-Oriented Programming": "OOP",  # Add this
 }
 
 OUT_OF_DOMAIN_MESSAGE = (
@@ -262,6 +272,7 @@ def mistral_generate(prompt, timeout=120):
         return None
 
 def ollama_generate(prompt, timeout=120):
+    """Wrapper for backward compatibility - uses Mistral instead of Ollama"""
     return mistral_generate(prompt, timeout)
 
 
@@ -286,6 +297,8 @@ Question:"""
         )
         elapsed = time.time() - start_time
         question = response.choices[0].message.content.strip()
+        print(f"✅ Generated question in {elapsed:.1f}s ({len(question)} chars)")
+        print(f"   Preview: {question[:100]}...")
         return question
     except Exception as e:
         print(f"❌ Mistral interview error: {e}")
@@ -434,13 +447,14 @@ def detect_topic_via_rag(query, k=5):
     """
     RAG VOTING TOPIC DETECTION
     Returns topic based on majority vote from retrieved chunks
+    Normalizes topic names to match ALLOWED_TOPICS format
     """
     print(f"\n🔍 Detecting topic via RAG voting for: {query[:50]}...")
     
     try:
         # Load data (cached)
         index, metas = load_index_and_metas()
-        embedder = get_embedder()  # Use cached embedder
+        embedder = get_embedder()
         
         # Get embedding
         query_emb = embedder.encode([query], normalize_embeddings=True)
@@ -448,22 +462,29 @@ def detect_topic_via_rag(query, k=5):
         # Search
         scores, I = index.search(query_emb, k)
         
-        # Count votes per topic
-        votes = {}
+        # Count votes per topic (with normalization)
+        raw_votes = {}
+        normalized_votes = {}
+        
         for idx in I[0]:
             if idx >= 0 and idx < len(metas):
-                topic = metas[idx].get("topic", "Unknown")
-                votes[topic] = votes.get(topic, 0) + 1
+                raw_topic = metas[idx].get("topic", "Unknown")
+                raw_votes[raw_topic] = raw_votes.get(raw_topic, 0) + 1
+                
+                # Normalize the topic name
+                normalized_topic = TOPIC_ALIASES.get(raw_topic, raw_topic)
+                normalized_votes[normalized_topic] = normalized_votes.get(normalized_topic, 0) + 1
         
-        if not votes:
+        if not normalized_votes:
             print("   No votes received")
             return None, 0.0
         
-        # Get winner
-        topic = max(votes, key=votes.get)
-        confidence = votes[topic] / k
+        # Get winner from normalized votes
+        topic = max(normalized_votes, key=normalized_votes.get)
+        confidence = normalized_votes[topic] / k
         
-        print(f"   Votes: {votes}")
+        print(f"   Raw votes: {raw_votes}")
+        print(f"   Normalized votes: {normalized_votes}")
         print(f"   Winner: {topic} (confidence: {confidence:.2f})")
         
         return topic, confidence
@@ -516,9 +537,15 @@ def technical_interview_query(user_query):
     # Secondary protection via RAG voting
     rag_topic, confidence = detect_topic_via_rag(user_query)
     
-    if rag_topic and rag_topic not in ALLOWED_TOPICS:
-        print(f"❌ RAG voting rejected topic: {rag_topic}")
-        return OUT_OF_DOMAIN_MESSAGE, []
+    if rag_topic:
+        # Ensure rag_topic is normalized (should be already, but safe check)
+        rag_topic_norm = TOPIC_ALIASES.get(rag_topic, rag_topic)
+        
+        if rag_topic_norm not in ALLOWED_TOPICS:
+            print(f"⚠️ RAG voting returned non-allowed topic: {rag_topic_norm} (raw: {rag_topic}) - ignoring RAG vote")
+            # Don't reject - just continue with detected_topic
+        else:
+            print(f"✅ RAG voting confirmed topic: {rag_topic_norm}")
     
     # Search with higher k to allow for filtering
     search_k = 15  # Search more, then filter down
@@ -611,11 +638,12 @@ def technical_interview_query(user_query):
     return answer, retrieved
 
 
-# ================== AGENTIC INTERVIEW ==================
+# ================== AGENTIC INTERVIEW (NOW USING MISTRAL) ==================
 def agentic_expected_answer(user_query, sampled_concepts=None, expected_topic=None):
     """
     Generate concise expected answer for adaptive interviews
     Uses controller-provided topic with alias normalization
+    NOW USING MISTRAL INSTEAD OF OLLAMA
     """
     print(f"\n📝 GENERATING EXPECTED ANSWER for: {user_query[:50]}...")
     if sampled_concepts:
@@ -687,46 +715,38 @@ Relevant context:
 
 Expected Answer:"""
 
+    # 🔥 NOW USING MISTRAL INSTEAD OF OLLAMA
     try:
-        response = requests.post(
-            OLLAMA_URL,
-            json={
-                "model": OLLAMA_MODEL,
-                "prompt": prompt,
-                "stream": False,
-                "options": {"temperature": 0.2, "num_predict": 300}
-            },
-            timeout=30
+        response = mistral_client.chat.complete(
+            model=MISTRAL_MODEL,
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0.2
         )
+
+        answer = response.choices[0].message.content.strip()
+        print(f"✅ Generated expected answer ({len(answer)} chars)")
         
-        if response.status_code == 200:
-            answer = response.json()["response"].strip()
-            print(f"✅ Generated expected answer ({len(answer)} chars)")
-            
-            # Verify concepts
-            if sampled_concepts:
-                answer_lower = answer.lower()
-                missing = []
-                present = []
-                for c in sampled_concepts:
-                    c_norm = c.lower()
-                    if c_norm in answer_lower:
-                        present.append(c)
-                    else:
-                        missing.append(c)
-                
-                if missing:
-                    print(f"   ⚠️ Missing concepts in generated answer: {missing}")
+        # Verify concepts
+        if sampled_concepts:
+            answer_lower = answer.lower()
+            missing = []
+            present = []
+            for c in sampled_concepts:
+                c_norm = c.lower()
+                if c_norm in answer_lower:
+                    present.append(c)
                 else:
-                    print(f"   ✓ All concepts present: {present}")
+                    missing.append(c)
             
-            return answer, chunks
-        else:
-            print(f"❌ Failed to generate: {response.status_code}")
-            return "", chunks
+            if missing:
+                print(f"   ⚠️ Missing concepts in generated answer: {missing}")
+            else:
+                print(f"   ✓ All concepts present: {present}")
+        
+        return answer, chunks
             
     except Exception as e:
-        print(f"❌ Error generating expected answer: {e}")
+        print(f"❌ Error generating expected answer with Mistral: {e}")
         return "", chunks
 
 
@@ -772,5 +792,6 @@ You MUST return your response as a valid JSON object with the following exact st
         print(f"❌ Mistral gap analysis error: {e}")
         return None
 
+
 if __name__ == '__main__':
-    print("RAG module loaded and ready.")
+    print("RAG module loaded and ready with Mistral.")

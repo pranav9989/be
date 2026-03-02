@@ -1,35 +1,20 @@
-Job Title
-Software Engineer - Client Technology (EY GDS, Mumbai)
+Morgan Stanley software engineering roles typically involve developing scalable applications for financial services, with a focus on full-stack or backend technologies. These positions emphasize collaboration in Agile teams, code quality, and innovation in areas like fraud detection, operations tech, or client portals.
 
 Key Responsibilities
-Solve complex project aspects through coding, debugging, testing, and troubleshooting across the development lifecycle.
-​
+Design, develop, and maintain web applications, APIs, and services using languages like Java, Python, Scala, or JavaScript/TypeScript.
 
-Provide technical leadership to optimize solutions, infrastructure, and technologies like AI/ML, while driving continuous improvements.
+Conduct code reviews, debugging, performance tuning, and refactor codebases for efficiency; integrate tools and prepackaged software into banking ecosystems.
 
-Collaborate with development, engineering, and architecture teams to build scalable, client-facing applications using modern stacks.
-​
+Collaborate with stakeholders on roadmaps, Agile ceremonies, and adopting new technologies like cloud services or AI chatbots.
 
-Required Skills and Experience
-Advanced proficiency in C#, Java, or Python; experience with CI/CD tools like GitHub, Azure DevOps (ADO).
+Required Skills
+Proficiency in core programming (e.g., Java, Spring, Python, Angular, Node.js) with experience in databases (SQL/NoSQL like Oracle, Sybase), multithreading, and design patterns.
 
-Strong background in software/platform engineering, including fine-tuning language models for tasks like text generation or summarization.
-​
+Knowledge of microservices, REST APIs, Git, CI/CD, Linux, and testing frameworks (Jasmine, Cypress).
 
-5+ years in delivering end-to-end solutions, agile delivery, cloud-native apps (.NET/Java/AI/ML/DevSecOps), and emerging tech (IoT/Blockchain).
+Strong problem-solving, communication, and Agile/DevOps experience; financial domain knowledge is a plus.
 
 Qualifications
-Bachelor's degree in Computer Science, Engineering, IT, or related field.
-​
+Roles often require a Bachelor's or Master's in Computer Science or related fields, with 3+ years of experience for associate levels (e.g., backend dev with ETL tools or UI frameworks).
 
-Relevant experience in tech consulting or GDS teams, with focus on quality assurance and client transformations.
-​
-
-Preferred: Exposure to EY service areas like Digital, Data & Analytics, or Cyber Security.
-​
-
-Location and Perks
-Based in Mumbai, Maharashtra, with hybrid work options common at EY India.
-​
-
-Competitive salary, global exposure, and professional development in a leading Big 4 firm.
+Mumbai openings (e.g., Parametric team) focus on Java/Python developers for scalable solutions.
