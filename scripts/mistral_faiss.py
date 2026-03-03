@@ -9,10 +9,10 @@ from pathlib import Path
 PROCESSED_DIR = Path("data/processed")
 KB_CLEAN_PATH = PROCESSED_DIR / "kb_clean.json"
 
-FAISS_DIR = PROCESSED_DIR / "faiss_gemini"
+FAISS_DIR = PROCESSED_DIR / "faiss_mistral"
 FAISS_DIR.mkdir(parents=True, exist_ok=True)
 
-INDEX_PATH = FAISS_DIR / "faiss_index_gemini.idx"
+INDEX_PATH = FAISS_DIR / "index.faiss"
 METAS_PATH = FAISS_DIR / "metas.json"
 
 # ================== LOADERS ==================

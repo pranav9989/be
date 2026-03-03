@@ -70,7 +70,7 @@
   letter-spacing: -0.03em;
 }
 
-.profile-header > p {
+.profile-header>p {
   font-size: 0.875rem;
   color: var(--text-muted);
 }
@@ -109,7 +109,9 @@
   color: var(--text-primary);
 }
 
-.card-header h3 i { color: var(--accent-gold); }
+.card-header h3 i {
+  color: var(--accent-gold);
+}
 
 .edit-btn {
   display: flex;
@@ -134,7 +136,11 @@
 }
 
 /* -- Info Display -- */
-.info-display { display: flex; flex-direction: column; gap: 1rem; }
+.info-display {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
 
 .info-item {
   display: flex;
@@ -161,7 +167,11 @@
 }
 
 /* -- Profile Form -- */
-.profile-form { display: flex; flex-direction: column; gap: 1rem; }
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
 
 .form-actions {
   display: flex;
@@ -233,7 +243,9 @@
   color: var(--text-primary);
 }
 
-.progress-header h3 i { color: var(--accent-gold); }
+.progress-header h3 i {
+  color: var(--accent-gold);
+}
 
 .avg-mastery {
   font-size: 0.875rem;
@@ -255,7 +267,11 @@
   font-size: 0.8375rem;
 }
 
-.score-explanation p { color: var(--text-secondary); margin-bottom: 0.5rem; font-weight: 600; }
+.score-explanation p {
+  color: var(--text-secondary);
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
 
 .score-explanation ul {
   list-style: none;
@@ -282,13 +298,27 @@
   display: inline-block;
 }
 
-.color-dot.strong  { background: var(--color-success); }
-.color-dot.medium  { background: var(--color-warning); }
-.color-dot.weak    { background: var(--color-error); }
-.color-dot.mastered { background: var(--accent-violet); }
+.color-dot.strong {
+  background: var(--color-success);
+}
+
+.color-dot.medium {
+  background: var(--color-warning);
+}
+
+.color-dot.weak {
+  background: var(--color-error);
+}
+
+.color-dot.mastered {
+  background: var(--accent-violet);
+}
 
 /* -- Mastery Sections -- */
-.mastered-section, .weak-section, .ongoing-section, .not-started-section {
+.mastered-section,
+.weak-section,
+.ongoing-section,
+.not-started-section {
   margin-bottom: 1.25rem;
 }
 
@@ -326,14 +356,38 @@
   transition: all 0.2s ease;
 }
 
-.topic-chip:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.topic-chip:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
 
-.topic-chip.mastered  { border-color: rgba(123,111,235,0.3); background: var(--accent-violet-dim); color: var(--accent-violet); }
-.topic-chip.weak      { border-color: rgba(239,68,68,0.25);  background: var(--color-error-dim);   color: var(--color-error); }
-.topic-chip.ongoing   { border-color: rgba(245,158,11,0.3);  background: var(--color-warning-dim);  color: var(--color-warning); }
+.topic-chip.mastered {
+  border-color: rgba(123, 111, 235, 0.3);
+  background: var(--accent-violet-dim);
+  color: var(--accent-violet);
+}
 
-.chip-value { font-size: 0.75rem; font-weight: 700; }
-.chip-count { font-size: 0.7rem; color: var(--text-muted); }
+.topic-chip.weak {
+  border-color: rgba(239, 68, 68, 0.25);
+  background: var(--color-error-dim);
+  color: var(--color-error);
+}
+
+.topic-chip.ongoing {
+  border-color: rgba(245, 158, 11, 0.3);
+  background: var(--color-warning-dim);
+  color: var(--color-warning);
+}
+
+.chip-value {
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.chip-count {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+}
 
 /* -- Not Started count -- */
 .not-started-count {
@@ -398,11 +452,14 @@
   line-height: 1;
 }
 
-.topic-questions { font-size: 0.75rem; color: var(--text-muted); }
+.topic-questions {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
 
 .reset-btn {
   background: var(--color-error-dim);
-  border: 1px solid rgba(239,68,68,0.2);
+  border: 1px solid rgba(239, 68, 68, 0.2);
   border-radius: 6px;
   padding: 0.25rem 0.5rem;
   font-family: 'Inter', sans-serif;
@@ -415,14 +472,14 @@
 }
 
 .reset-btn:hover {
-  background: rgba(239,68,68,0.2);
+  background: rgba(239, 68, 68, 0.2);
 }
 
 /* -- Modals -- */
 .topic-details-modal {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.6);
+  background: rgba(0, 0, 0, 0.6);
   backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
@@ -442,7 +499,7 @@
   max-height: 85vh;
   overflow-y: auto;
   position: relative;
-  animation: scaleIn 0.2s cubic-bezier(0.34,1.56,0.64,1);
+  animation: scaleIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
   box-shadow: var(--shadow-lg);
 }
 
@@ -464,7 +521,10 @@
   transition: all 0.15s ease;
 }
 
-.close-btn:hover { background: var(--color-error-dim); color: var(--color-error); }
+.close-btn:hover {
+  background: var(--color-error-dim);
+  color: var(--color-error);
+}
 
 .modal-content h3 {
   font-size: 1.125rem;
@@ -503,17 +563,41 @@
   border: 1px solid var(--border);
 }
 
-.detail-item > span { font-size: 0.75rem; color: var(--text-muted); }
-.detail-item > strong { font-size: 1rem; font-weight: 700; color: var(--text-primary); }
+.detail-item>span {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.detail-item>strong {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
 
 /* -- Difficulty badges -- */
-.difficulty-easy   { color: var(--color-success); }
-.difficulty-medium { color: var(--color-warning); }
-.difficulty-hard   { color: var(--color-error); }
+.difficulty-easy {
+  color: var(--color-success);
+}
+
+.difficulty-medium {
+  color: var(--color-warning);
+}
+
+.difficulty-hard {
+  color: var(--color-error);
+}
 
 /* -- Concept Masteries -- */
-.concept-masteries { margin-top: 1rem; }
-.concept-masteries h4 { font-size: 0.875rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.75rem; }
+.concept-masteries {
+  margin-top: 1rem;
+}
+
+.concept-masteries h4 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
 
 .concept-grid {
   display: grid;
@@ -542,13 +626,30 @@
   color: var(--text-primary);
 }
 
-.concept-stats { color: var(--text-muted); font-size: 0.75rem; display: flex; flex-direction: column; gap: 0.15rem; }
+.concept-stats {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
 
-.stagnation { color: var(--color-warning); font-size: 0.7rem; }
+.stagnation {
+  color: var(--color-warning);
+  font-size: 0.7rem;
+}
 
 /* -- Recent Questions -- */
-.recent-questions { margin-top: 1rem; }
-.recent-questions h4 { font-size: 0.875rem; font-weight: 700; color: var(--text-secondary); margin-bottom: 0.75rem; }
+.recent-questions {
+  margin-top: 1rem;
+}
+
+.recent-questions h4 {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-secondary);
+  margin-bottom: 0.75rem;
+}
 
 .recent-question {
   background: var(--bg-card);
@@ -558,8 +659,18 @@
   margin-bottom: 0.75rem;
 }
 
-.question-text { font-size: 0.875rem; color: var(--text-primary); margin-bottom: 0.375rem; line-height: 1.5; }
-.answer-text   { font-size: 0.8125rem; color: var(--text-secondary); margin-bottom: 0.375rem; }
+.question-text {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+  margin-bottom: 0.375rem;
+  line-height: 1.5;
+}
+
+.answer-text {
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+  margin-bottom: 0.375rem;
+}
 
 .expected-answer {
   font-size: 0.8rem;
@@ -589,11 +700,94 @@
   font-weight: 500;
 }
 
-.score.semantic { background: var(--accent-violet-dim); color: var(--accent-violet); }
-.score.keyword  { background: var(--accent-gold-dim);   color: var(--accent-gold); }
+.score.semantic {
+  background: var(--accent-violet-dim);
+  color: var(--accent-violet);
+}
+
+.score.keyword {
+  background: var(--accent-gold-dim);
+  color: var(--accent-gold);
+}
 
 @media (max-width: 768px) {
-  .profile-main { padding: 1rem; }
-  .profile-content { grid-template-columns: 1fr; }
-  .mastery-details { grid-template-columns: 1fr; }
+  .profile-main {
+    padding: 1rem;
+  }
+
+  .profile-content {
+    grid-template-columns: 1fr;
+  }
+
+  .mastery-details {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ========== PERFORMANCE SUMMARY CARD ========== */
+.performance-summary-card {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  padding: 1.75rem;
+  margin-bottom: 1.5rem;
+  color: white;
+  box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3);
+}
+
+.performance-summary-card h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.2rem;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: white;
+}
+
+.performance-summary-card .metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1.5rem;
+}
+
+.performance-summary-card .metric-item {
+  text-align: center;
+  padding: 0.5rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  transition: transform 0.2s ease;
+}
+
+.performance-summary-card .metric-item:hover {
+  transform: translateY(-2px);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.performance-summary-card .metric-label {
+  display: block;
+  font-size: 0.8rem;
+  opacity: 0.9;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.performance-summary-card .metric-value {
+  display: block;
+  font-size: 1.8rem;
+  font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.performance-summary-card .metric-desc {
+  display: block;
+  font-size: 0.7rem;
+  opacity: 0.8;
+  line-height: 1.4;
+}
+
+/* Topic strength label */
+.topic-strength {
+  font-size: 0.75rem;
+  text-transform: capitalize;
+  margin-top: 0.1rem;
 }

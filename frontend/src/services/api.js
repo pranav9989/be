@@ -42,7 +42,6 @@ export const authAPI = {
   resetPassword: (token, new_password) => api.post('/reset-password', { token, new_password }),
 };
 
-
 export const profileAPI = {
   update: (data) => api.post('/update_profile', data),
   getActionPlans: () => api.get('/profile/action_plans'),
@@ -66,10 +65,10 @@ export const resumeAPI = {
   // Legacy Ollama-based (kept for backward compatibility)
   generateResumeBasedQuestions: (data) => api.post('/resume_based_questions', data),
   // New Local Ollama endpoints replacing Gemini
-  generateQuestions:  (data) => api.post('/mock_interview/questions', data),
-  evaluateAnswer:     (data) => api.post('/mock_interview/evaluate_answer', data),
-  getSessionSummary:  (data) => api.post('/mock_interview/session_summary', data),
-  getResumeAnalysis:  ()     => api.get('/resume/analysis'),
+  generateQuestions: (data) => api.post('/mock_interview/questions', data),
+  evaluateAnswer: (data) => api.post('/mock_interview/evaluate_answer', data),
+  getSessionSummary: (data) => api.post('/mock_interview/session_summary', data),
+  getResumeAnalysis: () => api.get('/resume/analysis'),
 };
 
 export const statsAPI = {
@@ -92,21 +91,28 @@ export const progressAPI = {
   getUserProgress: () => api.get('/user/progress'),
   getTopicDetails: (topic) => api.get(`/user/topics/${topic}/details`),
 
-  // 🔥 NEW: Subtopic mastery endpoints
+  // 🔥 Subtopic mastery endpoints
   getSubtopicStats: () => api.get('/user/subtopic_stats'),
   getTopicSubtopics: (topic) => api.get(`/user/subtopics/${topic}`),
   resetMastery: (topic = null) => api.post('/user/reset_mastery', { topic }),
 
-  // 🔥 NEW: Get questions for a specific subtopic
+  // 🔥 Get questions for a specific subtopic
   getSubtopicQuestions: (topic, subtopic) =>
     api.get(`/user/subtopic/${topic}/${encodeURIComponent(subtopic)}/questions`),
 };
 
+// 🔥 NEW: Interview history API for aggregated metrics
+export const interviewAPI = {
+  getUserHistory: () => api.get('/user/history'),
+  getSessionDetails: (sessionId) => api.get(`/interview/session/${sessionId}`),
+  getMetrics: () => api.get('/interview/metrics'),
+};
+
 // Data Science Coding Practice API
 export const codingAPI = {
-  generateQuestions: (count, difficulty) => 
+  generateQuestions: (count, difficulty) =>
     api.post('/coding/questions', { question_count: count, difficulty }),
-  evaluateAnswer: (question, userCode, language) => 
+  evaluateAnswer: (question, userCode, language) =>
     api.post('/coding/evaluate', { question, user_code: userCode, language }),
 };
 

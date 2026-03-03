@@ -589,7 +589,7 @@ class AdaptiveInterviewController:
         
         # Get previous score for this subtopic
         prev_scores = [r.semantic_score for r in state.history 
-                      if r.topic == topic and r.subtopic == state.current_subtopic]
+                    if r.topic == topic and r.subtopic == state.current_subtopic]
         prev_score = prev_scores[-1] if prev_scores else 0.5
         
         # 🔥 USE STRICT DIFFICULTY MATRIX
@@ -601,22 +601,45 @@ class AdaptiveInterviewController:
         
         print(f"\n   ✅ NEXT DIFFICULTY: {next_difficulty.upper()} (score: {prev_score:.2f})")
         
-        # 🔥 STRESS TEST INJECTION 🔥
-        # If stress mode is active, tell the AI to act skeptical/challenging for the followup
-        user_context_override = ""
+        # 🔥 STRESS TEST HANDLING - WITHOUT BREAKING THE SYSTEM
         if stress_test:
-            print("\n   ⚠️ STRESS TEST MODE ACTIVE: Injecting adversarial prompt")
-            user_context_override = "STRESS TEST MODE: Act slightly skeptical. Challenge the user's previous answer and ask them to explicitly defend their technical reasoning or point out a potential flaw in what they just said."
-
-        question, subtopic, sampled_concepts = self._generate_question(
-            session_id=session_id,
-            topic=topic,
-            difficulty=next_difficulty,
-            user_name=state.user_name,
-            force_subtopic=state.current_subtopic,
-            weak_concepts=weak_concepts,
-            user_context=user_context_override  # Pass adversarial context down
-        )
+            print("\n   ⚠️ STRESS TEST MODE ACTIVE")
+            # Store stress_test flag in state for later use
+            state.stress_test_active = True
+            
+            # We'll pass this through a dedicated parameter that _generate_question expects
+            # Let's check if _generate_question accepts stress_test parameter
+            try:
+                question, subtopic, sampled_concepts = self._generate_question(
+                    session_id=session_id,
+                    topic=topic,
+                    difficulty=next_difficulty,
+                    user_name=state.user_name,
+                    force_subtopic=state.current_subtopic,
+                    weak_concepts=weak_concepts,
+                    stress_test=stress_test  # Only if method supports it
+                )
+            except TypeError:
+                # Fallback if stress_test parameter not supported
+                print("   ⚠️ stress_test parameter not supported, generating normal question")
+                question, subtopic, sampled_concepts = self._generate_question(
+                    session_id=session_id,
+                    topic=topic,
+                    difficulty=next_difficulty,
+                    user_name=state.user_name,
+                    force_subtopic=state.current_subtopic,
+                    weak_concepts=weak_concepts
+                )
+        else:
+            # Normal mode - no stress test
+            question, subtopic, sampled_concepts = self._generate_question(
+                session_id=session_id,
+                topic=topic,
+                difficulty=next_difficulty,
+                user_name=state.user_name,
+                force_subtopic=state.current_subtopic,
+                weak_concepts=weak_concepts
+            )
         
         asked_questions = [r.question for r in state.history]
         
@@ -632,10 +655,9 @@ class AdaptiveInterviewController:
             "subtopic": state.current_subtopic,
             "difficulty": next_difficulty,
             "time_remaining": state.time_remaining_sec(),
-            "learning_velocity": round(mastery.mastery_velocity, 3) if mastery else 0
+            "learning_velocity": round(mastery.mastery_velocity, 3) if mastery else 0,
+            "stress_test": stress_test  # Pass flag to frontend
         }
-    
-
     
     def _move_to_next_topic(self, state, session_id) -> dict:
         print("\n" + "="*80)

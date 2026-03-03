@@ -4,7 +4,6 @@ import { useInterviewStreaming } from '../../hooks/useInterviewStreaming';
 import AvatarViewer from './AvatarViewer';
 import { getPersona } from './interviewerPersonas';
 import './AgenticInterview.css';
-// force save
 
 // Session counter persisted to localStorage so it increments across page reloads
 const getSessionCount = () => parseInt(localStorage.getItem('agenticSessionCount') || '0', 10);
@@ -81,23 +80,82 @@ const AgenticInterview = ({ user, onLogout }) => {
         setExpandedQA(prev => ({ ...prev, [index]: !prev[index] }));
     };
 
-    // ── Metrics panel (unchanged logic, enhanced style) ──────────────────────
+    // Helper function to safely get metrics values from different possible sources
+    const getMetricValue = (key, defaultValue = 'N/A') => {
+        // Check metrics object first
+        if (metrics && metrics[key] !== undefined && metrics[key] !== null) {
+            return metrics[key];
+        }
+        // Check analysis.metrics
+        if (analysis && analysis.metrics && analysis.metrics[key] !== undefined) {
+            return analysis.metrics[key];
+        }
+        // Check analysis directly
+        if (analysis && analysis[key] !== undefined) {
+            return analysis[key];
+        }
+        return defaultValue;
+    };
+
+    // ── Metrics panel (SHOWING ONLY REQUESTED METRICS) ──────────────────────
     const renderMetrics = () => {
         if (!analysis && !metrics) return null;
 
         const data = analysis || {};
         const metricsData = metrics || data.metrics || {};
 
+        // 🔥 Parse speech_metrics JSON
+        let speechMetrics = {};
+        if (data.speech_metrics) {
+            try {
+                speechMetrics = typeof data.speech_metrics === 'string'
+                    ? JSON.parse(data.speech_metrics)
+                    : data.speech_metrics;
+            } catch (e) {
+                console.log('Error parsing speech_metrics:', e);
+            }
+        }
+
+        // Helper to get values from all possible sources
+        const getValue = (key, defaultValue = 'N/A') => {
+            if (metricsData[key] !== undefined && metricsData[key] !== null) return metricsData[key];
+            if (data.metrics && data.metrics[key] !== undefined) return data.metrics[key];
+            if (data[key] !== undefined) return data[key];
+            if (speechMetrics[key] !== undefined) return speechMetrics[key];
+            return defaultValue;
+        };
+
+        // Get speaking ratio
+        const speakingRatio = getValue('speaking_ratio') || getValue('speaking_time_ratio');
+
+        // ✅ REQUESTED METRICS ONLY
+        const speakingTime = getValue('speaking_time');
+        const silenceTime = getValue('silence_time');
+        const wpm = getValue('wpm');
+        const articulationRate = getValue('articulation_rate');
+        const avgResponseLatency = getValue('avg_response_latency');
+        const avgSemantic = getValue('avg_semantic_similarity') || 0;
+        const avgKeyword = getValue('avg_keyword_coverage') || 0;
+        const totalDuration = getValue('session_duration') || getValue('total_duration');
+
+        // Calculate overall relevance
+        let overallRelevance = getValue('overall_relevance');
+        if (overallRelevance === 'N/A' && avgSemantic !== 'N/A') {
+            const semantic = typeof avgSemantic === 'number' ? avgSemantic : 0;
+            const keyword = typeof avgKeyword === 'number' ? avgKeyword : 0;
+            overallRelevance = (semantic * 0.8) + (keyword * 0.2);
+        }
+
         const conversation = data.conversation ||
             (messages && messages.length > 0
                 ? messages.map(m => `${m.role === 'interviewer' ? 'Interviewer' : 'You'}: ${m.text}`).join('\n\n')
                 : finalTranscript || 'No transcript available');
 
-        const qaPairs = data.qa_pairs || [];
+        const qaPairs = data.qa_pairs || metricsData.question_scores || [];
 
         return (
             <div className="metrics-panel">
-                {/* Mini persona badge at top of analysis */}
+                {/* Mini persona badge */}
                 <div className="metrics-persona-badge">
                     <div className="metrics-persona-avatar" style={{ background: `linear-gradient(135deg, ${persona.avatarColor}, ${persona.accentColor})` }}>
                         {persona.initials}
@@ -120,6 +178,7 @@ const AgenticInterview = ({ user, onLogout }) => {
                 </div>
 
                 <div className="metrics-grid">
+                    {/* Full Transcript */}
                     <div className="metric-section full-width">
                         <h4>📝 Complete Interview Transcript</h4>
                         <div className="transcript-box full-conversation">
@@ -131,27 +190,122 @@ const AgenticInterview = ({ user, onLogout }) => {
                         </div>
                     </div>
 
+                    {/* ✅ SPEAKING TIME */}
                     <div className="metric-section">
-                        <h4>📈 Performance Metrics</h4>
+                        <h4>⏱️ Speaking Time</h4>
                         <div className="metrics-list">
-                            <div className="metric-item"><span className="metric-label">Words Per Minute:</span><span className="metric-value">{metricsData.wpm ? `${metricsData.wpm.toFixed(1)} wpm` : 'N/A'}</span></div>
-                            <div className="metric-item"><span className="metric-label">Speaking Time Ratio:</span><span className="metric-value">{metricsData.speaking_time_ratio ? `${(metricsData.speaking_time_ratio * 100).toFixed(1)}%` : 'N/A'}</span></div>
-                            <div className="metric-item"><span className="metric-label">Pause Ratio:</span><span className="metric-value">{metricsData.pause_ratio ? `${(metricsData.pause_ratio * 100).toFixed(1)}%` : 'N/A'}</span></div>
-                            <div className="metric-item"><span className="metric-label">Long Pauses (&gt;5s):</span><span className="metric-value">{metricsData.long_pause_count || 0}</span></div>
-                            <div className="metric-item"><span className="metric-label">Total Duration:</span><span className="metric-value">{data.total_duration ? `${data.total_duration.toFixed(1)}s` : 'N/A'}</span></div>
+                            <div className="metric-item">
+                                <span className="metric-label">Speaking Time:</span>
+                                <span className="metric-value">
+                                    {speakingTime !== 'N/A' ? `${typeof speakingTime === 'number' ? speakingTime.toFixed(1) : speakingTime}s` : 'N/A'}
+                                </span>
+                            </div>
                         </div>
                     </div>
 
+                    {/* ✅ SILENCE TIME (Thinking Time) */}
                     <div className="metric-section">
-                        <h4>📋 Q&A Performance</h4>
+                        <h4>⏸️ Silence (Thinking Time)</h4>
                         <div className="metrics-list">
-                            <div className="metric-item"><span className="metric-label">Questions Answered:</span><span className="metric-value">{metricsData.questions_answered || data.question_count || 0}</span></div>
-                            <div className="metric-item"><span className="metric-label">Avg Semantic Similarity:</span><span className="metric-value true-value">{(metricsData.avg_semantic_similarity !== undefined ? (metricsData.avg_semantic_similarity * 100).toFixed(1) : data.avg_semantic_similarity ? (data.avg_semantic_similarity * 100).toFixed(1) : 'N/A')}%<span className="value-note"> (raw cosine)</span></span></div>
-                            <div className="metric-item"><span className="metric-label">Avg Keyword Coverage:</span><span className="metric-value true-value">{(metricsData.avg_keyword_coverage !== undefined ? (metricsData.avg_keyword_coverage * 100).toFixed(1) : data.avg_keyword_coverage ? (data.avg_keyword_coverage * 100).toFixed(1) : 'N/A')}%<span className="value-note"> (stop words filtered)</span></span></div>
-                            <div className="metric-item highlight"><span className="metric-label">Overall Relevance:</span><span className="metric-value highlight-value">{(metricsData.overall_relevance !== undefined ? (metricsData.overall_relevance * 100).toFixed(1) : data.combined_relevance_score ? (data.combined_relevance_score * 100).toFixed(1) : 'N/A')}%<span className="value-note"> (80/20 weighted)</span></span></div>
+                            <div className="metric-item">
+                                <span className="metric-label">Silence Time:</span>
+                                <span className="metric-value">
+                                    {silenceTime !== 'N/A' ? `${typeof silenceTime === 'number' ? silenceTime.toFixed(1) : silenceTime}s` : 'N/A'}
+                                </span>
+                            </div>
                         </div>
+                    </div>
 
-                        {qaPairs.length > 0 && (
+                    {/* ✅ SPEAKING RATIO */}
+                    <div className="metric-section">
+                        <h4>📊 Speaking Ratio</h4>
+                        <div className="metrics-list">
+                            <div className="metric-item">
+                                <span className="metric-label">Speaking Ratio:</span>
+                                <span className="metric-value">
+                                    {speakingRatio !== 'N/A' ? `${(typeof speakingRatio === 'number' ? speakingRatio * 100 : speakingRatio).toFixed(1)}%` : 'N/A'}
+                                </span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">Session Duration:</span>
+                                <span className="metric-value">
+                                    {totalDuration !== 'N/A' ? `${typeof totalDuration === 'number' ? totalDuration.toFixed(1) : totalDuration}s` : 'N/A'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ✅ WPM */}
+                    <div className="metric-section">
+                        <h4>⚡ Words Per Minute</h4>
+                        <div className="metrics-list">
+                            <div className="metric-item">
+                                <span className="metric-label">WPM:</span>
+                                <span className="metric-value">
+                                    {wpm !== 'N/A' ? `${typeof wpm === 'number' ? wpm.toFixed(1) : wpm} wpm` : 'N/A'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ✅ ARTICULATION RATE */}
+                    <div className="metric-section">
+                        <h4>🗣️ Articulation Rate</h4>
+                        <div className="metrics-list">
+                            <div className="metric-item">
+                                <span className="metric-label">Articulation Rate:</span>
+                                <span className="metric-value">
+                                    {articulationRate !== 'N/A' ? `${typeof articulationRate === 'number' ? articulationRate.toFixed(2) : articulationRate} words/s` : 'N/A'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ✅ RESPONSE LATENCY */}
+                    <div className="metric-section">
+                        <h4>⚡ Response Latency</h4>
+                        <div className="metrics-list">
+                            <div className="metric-item">
+                                <span className="metric-label">Avg Response Latency:</span>
+                                <span className="metric-value">
+                                    {avgResponseLatency !== 'N/A' ? `${typeof avgResponseLatency === 'number' ? avgResponseLatency.toFixed(2) : avgResponseLatency}s` : 'N/A'}
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ✅ SEMANTIC SCORE & KEYWORD COVERAGE */}
+                    <div className="metric-section">
+                        <h4>📋 Content Quality</h4>
+                        <div className="metrics-list">
+                            <div className="metric-item">
+                                <span className="metric-label">Semantic Similarity:</span>
+                                <span className="metric-value true-value">
+                                    {avgSemantic !== 'N/A' ? `${(typeof avgSemantic === 'number' ? avgSemantic * 100 : avgSemantic).toFixed(1)}%` : 'N/A'}
+                                    <span className="value-note"> (raw cosine)</span>
+                                </span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">Keyword Coverage:</span>
+                                <span className="metric-value true-value">
+                                    {avgKeyword !== 'N/A' ? `${(typeof avgKeyword === 'number' ? avgKeyword * 100 : avgKeyword).toFixed(1)}%` : 'N/A'}
+                                    <span className="value-note"> (stop words filtered)</span>
+                                </span>
+                            </div>
+                            <div className="metric-item highlight">
+                                <span className="metric-label">Overall Relevance:</span>
+                                <span className="metric-value highlight-value">
+                                    {overallRelevance !== 'N/A' ? `${(typeof overallRelevance === 'number' ? overallRelevance * 100 : overallRelevance).toFixed(1)}%` : 'N/A'}
+                                    <span className="value-note"> (80/20 weighted)</span>
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Q&A Details (Optional - Keep if you want) */}
+                    {qaPairs.length > 0 && (
+                        <div className="metric-section full-width">
+                            <h4>📋 Question & Answer Details</h4>
                             <div className="qa-details">
                                 <h5 onClick={() => toggleQAExpanded('all')} className="qa-toggle">
                                     {expandedQA.all ? '▼' : '▶'} View Detailed Q&A Analysis
@@ -164,23 +318,25 @@ const AgenticInterview = ({ user, onLogout }) => {
                                                 <div className="qa-answer"><strong>Your Answer:</strong> {pair.answer}</div>
                                                 {pair.expected_answer && <div className="qa-expected"><strong>Expected:</strong> {pair.expected_answer}</div>}
                                                 <div className="qa-scores">
-                                                    <span className="qa-score semantic">Semantic: {(pair.similarity * 100).toFixed(1)}%<span className="score-note"> raw cosine</span></span>
-                                                    <span className="qa-score keyword">Keyword: {(pair.keyword_coverage * 100).toFixed(1)}%<span className="score-note"> filtered</span></span>
+                                                    <span className="qa-score semantic">Semantic: {(pair.similarity * 100).toFixed(1)}%</span>
+                                                    <span className="qa-score keyword">Keyword: {(pair.keyword_coverage * 100).toFixed(1)}%</span>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 )}
                             </div>
-                        )}
-                    </div>
+                        </div>
+                    )}
 
+                    {/* Processing Details (Minimal) */}
                     <div className="metric-section">
-                        <h4>⚙️ Processing Details</h4>
+                        <h4>⚙️ Processing</h4>
                         <div className="metrics-list">
-                            <div className="metric-item"><span className="metric-label">Processing Method:</span><span className="metric-value">{data.processing_method || 'incremental_fast'}</span></div>
-                            <div className="metric-item"><span className="metric-label">Total Words:</span><span className="metric-value">{data.total_words || 0}</span></div>
-                            <div className="metric-item"><span className="metric-label">Analysis Valid:</span><span className="metric-value">{data.analysis_valid ? '✅ Yes' : '❌ No'}</span></div>
+                            <div className="metric-item">
+                                <span className="metric-label">Analysis Valid:</span>
+                                <span className="metric-value">{data.analysis_valid ? '✅ Yes' : '❌ No'}</span>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -234,8 +390,8 @@ const AgenticInterview = ({ user, onLogout }) => {
 
                         <div className="agentic-mode-toggles" style={{ margin: '20px 0', padding: '15px', background: 'var(--bg-elevated)', borderRadius: '12px', border: '1px solid var(--border)' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-                                <input 
-                                    type="checkbox" 
+                                <input
+                                    type="checkbox"
                                     checked={stressTestMode}
                                     onChange={(e) => setStressTestMode(e.target.checked)}
                                     style={{ width: '20px', height: '20px', accentColor: persona.accentColor }}
@@ -331,7 +487,7 @@ const AgenticInterview = ({ user, onLogout }) => {
                             <div className={`turn-dot ${currentTurn === 'USER' ? 'your-turn' : 'their-turn'}`} />
                             <span>
                                 {currentTurn === 'USER' ? '🎤 Your turn' :
-                                 currentTurn === 'INTERVIEWER' ? '🗣️ Interviewer speaking' : 'Waiting…'}
+                                    currentTurn === 'INTERVIEWER' ? '🗣️ Interviewer speaking' : 'Waiting…'}
                             </span>
                         </div>
                         <div className="timer">⏱️ {timeRemaining}</div>

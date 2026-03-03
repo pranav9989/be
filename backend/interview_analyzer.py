@@ -6,13 +6,13 @@ import spacy
 from faster_whisper import WhisperModel
 import re
 import time
+import threading
 from sklearn.metrics.pairwise import cosine_similarity
 from pydub import AudioSegment
 import concurrent.futures
 from functools import partial
 
 # Load models
-# Only load models once when the module is imported
 try:
     nlp = spacy.load("en_core_web_sm")
 except OSError:
@@ -22,218 +22,336 @@ except OSError:
 
 embedder = SentenceTransformer("all-MiniLM-L6-v2")
 
+# Helper: monotonic timestamp in seconds
+def now_ts():
+    return time.monotonic()
+
 class RunningStatistics:
     """
-    Maintains running statistics for incremental speech analysis.
-    Supports Welford's online algorithm for mean/variance calculation.
+    RESEARCH-GRADE SPEECH METRICS
+    CORRECT LOGIC:
+    - speaking_time = actual voice activity
+    - silence_time = pauses BETWEEN speech segments (thinking time)
+    - forced_silence_time = 15s waits AFTER answer complete
     """
-
-    def __init__(self):
-        # Text/transcription statistics
+    def __init__(self, pause_threshold=0.3, long_pause_threshold=5.0, ignore_long_pause_over=20.0):
+        self.lock = threading.RLock()
+        
+        # =====================================
+        # RESEARCH-GRADE CLOCKS
+        # =====================================
+        self.session_start_time = now_ts()
+        self.session_end_time = None
+        
+        # Speech event tracking
+        self.current_speech_start = None
+        self.last_speech_end = None
+        self.first_voice_recorded = False
+        self.question_end_time = None
+        self.response_latencies = []
+        
+        # =====================================
+        # CORRECT AGGREGATES
+        # =====================================
+        self.total_speaking_time = 0.0      # Actual voice activity
+        self.total_silence_time = 0.0        # Pauses BETWEEN speech segments
+        self.forced_silence_time = 0.0       # 15s waits AFTER answer complete
+        self.total_session_duration = 0.0    # Total wall-clock time
+        self.effective_duration = 0.0        # total - forced_silence
+        
         self.total_words = 0
-        self.transcript_parts = []  # This stores ALL user speech parts
-
-        # 🔥 Store full conversation
-        self.conversation = []  # List of {"role": "interviewer" or "user", "text": text}
-        self.full_transcript = []  # Formatted conversation for display
-
-        # Time statistics
-        self.total_duration = 0.0
-        self.speaking_time = 0.0
-
-        self.last_chunk_end_time = 0.0  # Track end of last speech in current chunk
-        self.pending_pause_start = None
-
-        # Pause statistics
+        
+        # =====================================
+        # PAUSE TRACKING
+        # =====================================
+        self.pause_threshold = float(pause_threshold)
+        self.long_pause_threshold = float(long_pause_threshold)
+        self.ignore_long_pause_over = float(ignore_long_pause_over)
         self.pause_durations = []
         self.long_pause_count = 0
-
-        # Pitch statistics (using Welford's algorithm)
-        self.pitch_count = 0
-        self.pitch_mean = 0.0
-        self.pitch_m2 = 0.0  # For variance calculation
-        self.pitch_min = float('inf')
-        self.pitch_max = float('-inf')
-
-        # Filler word statistics
-        self.filler_counts = {}
-
-        # Voice quality statistics
-        self.jitter_values = []
-        self.shimmer_values = []
-        self.hnr_values = []
-
-        # 🔥 Track per-question scores WITH expected answers
-        self.question_scores = []  # List of dicts with question, answer, expected_answer, similarity, keyword_coverage
+        
+        # =====================================
+        # TRANSCRIPT & QA TRACKING
+        # =====================================
+        self.transcript_parts = []
+        self.conversation = []
+        self.full_transcript = []
+        self.question_scores = []
         self.total_semantic_score = 0.0
         self.total_keyword_score = 0.0
         self.question_count = 0
-
-        self.question_end_time = None
-        self.first_voice_time = None
-        self.response_latencies = []  # List of latencies per question
-
-    # 🔥 Record interviewer question
-    def record_question(self, question):
-        """Record interviewer question"""
-        self.conversation.append({
-            'role': 'interviewer',
-            'text': question
-        })
-        # Also add to formatted transcript
-        self.full_transcript.append(f"Interviewer: {question}")
-        print(f"📝 Recorded question: {question[:50]}...")
-
-    def record_question_end(self):
-        """Record when interviewer finishes speaking"""
-        self.question_end_time = time.time()
-        print(f"⏱️ Question end recorded at {self.question_end_time:.1f}s")
-
-    def record_first_voice(self):
-        """Record when user starts speaking"""
-        self.first_voice_time = time.time()
-        if self.question_end_time:
-            latency = self.first_voice_time - self.question_end_time
-            self.response_latencies.append(latency)
-            print(f"⏱️ Response latency: {latency:.2f}s")
-        else:
-            print(f"⏱️ First voice recorded but no question end time")
-
-        def get_avg_response_latency(self):
-            """Get average response latency"""
-            if self.response_latencies:
-                return sum(self.response_latencies) / len(self.response_latencies)
-            return 0.0
-
-    # 🔥 MODIFIED: Update record_qa_pair to include expected_answer
-    def record_qa_pair(self, question, answer, expected_answer, similarity_score, keyword_score):
-        """Record a question-answer pair with its scores and the expected answer"""
         
-        # FIX: Ensure question is recorded BEFORE answer
-        # Check if this question is already in conversation
-        question_exists = False
-        for msg in self.conversation:
-            if msg['role'] == 'interviewer' and msg['text'] == question:
-                question_exists = True
-                break
+        # Legacy fields (keep for compatibility)
+        self.pitch_count = 0
+        self.pitch_mean = 0.0
+        self.pitch_m2 = 0.0
+        self.pitch_min = float('inf')
+        self.pitch_max = float('-inf')
+        self.filler_counts = {}
+        self.jitter_values = []
+        self.shimmer_values = []
+        self.hnr_values = []
         
-        if not question_exists:
-            self.conversation.append({
-                'role': 'interviewer',
-                'text': question
-            })
-            self.full_transcript.append(f"Interviewer: {question}")
-        
-        self.question_scores.append({
-            'question': question,
-            'answer': answer,
-            'expected_answer': expected_answer,
-            'similarity': similarity_score,
-            'keyword_coverage': keyword_score
-        })
-        self.total_semantic_score += similarity_score
-        self.total_keyword_score += keyword_score
-        self.question_count += 1
-        
-        # Record user answer
-        self.conversation.append({
-            'role': 'user',
-            'text': answer
-        })
-        self.full_transcript.append(f"User: {answer}")
-        
-        print(f"📝 Recorded Q&A pair #{self.question_count}:")
-        print(f"   Q: {question[:50]}...")
-        print(f"   A: {answer[:50]}...")
-        print(f"   Expected: {expected_answer[:50]}...")
-        print(f"   Semantic: {similarity_score:.3f}, Keyword: {keyword_score:.3f}")
-
-    def update_transcript(self, new_text):
-        """Update transcription statistics incrementally."""
-        if new_text:
-            self.transcript_parts.append(new_text)
-            words_in_segment = len(new_text.split())
-            self.total_words += words_in_segment
-
-    def update_time_stats(self, segment_duration, speaking_duration):
-        """Update time-based statistics with validation."""
-        self.total_duration += segment_duration
-        
-        # 🔥 CRITICAL: Speaking time cannot exceed total duration
-        speaking_duration = min(speaking_duration, segment_duration)
-        self.speaking_time += speaking_duration
-
-    def update_pause_stats(self, pause_durations):
-        """Update pause statistics with proper long pause detection (5s threshold)."""
-        for pause in pause_durations:
-            self.pause_durations.append(pause)
-            # 🔥 FIXED: Long pause threshold = 5 seconds
-            if pause > 5.0:
-                self.long_pause_count += 1
-                print(f"⏸️ LONG PAUSE DETECTED: {pause:.1f}s (count: {self.long_pause_count})")
-
-    def handle_chunk_boundary(self, chunk_start_time, chunk_end_time, had_speech):
+        # Diagnostics
+        self.event_log = []  # Keep last 20 events for debugging
+    
+    # =====================================
+    # SPEECH EVENT HANDLERS (THREAD-SAFE)
+    # =====================================
+    
+    def record_question_end(self, ts=None):
+        """Called when interviewer finishes asking question"""
+        with self.lock:
+            ts = now_ts() if ts is None else ts
+            self.question_end_time = ts
+            self._log_event("question_end", ts)
+            print(f"⏱️ Question end recorded at {ts:.1f}s")
+    
+    def record_speech_start(self, ts=None):
         """
-        Track pauses during user's answer ONLY.
-        Counts EVERY 5-second chunk as a long pause.
+        Called when user starts speaking
+        Detects pause BEFORE starting new speech (thinking time)
         """
-        # If this chunk has no speech (USER IS SILENT)
-        if not had_speech:
-            if self.pending_pause_start is None:
-                # Start of a new silence period during answer
-                self.pending_pause_start = chunk_start_time
-                print(f"⏸️ Silence started at {chunk_start_time:.1f}s")
+        with self.lock:
+            ts = now_ts() if ts is None else ts
             
-        # If this chunk has speech (USER IS SPEAKING)
-        else:
-            if self.pending_pause_start is not None:
-                # Silence just ended - calculate total pause duration
-                pause_duration = chunk_start_time - self.pending_pause_start
-                
-                # 🔥 CRITICAL: Count EVERY 5-second chunk as a long pause
-                if pause_duration > 0.3:  # Only count significant pauses
-                    print(f"⏸️ Pause ended: {pause_duration:.2f}s")
-                    
-                    # Count how many 5-second chunks are in this pause
-                    # Examples:
-                    # - 5.2s pause → floor(5.2/5) = 1 long pause ✅
-                    # - 10.8s pause → floor(10.8/5) = 2 long pauses ✅
-                    # - 14.9s pause → floor(14.9/5) = 2 long pauses ✅
-                    num_long_pauses = int(pause_duration // 5)
-                    
-                    if num_long_pauses > 0:
-                        for i in range(num_long_pauses):
+            # Detect pause before starting new speech
+            if self.last_speech_end is not None:
+                pause_duration = ts - self.last_speech_end
+                if pause_duration > self.pause_threshold:
+                    # Only count reasonable pauses (< ignore_long_pause_over)
+                    if pause_duration < self.ignore_long_pause_over:
+                        self.pause_durations.append(pause_duration)
+                        self.total_silence_time += pause_duration
+                        self._log_event("pause", pause_duration, ts)
+                        print(f"⏸️ Silence segment: +{pause_duration:.2f}s (total silence: {self.total_silence_time:.1f}s)")
+                        
+                        if pause_duration > self.long_pause_threshold:
                             self.long_pause_count += 1
-                            pause_start = self.pending_pause_start + (i * 5)
-                            pause_end = min(pause_start + 5, chunk_start_time)
-                            print(f"   → LONG PAUSE #{self.long_pause_count}: {pause_end-pause_start:.1f}s")
-                    
-                    # Add to total pauses list
-                    self.pause_durations.append(pause_duration)
+                            print(f"   → Long pause detected ({pause_duration:.1f}s)")
+                    else:
+                        self._log_event("ignored_pause", pause_duration, ts)
+                        print(f"⏸️ Ignoring pause >{self.ignore_long_pause_over:.0f}s: {pause_duration:.1f}s (likely system wait)")
+            
+            # Start new speech segment if not already started
+            if self.current_speech_start is None:
+                self.current_speech_start = ts
+                self._log_event("speech_start", ts)
+                print(f"🎤 Speech START at {ts:.2f}s")
                 
-                # Reset for next silence
-                self.pending_pause_start = None
-
+                # Record first voice for latency tracking
+                if not self.first_voice_recorded and self.question_end_time is not None:
+                    latency = ts - self.question_end_time
+                    self.response_latencies.append(latency)
+                    self.first_voice_recorded = True
+                    self._log_event("response_latency", latency, ts)
+                    print(f"⏱️ Response latency: {latency:.2f}s")
+    
+    def record_speech_end(self, ts=None):
+        """Called when user stops speaking"""
+        with self.lock:
+            ts = now_ts() if ts is None else ts
+            
+            if self.current_speech_start is None:
+                return
+            
+            # Calculate speech duration for this segment
+            speech_duration = ts - self.current_speech_start
+            
+            # 🔥 SANITY CHECK: If speaking time is too long for word count, cap it
+            expected_speaking_time = self.total_words * 0.3  # 300ms per word estimate
+            if expected_speaking_time > 0 and speech_duration > expected_speaking_time * 2:
+                print(f"⚠️ Unusual speaking time: {speech_duration:.1f}s for {self.total_words} words")
+                speech_duration = min(speech_duration, expected_speaking_time * 1.5)
+            
+            self.total_speaking_time += speech_duration
+            self.last_speech_end = ts
+            self.current_speech_start = None
+            self._log_event("speech_end", speech_duration, ts)
+            print(f"🎤 Speech END: +{speech_duration:.2f}s (total speaking: {self.total_speaking_time:.1f}s)")
+    
+    def record_forced_silence(self, duration):
+        """
+        Called when silence watcher hits 15s timeout
+        This 15s is NOT counted in speaking or silence time
+        It's tracked separately as system waiting time
+        """
+        with self.lock:
+            self.forced_silence_time += float(duration)
+            self._log_event("forced_silence", float(duration), now_ts())
+            print(f"⏰ Forced silence (system wait): +{duration:.1f}s (total forced: {self.forced_silence_time:.1f}s)")
+    
+    # =====================================
+    # TRANSCRIPT & QA TRACKING
+    # =====================================
+    
+    def update_transcript(self, new_text):
+        if new_text:
+            with self.lock:
+                self.transcript_parts.append(new_text)
+                self.total_words += len(new_text.split())
+    
+    def record_question(self, question):
+        with self.lock:
+            self.conversation.append({'role': 'interviewer', 'text': question})
+            self.full_transcript.append(f"Interviewer: {question}")
+    
+    def record_qa_pair(self, question, answer, expected_answer, similarity_score, keyword_score):
+        with self.lock:
+            self.question_scores.append({
+                'question': question,
+                'answer': answer,
+                'expected_answer': expected_answer,
+                'similarity': similarity_score,
+                'keyword_coverage': keyword_score
+            })
+            self.total_semantic_score += similarity_score
+            self.total_keyword_score += keyword_score
+            self.question_count += 1
+            
+            self.conversation.append({'role': 'user', 'text': answer})
+            self.full_transcript.append(f"User: {answer}")
+    
+    # =====================================
+    # FINAL METRICS COMPUTATION
+    # =====================================
+    
+    def finalize_session_metrics(self):
+        """Compute final, mathematically valid metrics"""
+        with self.lock:
+            self.session_end_time = now_ts()
+            
+            if self.session_start_time:
+                self.total_session_duration = max(0.0, self.session_end_time - self.session_start_time)
+            
+            # If a speech segment is still open, close it now
+            if self.current_speech_start is not None:
+                seg = now_ts() - self.current_speech_start
+                self.total_speaking_time += seg
+                self.last_speech_end = now_ts()
+                self.current_speech_start = None
+                self._log_event("auto_close_final", seg)
+                print(f"🎤 Auto-closed final speech segment: +{seg:.2f}s")
+            
+            # Effective duration = total - forced silence (system waits)
+            self.effective_duration = max(0.0, self.total_session_duration - self.forced_silence_time)
+            
+            # Speaking ratio = speaking_time / effective_duration
+            if self.effective_duration > 0:
+                self.speaking_ratio = self.total_speaking_time / self.effective_duration
+            else:
+                self.speaking_ratio = 0.0
+    
+    def compute_research_metrics(self):
+        """Return research-grade metrics dictionary"""
+        with self.lock:
+            self.finalize_session_metrics()
+            
+            # Words Per Minute (using speaking time only)
+            if self.total_speaking_time > 5.0:
+                speaking_minutes = self.total_speaking_time / 60
+                wpm = self.total_words / speaking_minutes
+            else:
+                wpm = 0.0
+            
+            # Pause statistics
+            avg_pause = float(np.mean(self.pause_durations)) if self.pause_durations else 0.0
+            
+            # Hesitation rate (pauses per minute of speaking)
+            if speaking_minutes > 0:
+                hesitation_rate = len(self.pause_durations) / speaking_minutes
+            else:
+                hesitation_rate = 0.0
+            
+            # Articulation rate (words per second of actual speaking)
+            articulation_rate = self.total_words / max(0.1, self.total_speaking_time)
+            
+            # 🔥 CORRECT: Calculate silence_time = effective_duration - speaking_time
+            silence_time = max(0.0, self.effective_duration - self.total_speaking_time)
+            
+            # Fluency score (0-1, higher is more fluent)
+            if self.effective_duration > 0:
+                fluency_score = self.total_speaking_time / self.effective_duration
+            else:
+                fluency_score = 0.0
+            
+            # Average response latency
+            avg_response_latency = float(np.mean(self.response_latencies)) if self.response_latencies else 0.0
+            
+            # Average Q&A scores
+            avg_semantic = self.total_semantic_score / self.question_count if self.question_count > 0 else 0.0
+            avg_keyword = self.total_keyword_score / self.question_count if self.question_count > 0 else 0.0
+            
+            print("\n" + "="*60)
+            print("📊 RESEARCH METRICS (MATHEMATICALLY VALID)")
+            print("="*60)
+            print(f"   Session duration:       {self.total_session_duration:.1f}s")
+            print(f"   Forced silence removed: {self.forced_silence_time:.1f}s")
+            print(f"   Effective duration:     {self.effective_duration:.1f}s")
+            print(f"   Speaking time:          {self.total_speaking_time:.1f}s")
+            print(f"   Silence time:           {silence_time:.1f}s")
+            print(f"   Speaking ratio:         {self.speaking_ratio:.3f}")
+            print(f"   Total words:            {self.total_words}")
+            print(f"   WPM:                    {wpm:.1f}")
+            print(f"   Long pauses (>5s):      {self.long_pause_count}")
+            print(f"   Avg response latency:   {avg_response_latency:.2f}s")
+            print(f"   Fluency score:          {fluency_score:.3f}")
+            print("="*60)
+            
+            return {
+                "session_duration": round(self.total_session_duration, 1),
+                "effective_duration": round(self.effective_duration, 1),
+                "speaking_time": round(self.total_speaking_time, 1),
+                "silence_time": round(silence_time, 1),
+                "forced_silence_time": round(self.forced_silence_time, 1),
+                "speaking_ratio": round(self.speaking_ratio, 3),
+                "wpm": round(wpm, 1),
+                "total_words": self.total_words,
+                "avg_pause_duration": round(avg_pause, 2),
+                "pause_count": len(self.pause_durations),
+                "long_pause_count": self.long_pause_count,
+                "hesitation_rate": round(hesitation_rate, 2),
+                "articulation_rate": round(articulation_rate, 2),
+                "fluency_score": round(fluency_score, 3),
+                "avg_response_latency": round(avg_response_latency, 2),
+                "avg_semantic_similarity": round(avg_semantic, 3),
+                "avg_keyword_coverage": round(avg_keyword, 3),
+                "questions_answered": self.question_count,
+                "event_log": self.event_log[-20:]  # Last 20 events for debugging
+            }
+    
+    def _log_event(self, event_type, *args):
+        """Internal method to log events for debugging"""
+        self.event_log.append((event_type, now_ts(), args))
+        if len(self.event_log) > 100:
+            self.event_log = self.event_log[-100:]
+    
+    # =====================================
+    # LEGACY METHODS (KEEP FOR COMPATIBILITY)
+    # =====================================
+    
+    def get_avg_response_latency(self):
+        return float(np.mean(self.response_latencies)) if self.response_latencies else 0.0
+    
+    def get_current_stats(self):
+        return self.compute_research_metrics()
+    
     def update_pitch_stats(self, pitch_values):
-        """Update pitch statistics using Welford's online algorithm."""
         for pitch in pitch_values:
-            if np.isfinite(pitch):  # Only include finite values
+            if np.isfinite(pitch):
                 self.pitch_count += 1
                 delta = pitch - self.pitch_mean
                 self.pitch_mean += delta / self.pitch_count
                 delta2 = pitch - self.pitch_mean
                 self.pitch_m2 += delta * delta2
-
                 self.pitch_min = min(self.pitch_min, pitch)
                 self.pitch_max = max(self.pitch_max, pitch)
-
+    
     def update_filler_stats(self, filler_counts):
-        """Update filler word statistics."""
         for filler, count in filler_counts.items():
             self.filler_counts[filler] = self.filler_counts.get(filler, 0) + count
-
+    
     def update_voice_quality(self, jitter, shimmer, hnr):
-        """Update voice quality metrics."""
         if np.isfinite(jitter):
             self.jitter_values.append(jitter)
         if np.isfinite(shimmer):
@@ -241,159 +359,153 @@ class RunningStatistics:
         if np.isfinite(hnr):
             self.hnr_values.append(hnr)
 
-    def get_current_stats(self):
-        """Get current computed statistics including Q&A scores."""
-        # Calculate derived statistics
-        transcript = " ".join(self.transcript_parts)  # This is user speech only
+
+class VoiceActivityDetector:
+    """
+    Lightweight energy-based VAD suitable for streaming audio frames.
+    - feed raw PCM float32 arrays (mono) at sample_rate (e.g. 16000)
+    - callbacks: on_voice_start(), on_voice_end()
+    - hangover logic to prevent fragmentation.
+    """
+    def __init__(self, sample_rate=16000, frame_ms=30, energy_threshold=0.01,
+                 hangover_ms=200, min_speech_ms=120):
+        self.sr = int(sample_rate)
+        self.frame_ms = frame_ms
+        self.frame_samples = max(1, int(self.sr * (frame_ms / 1000.0)))
+        self.energy_threshold = float(energy_threshold)
+        self.hangover_ms = int(hangover_ms)
+        self.min_speech_ms = int(min_speech_ms)
         
-        # Create formatted conversation
-        conversation_text = "\n\n".join(self.full_transcript)
-
-        # 🔥 Speaking time cannot exceed total duration
-        effective_speaking = min(self.speaking_time, self.total_duration)
-        pause_time = max(0, self.total_duration - effective_speaking)
+        self._speech_state = False
+        self._hangover_remaining = 0.0  # seconds
+        self._since_speech_start = 0.0
+        self._since_speech_end = 0.0
         
-        # WPM calculation
-        wpm = (self.total_words / effective_speaking * 60) if effective_speaking > 3 else 0
-
-        # Speaking and pause ratios
-        speaking_ratio = effective_speaking / self.total_duration if self.total_duration > 0 else 0
-        pause_ratio = pause_time / self.total_duration if self.total_duration > 0 else 0
-
-        # Pitch statistics
-        pitch_std = np.sqrt(self.pitch_m2 / self.pitch_count) if self.pitch_count > 1 else 0
-        pitch_range = self.pitch_max - self.pitch_min if self.pitch_count > 0 else 0
-
-        # Voice quality averages
-        avg_jitter = np.mean(self.jitter_values) if self.jitter_values else 0
-        avg_shimmer = np.mean(self.shimmer_values) if self.shimmer_values else 0
-        avg_hnr = np.mean(self.hnr_values) if self.hnr_values else 0
-
-        # Calculate average Q&A scores
-        avg_semantic = self.total_semantic_score / self.question_count if self.question_count > 0 else 0
-        avg_keyword = self.total_keyword_score / self.question_count if self.question_count > 0 else 0
-
-        # 🔥 Calculate pause frequency (pauses per minute of speaking)
-        pause_frequency = len(self.pause_durations) / (effective_speaking / 60) if effective_speaking > 0 else 0
+        # Callbacks (assign externally)
+        self.on_voice_start = None
+        self.on_voice_end = None
         
-        # 🔥 Calculate Type-Token Ratio (lexical diversity)
-        if transcript.strip():
-            words = transcript.split()
-            unique_words = len(set(words))
-            ttr = unique_words / len(words) if len(words) > 0 else 0
+        print(f"🔊 VAD initialized: frame={frame_ms}ms, threshold={energy_threshold}, hangover={hangover_ms}ms")
+    
+    def _rms(self, frame):
+        """Calculate RMS energy of frame (float32 [-1..1])"""
+        if frame is None or len(frame) == 0:
+            return 0.0
+        return float(np.sqrt(np.mean(np.square(frame), dtype=np.float64)))
+    
+    def process_frame(self, frame, timestamp=None):
+        """
+        Process one frame (numpy array, float32). Provide a timestamp if available.
+        """
+        ts = now_ts() if timestamp is None else timestamp
+        
+        if len(frame) == 0:
+            return
+            
+        rms = self._rms(frame)
+        frame_duration = len(frame) / self.sr
+        
+        # Voice detection
+        is_voice = (rms >= self.energy_threshold)
+        
+        if is_voice:
+            self._since_speech_start += frame_duration
+            self._since_speech_end = 0.0
+            
+            # Enter speech state if not already and minimum speech seen
+            if not self._speech_state:
+                if self._since_speech_start * 1000.0 >= self.min_speech_ms:
+                    self._speech_state = True
+                    self._hangover_remaining = self.hangover_ms / 1000.0
+                    if callable(self.on_voice_start):
+                        self.on_voice_start(ts)
+            else:
+                # Already speaking; refresh hangover
+                self._hangover_remaining = self.hangover_ms / 1000.0
         else:
-            ttr = 0
+            # Silent frame
+            self._since_speech_start = 0.0
+            
+            if self._speech_state:
+                # Decrement hangover
+                self._hangover_remaining -= frame_duration
+                if self._hangover_remaining <= 0:
+                    # Commit speech end
+                    self._speech_state = False
+                    if callable(self.on_voice_end):
+                        self.on_voice_end(ts)
+            else:
+                self._since_speech_end += frame_duration
+    
+    def reset(self):
+        """Reset VAD state"""
+        self._speech_state = False
+        self._hangover_remaining = 0.0
+        self._since_speech_start = 0.0
+        self._since_speech_end = 0.0
 
-        return {
-            # Core transcript data
-            'transcript': transcript,
-            'conversation': conversation_text,
-            'conversation_parts': self.conversation,
-            
-            # Word statistics
-            'total_words': self.total_words,
-            
-            # 🔥 TIME METRICS (RESEARCH-GRADE)
-            'total_duration': self.total_duration,           # Wall-clock based, minus forced waits
-            'speaking_time': effective_speaking,             # Actual voice activity
-            'pause_time': pause_time,                         # Silence during user's turn
-            'wpm': wpm,                                       # Speaking rate
-            'speaking_ratio': speaking_ratio,                 # % of time speaking
-            'pause_ratio': pause_ratio,                       # % of time silent
-            
-            # 🔥 PAUSE METRICS
-            'pause_frequency': pause_frequency,               # Pauses per minute
-            'long_pause_count': self.long_pause_count,        # Total pauses >5s (counted as floor(L/5))
-            'total_pauses': len(self.pause_durations),        # Total number of pauses
-            
-            # Pitch statistics
-            'pitch_mean': self.pitch_mean,
-            'pitch_std': pitch_std,
-            'pitch_min': self.pitch_min if self.pitch_count > 0 else 0,
-            'pitch_max': self.pitch_max if self.pitch_count > 0 else 0,
-            'pitch_range': pitch_range,
-            
-            # Voice quality
-            'avg_jitter': avg_jitter,
-            'avg_shimmer': avg_shimmer,
-            'avg_hnr': avg_hnr,
-            'filler_counts': self.filler_counts,
-            
-            # 🔥 LEXICAL METRICS
-            'type_token_ratio': ttr,                          # Lexical diversity
-            
-            # Q&A metrics
-            'question_count': self.question_count,
-            'avg_semantic_similarity': avg_semantic,
-            'avg_keyword_coverage': avg_keyword,
-            'combined_relevance_score': (avg_semantic * 0.7) + (avg_keyword * 0.3),
-            'qa_pairs': self.question_scores
-        }
 
+# =====================================
+# EXISTING FUNCTIONS (KEEP AS-IS)
+# =====================================
 
 def analyze_audio_chunk_fast(pcm_chunk, sample_rate, stats: RunningStatistics, chunk_start_time=None):
     """
-    Analyze audio chunk with proper VAD and pause detection.
+    Analyze audio chunk for pitch and voice quality ONLY.
+    Timing is handled by event-driven methods (record_speech_start/end).
+    This function NEVER updates timing statistics - only research-grade voice analysis.
     """
+    # Safety check
+    if stats is None:
+        return
+        
     # Convert int16 PCM → float32 for librosa
     audio = pcm_chunk.astype(np.float32) / 32768.0
-    duration = len(audio) / sample_rate
     
     try:
         import librosa
         
-        # Calculate energy of the chunk
-        energy = np.sqrt(np.mean(audio**2))
+        # ============================================
+        # PITCH ANALYSIS ONLY - NO TIMING CODE
+        # ============================================
         
-        # 🔥 If energy is very low, it's definitely silence
-        if energy < 0.002:  # Extremely sensitive to silence
-            speaking_time = 0
-            stats.update_time_stats(duration, speaking_time)
-            
-            # Track cross-chunk silence
-            if chunk_start_time is not None and hasattr(stats, "handle_chunk_boundary"):
-                stats.handle_chunk_boundary(chunk_start_time, chunk_start_time + duration, False)
-            return
-        
-        # Use aggressive VAD parameters
-        intervals = librosa.effects.split(
+        # Use YIN for pitch detection (fast and reliable)
+        f0 = librosa.yin(
             audio, 
-            top_db=15,  # Very sensitive to silence
-            frame_length=1024,  # Smaller frames for better resolution
-            hop_length=256      # Smaller hop for accuracy
+            sr=sample_rate,
+            fmin=65,    # Male speech range
+            fmax=300,   # Female speech range
+            frame_length=1024,  # Balanced for speed/accuracy
+            hop_length=256
         )
         
-        # Calculate speaking time
-        speaking_time = 0
-        pauses_in_chunk = []
+        # Update pitch statistics (filter finite values)
+        voiced_f0 = f0[np.isfinite(f0)]
+        if len(voiced_f0) > 0:
+            stats.update_pitch_stats(voiced_f0)
         
-        had_speech = len(intervals) > 0
-        
-        if had_speech:
-            for s, e in intervals:
-                speaking_time += (e - s) / sample_rate
-            speaking_time = min(speaking_time, duration)
+        # Voice quality analysis (if enough voiced samples)
+        if len(voiced_f0) > 10:
+            # Jitter approximation (pitch perturbation)
+            jitter = np.std(voiced_f0) / np.mean(voiced_f0) if np.mean(voiced_f0) > 0 else 0
             
-            # Calculate pauses within this chunk
-            if len(intervals) > 1:
-                for i in range(len(intervals) - 1):
-                    pause_start = intervals[i][1] / sample_rate
-                    pause_end = intervals[i+1][0] / sample_rate
-                    pause_duration = pause_end - pause_start
-                    if pause_duration > 0.3:
-                        pauses_in_chunk.append(pause_duration)
+            # Shimmer approximation using RMS (amplitude perturbation)
+            rms = librosa.feature.rms(y=audio, frame_length=512, hop_length=256)[0]
+            shimmer = np.std(rms) / np.mean(rms) if np.mean(rms) > 0 else 0
+            
+            # Simple HNR approximation
+            if len(audio) > 2048:  # Need enough samples
+                hnr = 10.0
+            else:
+                hnr = 0.0
+            
+            stats.update_voice_quality(jitter, shimmer, hnr)
         
-        # Update stats
-        stats.update_time_stats(duration, speaking_time)
-        stats.update_pause_stats(pauses_in_chunk)
-        
-        # 🔥 Track cross-chunk pauses (THIS IS CRITICAL)
-        if chunk_start_time is not None and hasattr(stats, "handle_chunk_boundary"):
-            stats.handle_chunk_boundary(chunk_start_time, chunk_start_time + duration, had_speech)
-        
-    except Exception as e:
-        print(f"VAD failed: {e}")
-        stats.update_time_stats(duration, duration * 0.3)
+    except ImportError:
+        pass
+    except Exception:
+        pass
+
 
 def detect_fillers_repetitions(text):
     fillers = ["um", "uh", "like", "you know", "i mean"]
@@ -404,18 +516,17 @@ def detect_fillers_repetitions(text):
     for i, word in enumerate(words):
         if word in fillers:
             filler_count += 1
-        # Simple repetition detection for immediate consecutive words
         if i > 0 and words[i] == words[i-1]:
             repetitions += 1
             
     return filler_count, repetitions
+
 
 def calculate_semantic_similarity(answer, expected_answer):
     """
     Calculate TRUE semantic similarity between answer and expected answer.
     Returns raw cosine similarity (0.0 to 1.0) - NO ARTIFICIAL SCALING.
     """
-    # 🔥 FIX: Handle empty answers
     if not answer or not answer.strip():
         print(f"📊 Empty answer detected, similarity = 0.0")
         return 0.0
@@ -425,14 +536,10 @@ def calculate_semantic_similarity(answer, expected_answer):
         return 0.0
     
     try:
-        # Encode both texts
         answer_emb = embedder.encode([answer], normalize_embeddings=True)[0]
         expected_emb = embedder.encode([expected_answer], normalize_embeddings=True)[0]
         
-        # Calculate raw cosine similarity
         similarity = cosine_similarity([answer_emb], [expected_emb])[0][0]
-        
-        # 🔥 Ensure non-negative (cosine similarity can be slightly negative, but for text it should be >= 0)
         similarity = max(0.0, float(similarity))
         
         print(f"📊 TRUE Semantic similarity: {similarity:.3f}")
@@ -441,6 +548,7 @@ def calculate_semantic_similarity(answer, expected_answer):
     except Exception as e:
         print(f"❌ Semantic similarity error: {e}")
         return 0.0
+
 
 def calculate_keyword_coverage(answer, question):
     """
@@ -452,7 +560,6 @@ def calculate_keyword_coverage(answer, question):
     
     import re
     
-    # 🔥 Stop words to ignore
     STOP_WORDS = {'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 
                   'of', 'with', 'by', 'from', 'as', 'is', 'was', 'are', 'were', 'be',
                   'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
@@ -460,7 +567,6 @@ def calculate_keyword_coverage(answer, question):
                   'that', 'these', 'those', 'there', 'here', 'what', 'which', 'who',
                   'whom', 'whose', 'why', 'how', 'between', 'difference'}
     
-    # Technical keywords by topic
     tech_keywords = {
         'dbms': ['database', 'sql', 'query', 'index', 'transaction', 'acid', 'normalization', 
                 'join', 'primary key', 'foreign key', 'schema', 'table', 'bcnf', '3nf'],
@@ -472,13 +578,9 @@ def calculate_keyword_coverage(answer, question):
                 'virtual function', 'abstract class', 'multiple inheritance', 'composition']
     }
     
-    # Extract words from question
     question_words = set(re.findall(r'\b[a-zA-Z]{3,}\b', question.lower()))
-    
-    # Remove stop words
     question_words = {w for w in question_words if w not in STOP_WORDS}
     
-    # Add technical keywords if they appear in question
     for topic, keywords in tech_keywords.items():
         for kw in keywords:
             if kw in question.lower():
@@ -487,7 +589,6 @@ def calculate_keyword_coverage(answer, question):
                 else:
                     question_words.add(kw)
     
-    # Count matches in answer
     answer_lower = answer.lower()
     matches = 0
     matched_keywords = []
@@ -502,7 +603,6 @@ def calculate_keyword_coverage(answer, question):
                 matches += 1
                 matched_keywords.append(word)
     
-    # Calculate RAW coverage (0.0 to 1.0) - NO SCALING
     if question_words:
         coverage = min(1.0, matches / len(question_words))
     else:
@@ -510,94 +610,56 @@ def calculate_keyword_coverage(answer, question):
     
     print(f"🔑 RAW Keyword coverage: {matches}/{len(question_words)} = {coverage:.3f}")
     print(f"   Matched: {matched_keywords}")
-    print(f"   Stop words filtered: {len(question_words)} keywords considered")
     
-    return coverage  # 🔥 Return RAW value (0.0-1.0)
+    return coverage
+
 
 def analyze_pitch_comprehensive(audio_path):
-    """
-    Comprehensive pitch analysis including range, average, stability, and quality score.
-    Returns: dict with pitch metrics
-    """
+    """Comprehensive pitch analysis"""
     y, sr = librosa.load(audio_path)
-
-    # Fundamental frequency (F0) tracking using YIN (much faster than pYIN)
-    # Focus on speech-relevant frequency range for better performance
-    f0 = librosa.yin(
-        y, sr=sr,
-        fmin=65,  # 65 Hz (male speech range)
-        fmax=300, # 300 Hz (female speech range)
-        frame_length=512,  # Smaller frames for speed
-        hop_length=128     # Faster hop
-    )
-
-    # Filter out NaN/infinite values (YIN doesn't provide voiced_flag, so we filter directly)
+    f0 = librosa.yin(y, sr=sr, fmin=65, fmax=300, frame_length=512, hop_length=128)
     f0_voiced = f0[np.isfinite(f0)]
-
-    if len(f0_voiced) < 10:  # Need minimum samples for analysis
+    
+    if len(f0_voiced) < 10:
         return {
-            "pitch_mean": 0,
-            "pitch_std": 0,
-            "pitch_min": 0,
-            "pitch_max": 0,
-            "pitch_range": 0,
-            "pitch_stability": 0,
-            "pitch_score": 0,
+            "pitch_mean": 0, "pitch_std": 0, "pitch_min": 0, "pitch_max": 0,
+            "pitch_range": 0, "pitch_stability": 0, "pitch_score": 0,
             "pitch_feedback": "Insufficient voiced audio for pitch analysis"
         }
-
-    # Calculate pitch metrics
+    
     pitch_mean = np.mean(f0_voiced)
     pitch_std = np.std(f0_voiced)
     pitch_min = np.min(f0_voiced)
     pitch_max = np.max(f0_voiced)
     pitch_range = pitch_max - pitch_min
-
-    # Pitch stability (coefficient of variation - lower is more stable)
     pitch_stability = pitch_std / pitch_mean if pitch_mean > 0 else 1.0
-
-    # Pitch score (0-100) - based on stability and appropriate range
-    # Ideal pitch range for speech is typically 85-180 Hz for males, 165-255 Hz for females
-    # Good stability has low coefficient of variation (< 0.3)
-    stability_score = max(0, min(100, 100 * (1 - pitch_stability / 0.5)))  # Lower stability = higher score
-
-    # Range score - penalize too narrow or too wide ranges
-    if 50 < pitch_range < 300:  # Good range
+    
+    stability_score = max(0, min(100, 100 * (1 - pitch_stability / 0.5)))
+    
+    if 50 < pitch_range < 300:
         range_score = 100
-    elif 20 < pitch_range < 400:  # Acceptable range
+    elif 20 < pitch_range < 400:
         range_score = 70
-    else:  # Too narrow or too wide
+    else:
         range_score = 30
-
-    # Average pitch score - prefer mid-range pitches
-    if 100 < pitch_mean < 250:  # Good average pitch range
+    
+    if 100 < pitch_mean < 250:
         mean_score = 100
-    elif 80 < pitch_mean < 300:  # Acceptable range
+    elif 80 < pitch_mean < 300:
         mean_score = 80
-    else:  # Too low or too high
+    else:
         mean_score = 40
-
+    
     pitch_score = (stability_score * 0.5 + range_score * 0.3 + mean_score * 0.2)
-
-    # Generate feedback
+    
     feedback_parts = []
     if pitch_stability > 0.4:
         feedback_parts.append("pitch varies too much")
     elif pitch_stability < 0.2:
         feedback_parts.append("pitch is very stable")
-
-    if pitch_range < 50:
-        feedback_parts.append("pitch range is too narrow")
-    elif pitch_range > 400:
-        feedback_parts.append("pitch range is too wide")
-
-    if pitch_mean < 85:
-        feedback_parts.append("pitch is quite low")
-    elif pitch_mean > 300:
-        feedback_parts.append("pitch is quite high")
-
+    
     pitch_feedback = "Pitch analysis: " + "; ".join(feedback_parts) if feedback_parts else "Pitch is well-modulated"
-
+    
     return {
         "pitch_mean": float(pitch_mean),
         "pitch_std": float(pitch_std),
@@ -611,109 +673,65 @@ def analyze_pitch_comprehensive(audio_path):
 
 
 def analyze_voice_quality(audio_path):
-    """
-    Analyze voice quality metrics: jitter, shimmer, and HNR (Harmonics-to-Noise Ratio).
-    Returns: dict with voice quality metrics
-    """
+    """Analyze voice quality metrics"""
     y, sr = librosa.load(audio_path)
-
-    # Get fundamental frequency using YIN (much faster than pYIN)
-    f0 = librosa.yin(
-        y, sr=sr,
-        fmin=65,  # 65 Hz (male speech range)
-        fmax=300, # 300 Hz (female speech range)
-        frame_length=512,  # Smaller frames for speed
-        hop_length=128     # Faster hop
-    )
-
-    # Filter to finite values only (YIN doesn't provide voiced_flag)
+    f0 = librosa.yin(y, sr=sr, fmin=65, fmax=300, frame_length=512, hop_length=128)
     f0_voiced = f0[np.isfinite(f0)]
-
-    if len(f0_voiced) < 20:  # Need minimum samples
+    
+    if len(f0_voiced) < 20:
         return {
-            "jitter": 0,
-            "shimmer": 0,
-            "hnr": 0,
+            "jitter": 0, "shimmer": 0, "hnr": 0,
             "voice_quality_score": 0,
             "voice_quality_feedback": "Insufficient voiced audio for voice quality analysis"
         }
-
-    # Calculate Jitter (pitch perturbation)
-    # Jitter is the cycle-to-cycle variation in fundamental frequency
+    
     if len(f0_voiced) > 1:
         f0_diffs = np.abs(np.diff(f0_voiced))
         jitter = np.mean(f0_diffs) / np.mean(f0_voiced) if np.mean(f0_voiced) > 0 else 0
     else:
         jitter = 0
-
-    # Calculate Shimmer (amplitude perturbation)
-    # For simplicity, we'll use RMS amplitude variations over short windows
-    frame_length = int(sr * 0.02)  # 20ms frames
-    hop_length = int(sr * 0.01)    # 10ms hop
+    
+    frame_length = int(sr * 0.02)
+    hop_length = int(sr * 0.01)
     rms = librosa.feature.rms(y=y, frame_length=frame_length, hop_length=hop_length)[0]
-
-    # Use RMS variations as shimmer approximation
+    
     if len(rms) > 1:
         rms_diffs = np.abs(np.diff(rms))
         shimmer = np.mean(rms_diffs) / np.mean(rms) if np.mean(rms) > 0 else 0
     else:
         shimmer = 0
-
-    # Calculate Harmonics-to-Noise Ratio (HNR) using autocorrelation
+    
     def calculate_hnr(signal):
-        """Calculate HNR using autocorrelation method"""
-        if len(signal) < 100:  # Need minimum signal length
+        if len(signal) < 100:
             return 0
-
-        # Remove DC component
         signal = signal - np.mean(signal)
-
-        # Calculate autocorrelation
         autocorr = np.correlate(signal, signal, mode='full')
-        autocorr = autocorr[len(autocorr)//2:]  # Keep positive lags
-
-        # Find peak and noise floor
+        autocorr = autocorr[len(autocorr)//2:]
         peak_idx = np.argmax(autocorr[:len(autocorr)//4])
-
         if peak_idx < len(autocorr) - 10:
-            # Find minimum after peak (approximate noise floor)
             search_start = peak_idx + 5
             search_end = min(search_start + 50, len(autocorr))
             noise_floor = np.min(autocorr[search_start:search_end])
-
-            # HNR in dB
             hnr = 10 * np.log10(autocorr[peak_idx] / noise_floor) if noise_floor > 0 else 0
         else:
             hnr = 0
-
-        return max(0, hnr)  # Ensure non-negative
-
-    # Calculate HNR for multiple segments
+        return max(0, hnr)
+    
     hnr_values = []
-    segment_length = int(sr * 0.1)  # 100ms segments
-
+    segment_length = int(sr * 0.1)
     for i in range(0, len(y) - segment_length, segment_length // 2):
         segment = y[i:i + segment_length]
         hnr_val = calculate_hnr(segment)
-        if hnr_val > 0:  # Only include valid HNR values
+        if hnr_val > 0:
             hnr_values.append(hnr_val)
-
+    
     hnr = np.mean(hnr_values) if hnr_values else 0
-
-    # Voice quality scores (0-100)
-    # Jitter: lower is better (ideal < 0.01)
+    
     jitter_score = max(0, min(100, 100 * (1 - jitter / 0.02)))
-
-    # Shimmer: lower is better (ideal < 0.05)
     shimmer_score = max(0, min(100, 100 * (1 - shimmer / 0.1)))
-
-    # HNR: higher is better (ideal > 15 dB)
-    hnr_score = max(0, min(100, hnr * 6.67))  # 15 dB = 100 points
-
-    # Overall voice quality score
+    hnr_score = max(0, min(100, hnr * 6.67))
     voice_quality_score = (jitter_score * 0.3 + shimmer_score * 0.3 + hnr_score * 0.4)
-
-    # Generate feedback
+    
     feedback_parts = []
     if jitter > 0.015:
         feedback_parts.append("pitch perturbations detected")
@@ -721,9 +739,9 @@ def analyze_voice_quality(audio_path):
         feedback_parts.append("amplitude variations detected")
     if hnr < 10:
         feedback_parts.append("signal has significant background noise")
-
+    
     voice_quality_feedback = "Voice quality: " + "; ".join(feedback_parts) if feedback_parts else "Voice quality is clear and stable"
-
+    
     return {
         "jitter": float(jitter),
         "shimmer": float(shimmer),
@@ -737,86 +755,37 @@ def analyze_voice_quality(audio_path):
 
 
 def get_voiced_segments(audio_path, chunk_duration=5.0, overlap=0.5):
-    """
-    Extract voiced segments from audio for efficient processing.
-
-    Args:
-        audio_path: Path to audio file
-        chunk_duration: Duration of each chunk in seconds (default 5s)
-        overlap: Overlap between chunks in seconds (default 0.5s)
-
-    Returns:
-        List of (start_time, end_time) tuples for voiced segments
-    """
-    # Load audio at lower sample rate for efficiency (we'll upsample for ASR if needed)
-    y, sr = librosa.load(audio_path, sr=8000)  # 8kHz is sufficient for voice detection
-
-    # Detect voiced segments
+    """Extract voiced segments from audio"""
+    y, sr = librosa.load(audio_path, sr=8000)
     intervals = librosa.effects.split(y, top_db=20)
-
-    # Convert sample indices to time
     voiced_segments = []
     for start_sample, end_sample in intervals:
         start_time = start_sample / sr
         end_time = end_sample / sr
         duration = end_time - start_time
-
-        # Only include segments longer than 0.5 seconds
         if duration >= 0.5:
             voiced_segments.append((start_time, end_time))
-
     return voiced_segments
 
 
 def transcribe_voiced_segments(audio_path, model_name="medium.en"):
-    """
-    Transcribe only the voiced segments of audio for efficiency.
-
-    Args:
-        audio_path: Path to audio file
-        model_name: Whisper model to use
-
-    Returns:
-        Tuple of (full_transcript, segment_details)
-    """
+    """Transcribe only the voiced segments"""
     try:
-        # Load full audio at 16kHz for ASR
         y_full, sr_full = librosa.load(audio_path, sr=16000)
-
-        # Get voiced segments at lower sample rate
         voiced_segments = get_voiced_segments(audio_path)
-
         if not voiced_segments:
             return "", []
-
-        # Transcribe each voiced segment
         full_transcript = ""
         segment_details = []
-
         model = model_manager.get_model(model_name)
-
         for start_time, end_time in voiced_segments:
-            # Convert time to samples (16kHz)
             start_sample = int(start_time * sr_full)
             end_sample = int(end_time * sr_full)
-
-            # Extract segment
             segment_audio = y_full[start_sample:end_sample]
-
-            # Skip if segment is too short
-            if len(segment_audio) < sr_full:  # Less than 1 second
+            if len(segment_audio) < sr_full:
                 continue
-
-            # Transcribe segment
-            segments, info = model.transcribe(
-                segment_audio,
-                language="en",
-                beam_size=3,  # Reduced for speed
-                vad_filter=False  # Already filtered
-            )
-
+            segments, info = model.transcribe(segment_audio, language="en", beam_size=3, vad_filter=False)
             segment_text = " ".join([seg.text for seg in segments]).strip()
-
             if segment_text:
                 full_transcript += segment_text + " "
                 segment_details.append({
@@ -825,22 +794,15 @@ def transcribe_voiced_segments(audio_path, model_name="medium.en"):
                     'text': segment_text,
                     'duration': end_time - start_time
                 })
-
         return full_transcript.strip(), segment_details
-
     except Exception as e:
         print(f"Error in voiced segment transcription: {e}")
-        # Fallback to full transcription
         return speech_to_text(audio_path, model_name), []
 
 
 def parallel_analyze_segment(segment_data, model_name="medium.en"):
-    """
-    Analyze a single segment in parallel.
-    Returns transcription and basic metrics for that segment.
-    """
+    """Analyze a single segment in parallel"""
     start_time, end_time, segment_audio, sr_full = segment_data
-
     results = {
         'start_time': start_time,
         'end_time': end_time,
@@ -849,34 +811,23 @@ def parallel_analyze_segment(segment_data, model_name="medium.en"):
         'word_count': 0,
         'filler_count': 0
     }
-
     try:
-        # Transcribe segment
         model = model_manager.get_model(model_name)
-        segments, _ = model.transcribe(
-            segment_audio,
-            language="en",
-            beam_size=3,
-            vad_filter=False
-        )
+        segments, _ = model.transcribe(segment_audio, language="en", beam_size=3, vad_filter=False)
         transcript = " ".join([seg.text for seg in segments]).strip()
         results['transcript'] = transcript
         results['word_count'] = len(transcript.split()) if transcript else 0
-
-        # Basic filler detection
         if transcript:
             fillers = ["um", "uh", "like", "you know", "i mean"]
             filler_count = sum(transcript.lower().count(filler) for filler in fillers)
             results['filler_count'] = filler_count
-
     except Exception as e:
         print(f"Error analyzing segment {start_time}-{end_time}: {e}")
-
     return results
 
 
 def parallel_pitch_analysis(audio_path):
-    """Parallel pitch analysis function."""
+    """Parallel pitch analysis function"""
     try:
         return analyze_pitch_comprehensive(audio_path)
     except Exception as e:
@@ -889,93 +840,58 @@ def parallel_pitch_analysis(audio_path):
 
 
 def parallel_voice_quality_analysis(audio_path):
-    """Parallel voice quality analysis function."""
+    """Parallel voice quality analysis function"""
     try:
         return analyze_voice_quality(audio_path)
     except Exception as e:
         print(f"Parallel voice quality analysis failed: {e}")
         return {
-            "jitter": 0, "shimmer": 0, "hnr": 0, "voice_quality_score": 0,
+            "jitter": 0, "shimmer": 0, "hnr": 0,
+            "voice_quality_score": 0,
             "voice_quality_feedback": "Analysis failed"
         }
 
 
 def analyze_audio_chunk(audio_chunk, sample_rate, stats):
-    """
-    Analyze a single audio chunk and update running statistics.
-
-    Args:
-        audio_chunk: Numpy array of audio samples
-        sample_rate: Sample rate of the audio
-        stats: RunningStatistics object to update
-
-    Returns:
-        Dict with chunk-specific analysis results
-    """
+    """Analyze a single audio chunk"""
     chunk_duration = len(audio_chunk) / sample_rate
-
-    # Detect silence/voice in this chunk
     intervals = librosa.effects.split(audio_chunk, top_db=20)
     speaking_time = sum((end - start) / sample_rate for start, end in intervals)
-
-    # Update time statistics
-    stats.update_time_stats(chunk_duration, speaking_time)
-
-    # Calculate pause durations within this chunk
+    
     pause_durations = []
     if len(intervals) > 1:
         for i in range(len(intervals) - 1):
             current_end = intervals[i][1] / sample_rate
             next_start = intervals[i + 1][0] / sample_rate
             pause_duration = next_start - current_end
-            if pause_duration > 0.1:  # Only count pauses > 100ms
+            if pause_duration > 0.1:
                 pause_durations.append(pause_duration)
-
-    stats.update_pause_stats(pause_durations)
-
-    # Pitch analysis (use 8kHz for efficiency)
+    
     if sample_rate != 8000:
         chunk_8k = librosa.resample(audio_chunk, orig_sr=sample_rate, target_sr=8000)
         sr_8k = 8000
     else:
         chunk_8k = audio_chunk
         sr_8k = sample_rate
-
+    
     try:
-        # Use YIN instead of pYIN for much faster pitch detection
-        f0 = librosa.yin(
-            chunk_8k, sr=sr_8k,
-            fmin=65,    # Male speech range
-            fmax=300,   # Female speech range
-            frame_length=512,   # Smaller for speed
-            hop_length=128      # Faster hop
-        )
-
-        # Update pitch statistics (filter finite values)
+        f0 = librosa.yin(chunk_8k, sr=sr_8k, fmin=65, fmax=300, frame_length=512, hop_length=128)
         voiced_f0 = f0[np.isfinite(f0)]
         if len(voiced_f0) > 0:
             stats.update_pitch_stats(voiced_f0)
     except Exception as e:
         print(f"Pitch analysis failed for chunk: {e}")
-
-    # Voice quality analysis (basic version for chunks)
+    
     try:
-        # Simple jitter/shimmer approximation
         if len(voiced_f0) > 10:
-            # Jitter: coefficient of variation of F0
             jitter = np.std(voiced_f0) / np.mean(voiced_f0) if np.mean(voiced_f0) > 0 else 0
-
-            # Shimmer: approximate using RMS variation
             rms = librosa.feature.rms(y=chunk_8k, frame_length=256, hop_length=128)[0]
             shimmer = np.std(rms) / np.mean(rms) if np.mean(rms) > 0 else 0
-
-            # HNR approximation (simplified)
-            hnr = 10  # Placeholder - would need proper HNR calculation
-
+            hnr = 10
             stats.update_voice_quality(jitter, shimmer, hnr)
     except Exception as e:
         print(f"Voice quality analysis failed for chunk: {e}")
-
+    
     return {
         'chunk_duration': chunk_duration,
         'speaking_time': speaking_time,
@@ -984,39 +900,17 @@ def analyze_audio_chunk(audio_chunk, sample_rate, stats):
 
 
 def analyze_interview_response_optimized(audio_path, ideal_answer_text="", ideal_keywords=None, use_large_model=False):
-    """
-    Optimized interview response analysis using chunked processing and incremental statistics.
-
-    Args:
-        audio_path: Path to audio file
-        ideal_answer_text: Expected answer text for comparison
-        ideal_keywords: List of expected keywords
-        use_large_model: Whether to use large-v3 model (slower but more accurate)
-
-    Returns:
-        Comprehensive analysis results
-    """
+    """Optimized interview response analysis"""
     if ideal_keywords is None:
         ideal_keywords = []
-
-    # Choose model based on use case
+    
     model_name = "large-v3" if use_large_model else "medium.en"
-
-    # Initialize running statistics
     stats = RunningStatistics()
-
-    # Load audio for chunked processing
-    y_full, sr_full = librosa.load(audio_path, sr=16000)  # 16kHz for ASR
-
-    # Process in chunks for efficiency
-    chunk_samples = int(5.0 * sr_full)  # 5-second chunks
-    overlap_samples = int(0.5 * sr_full)  # 0.5 second overlap
-
-    # Get voiced segments first for efficiency
+    
+    y_full, sr_full = librosa.load(audio_path, sr=16000)
     voiced_segments = get_voiced_segments(audio_path)
-
+    
     if not voiced_segments:
-        # No voice detected
         return {
             "transcribed_text": "",
             "wpm": 0,
@@ -1031,49 +925,30 @@ def analyze_interview_response_optimized(audio_path, ideal_answer_text="", ideal
             "performance_level": "No Speech Detected",
             "improvement_suggestions": ["Please speak louder and closer to the microphone"]
         }
-
-    # Process voiced segments efficiently
+    
     for start_time, end_time in voiced_segments:
         start_sample = int(start_time * sr_full)
         end_sample = int(end_time * sr_full)
-
-        # Extract segment
         segment_audio = y_full[start_sample:end_sample]
-
-        # Analyze chunk
         chunk_results = analyze_audio_chunk(segment_audio, sr_full, stats)
-
-        # Transcribe this segment
-        if len(segment_audio) >= sr_full:  # At least 1 second
+        
+        if len(segment_audio) >= sr_full:
             try:
                 model = model_manager.get_model(model_name)
-                segments, _ = model.transcribe(
-                    segment_audio,
-                    language="en",
-                    beam_size=3,
-                    vad_filter=False
-                )
+                segments, _ = model.transcribe(segment_audio, language="en", beam_size=3, vad_filter=False)
                 segment_text = " ".join([seg.text for seg in segments]).strip()
-
                 if segment_text:
                     stats.update_transcript(segment_text)
-
-                    # Analyze fillers in this segment
                     filler_count, _ = detect_fillers_repetitions(segment_text)
                     stats.update_filler_stats({"total": filler_count})
-
             except Exception as e:
                 print(f"Transcription failed for segment {start_time}-{end_time}: {e}")
-
-    # Get final statistics
+    
     final_stats = stats.get_current_stats()
-
-    # Calculate content analysis
     transcript = final_stats['transcript']
     semantic_similarity = calculate_semantic_similarity(transcript, ideal_answer_text) if transcript else 0
     keyword_coverage = calculate_keyword_coverage(transcript, ideal_keywords) if transcript else 0
-
-    # Calculate scores using the optimized data
+    
     fluency_results = {
         'wpm': final_stats['wpm'],
         'pause_ratio': final_stats['pause_ratio'],
@@ -1081,7 +956,7 @@ def analyze_interview_response_optimized(audio_path, ideal_answer_text="", ideal
         'speaking_time': final_stats['speaking_time'],
         'total_duration': final_stats['total_duration']
     }
-
+    
     pitch_results = {
         'pitch_mean': final_stats['pitch_mean'],
         'pitch_std': final_stats['pitch_std'],
@@ -1089,13 +964,13 @@ def analyze_interview_response_optimized(audio_path, ideal_answer_text="", ideal
         'pitch_max': final_stats['pitch_max'],
         'pitch_range': final_stats['pitch_range']
     }
-
+    
     voice_quality_results = {
         'jitter': final_stats['avg_jitter'],
         'shimmer': final_stats['avg_shimmer'],
         'hnr': final_stats['avg_hnr']
     }
-
+    
     overall_score = compute_overall_score_independent({
         "semantic_similarity": semantic_similarity,
         "keyword_coverage": keyword_coverage,
@@ -1104,8 +979,7 @@ def analyze_interview_response_optimized(audio_path, ideal_answer_text="", ideal
         "speaking_time": final_stats["speaking_time"],
         "total_duration": final_stats["total_duration"]
     })
-
-    # Generate comprehensive feedback
+    
     feedback_data = generate_comprehensive_feedback({
         "overall_score": overall_score,
         "semantic_similarity": semantic_similarity,
@@ -1115,128 +989,89 @@ def analyze_interview_response_optimized(audio_path, ideal_answer_text="", ideal
         "speaking_time": final_stats["speaking_time"],
         "total_duration": final_stats["total_duration"]
     })
-
+    
     return {
-        # Core transcript and metrics
         "transcribed_text": transcript,
         "total_words": final_stats['total_words'],
         "total_duration": final_stats['total_duration'],
         "speaking_time": final_stats['speaking_time'],
-
-        # Fluency metrics
         "wpm": fluency_results['wpm'],
         "pause_ratio": fluency_results['pause_ratio'],
         "filler_count": fluency_results['filler_count'],
         "long_pause_count": stats.long_pause_count,
-
-        # Pitch metrics
         "pitch_mean": final_stats['pitch_mean'],
         "pitch_std": final_stats['pitch_std'],
         "pitch_range": final_stats['pitch_range'],
         "pitch_min": final_stats['pitch_min'],
         "pitch_max": final_stats['pitch_max'],
-
-        # Voice quality metrics
         "avg_jitter": final_stats['avg_jitter'],
         "avg_shimmer": final_stats['avg_shimmer'],
         "avg_hnr": final_stats['avg_hnr'],
-
-        # Content analysis
         "semantic_similarity": semantic_similarity,
         "keyword_coverage": keyword_coverage,
-
-        # Scores and feedback
         **feedback_data,
-
-        # Processing metadata
         "processing_method": "optimized_chunked",
         "model_used": model_name,
         "voiced_segments_count": len(voiced_segments)
     }
 
 
-
 def speech_to_text(audio_path, model_name="medium.en", use_vad=True, min_speech_duration=1000):
+    """Placeholder - actual implementation not needed"""
     pass
-        
+
+
 def fluency_score(results):
-    """
-    Calculate fluency score (0-100) based on WPM, pause ratio, and fillers.
-    """
-    wpm_norm = min(1.0, results['wpm'] / 150)  # 150 WPM target
+    """Calculate fluency score"""
+    wpm_norm = min(1.0, results['wpm'] / 150)
     fluency = 100 * (0.4 * wpm_norm + 
                      0.3 * (1 - results['pause_ratio']) + 
                      0.2 * (1 - min(1.0, results['filler_count'] / 50)) + 
-                     0.1 * 0.8)  # Base score component
+                     0.1 * 0.8)
     return max(0, min(100, fluency))
 
 
-
-
 def clarity_score(results, ideal_answer, ideal_keywords):
-    """
-    Calculate clarity score (0-100) based on semantic similarity and keyword coverage.
-    """
+    """Calculate clarity score"""
     clarity = 100 * (0.5 * results['semantic_similarity'] + 
                      0.3 * results['keyword_coverage'] + 
-                     0.2 * 0.9)  # Base score component
+                     0.2 * 0.9)
     return max(0, min(100, clarity))
 
-def compute_overall_score_independent(results):
-    """
-    Research-safe overall score using ONLY independent metrics.
-    """
 
-    # --- Content ---
+def compute_overall_score_independent(results):
+    """Research-safe overall score using ONLY independent metrics"""
     semantic_similarity = results.get("semantic_similarity", 0.0)
     keyword_coverage = results.get("keyword_coverage", 0.0)
-
+    
     semantic_score = semantic_similarity * 100
     keyword_score = keyword_coverage * 100
-
-    # --- Pitch stability proxy (independent) ---
+    
     pitch_mean = results.get("pitch_mean", 0.0)
     pitch_range = results.get("pitch_range", 0.0)
-
+    
     if pitch_mean > 0:
         pitch_stability = 1.0 - min(pitch_range / pitch_mean, 1.0)
     else:
         pitch_stability = 0.0
-
+    
     pitch_score = pitch_stability * 100
-
-    # --- Engagement ---
+    
     speaking_time = results.get("speaking_time", 0.0)
     total_duration = results.get("total_duration", 0.0)
-
+    
     engagement = (speaking_time / total_duration) if total_duration > 0 else 0.0
     engagement_score = engagement * 100
-
-    # --- Final weighted score ---
-    overall_score = (
-        0.40 * semantic_score +
-        0.30 * keyword_score +
-        0.15 * pitch_score +
-        0.15 * engagement_score
-    )
-
+    
+    overall_score = (0.40 * semantic_score + 0.30 * keyword_score + 0.15 * pitch_score + 0.15 * engagement_score)
+    
     return round(overall_score, 2)
 
 
 def generate_comprehensive_feedback(results):
-    """
-    Generate comprehensive qualitative feedback.
-    IMPORTANT:
-    - This function does NOT compute scores.
-    - It ONLY interprets already-computed, research-safe metrics.
-    """
-
-    # ------------------------------------------------------------------
-    # Overall score MUST be precomputed using independent metrics
-    # ------------------------------------------------------------------
+    """Generate comprehensive qualitative feedback"""
     overall_score = float(results.get("overall_score", 0.0))
-
-    # Performance level interpretation
+    
     if overall_score >= 80:
         performance_level = "Excellent"
         performance_feedback = "Your response is clear, confident, and technically strong."
@@ -1249,68 +1084,55 @@ def generate_comprehensive_feedback(results):
     else:
         performance_level = "Needs Improvement"
         performance_feedback = "Your response needs clearer structure, content focus, and delivery."
-
-    # ------------------------------------------------------------------
-    # Detailed feedback (descriptive only, no scoring)
-    # ------------------------------------------------------------------
+    
     detailed_feedback = []
-
     semantic_similarity = results.get("semantic_similarity", 0.0)
     keyword_coverage = results.get("keyword_coverage", 0.0)
-
+    
     if semantic_similarity < 0.3:
         detailed_feedback.append("The answer does not closely address the question asked.")
     elif semantic_similarity < 0.6:
         detailed_feedback.append("The answer partially addresses the question but lacks depth.")
-
+    
     if keyword_coverage < 0.4:
         detailed_feedback.append("Many expected technical terms are missing.")
     elif keyword_coverage < 0.7:
         detailed_feedback.append("Some important technical terms could be added.")
-
-    # Pitch-related qualitative feedback (independent interpretation)
+    
     pitch_mean = results.get("pitch_mean", 0.0)
     pitch_range = results.get("pitch_range", 0.0)
-
+    
     if pitch_mean > 0:
         pitch_variability_ratio = pitch_range / pitch_mean
         if pitch_variability_ratio > 0.6:
             detailed_feedback.append("Pitch varies significantly, which may reduce clarity.")
         elif pitch_variability_ratio < 0.15:
             detailed_feedback.append("Pitch is very flat; adding variation can improve engagement.")
-
-    # Engagement feedback
+    
     speaking_time = results.get("speaking_time", 0.0)
     total_duration = results.get("total_duration", 0.0)
-
+    
     if total_duration > 0:
         engagement_ratio = speaking_time / total_duration
         if engagement_ratio < 0.5:
             detailed_feedback.append("There are long silent gaps; try to maintain a steadier response.")
-
-    # ------------------------------------------------------------------
-    # Improvement suggestions (actionable, capped)
-    # ------------------------------------------------------------------
+    
     improvement_suggestions = []
-
+    
     if semantic_similarity < 0.5:
         improvement_suggestions.append("Focus more directly on answering the question.")
-
+    
     if keyword_coverage < 0.6:
         improvement_suggestions.append("Include more relevant technical keywords.")
-
+    
     if pitch_mean > 0 and pitch_range / pitch_mean > 0.5:
         improvement_suggestions.append("Work on maintaining a more consistent pitch.")
-
+    
     if total_duration > 0 and speaking_time / total_duration < 0.6:
         improvement_suggestions.append("Reduce long pauses to improve flow.")
-
-    # Limit to top 5 suggestions
+    
     improvement_suggestions = improvement_suggestions[:5]
-
-    # ------------------------------------------------------------------
-    # Final response
-    # ------------------------------------------------------------------
+    
     return {
         "overall_score": overall_score,
         "performance_level": performance_level,
@@ -1322,48 +1144,26 @@ def generate_comprehensive_feedback(results):
 
 
 def analyze_interview_response(audio_file_path, ideal_answer_text, ideal_keywords):
-    """
-    Comprehensive speech analysis for interview responses.
-    Analyzes fluency, pitch, voice quality, and content relevance.
-    """
-    # Get transcription
+    """Comprehensive speech analysis"""
     transcribed_text = speech_to_text(audio_file_path)
-
-    # Comprehensive fluency analysis
+    
     fluency_results = analyze_fluency_comprehensive(audio_file_path, transcribed_text)
-
-    # Comprehensive pitch analysis
     pitch_results = analyze_pitch_comprehensive(audio_file_path)
-
-    # Voice quality analysis
     voice_quality_results = analyze_voice_quality(audio_file_path)
-
-    # Content analysis
+    
     filler_count, repetitions = detect_fillers_repetitions(transcribed_text)
     semantic_similarity_score = calculate_semantic_similarity(transcribed_text, ideal_answer_text)
     keyword_coverage_score = calculate_keyword_coverage(transcribed_text, ideal_keywords)
-
-    # Build comprehensive results dictionary
+    
     results = {
-        # Transcription
         "transcribed_text": transcribed_text,
-
-        # Fluency metrics
         **fluency_results,
-
-        # Pitch metrics
         **pitch_results,
-
-        # Voice quality metrics
         **voice_quality_results,
-
-        # Content metrics
         "filler_count": filler_count,
         "repetitions": repetitions,
         "semantic_similarity": semantic_similarity_score,
         "keyword_coverage": keyword_coverage_score,
-
-        # Legacy scores for backward compatibility
         "fluency_score": fluency_results.get('fluency_score', 0),
         "clarity_score": clarity_score({
             'semantic_similarity': semantic_similarity_score,
@@ -1371,25 +1171,22 @@ def analyze_interview_response(audio_file_path, ideal_answer_text, ideal_keyword
             'filler_count': filler_count
         }, ideal_answer_text, ideal_keywords)
     }
-
-    # Generate comprehensive feedback
+    
     results["overall_score"] = compute_overall_score_independent(results)
     feedback_results = generate_comprehensive_feedback(results)
     results.update(feedback_results)
-
+    
     return results
 
+
 def compute_research_metrics(stats: RunningStatistics) -> dict:
-    """Computes FINAL interview metrics with proper validation."""
-    
+    """Computes FINAL interview metrics with proper validation"""
     final_stats = stats.get_current_stats()
     
     total_words = final_stats["total_words"]
-    # 🔥 Use effective speaking time (min of speaking_time and total_duration)
-    speaking_time = final_stats["speaking_time"]  # This is already corrected
+    speaking_time = final_stats["speaking_time"]
     total_duration = final_stats["total_duration"]
     
-    # 🔥 VALIDATION: Ensure durations make sense
     if total_duration <= 0:
         return {
             "wpm": 0,
@@ -1405,44 +1202,29 @@ def compute_research_metrics(stats: RunningStatistics) -> dict:
             "data_quality": "INVALID_DURATION"
         }
     
-    # 1️⃣ Words Per Minute (WPM)
     if speaking_time > 1.0:
         wpm = (total_words / speaking_time) * 60
     else:
         wpm = 0
     
-    # 2️⃣ Speaking Time Ratio (0-1)
     speaking_time_ratio = speaking_time / total_duration
     speaking_time_ratio = max(0.0, min(1.0, speaking_time_ratio))
-    
-    # 3️⃣ Pause Ratio (0-1)
     pause_ratio = 1.0 - speaking_time_ratio
-    
-    # 4️⃣ Long Pause Count (5s threshold)
     long_pause_count = stats.long_pause_count
-    
-    # 5️⃣ Pause Frequency (pauses per minute)
     pause_frequency = final_stats.get('pause_frequency', 0)
-    
-    # 6️⃣ Type-Token Ratio (lexical diversity)
     ttr = final_stats.get('type_token_ratio', 0)
     
-    # 🔥 Get Q&A metrics
     avg_semantic = final_stats.get('avg_semantic_similarity', 0)
     avg_keyword = final_stats.get('avg_keyword_coverage', 0)
     question_count = final_stats.get('question_count', 0)
-    
-    # Overall relevance (70/30 split)
     overall_relevance = (avg_semantic * 0.7) + (avg_keyword * 0.3)
     
-    # 7️⃣ Filler Frequency (per minute)
     total_fillers = sum(stats.filler_counts.values())
     if speaking_time > 1.0:
         filler_frequency_per_min = total_fillers / (speaking_time / 60)
     else:
         filler_frequency_per_min = 0
     
-    # 🔥 SANITY CHECK: Log values
     print(f"\n📊 FINAL INTERVIEW METRICS:")
     print(f"   Questions answered: {question_count}")
     print(f"   Avg Semantic Similarity: {avg_semantic:.3f}")
@@ -1457,8 +1239,7 @@ def compute_research_metrics(stats: RunningStatistics) -> dict:
     print(f"   Type-Token Ratio: {ttr:.3f}")
     print(f"   WPM: {wpm:.1f}")
     
-    # 🔥 Data quality flag
-    if speaking_time > total_duration * 1.05:  # If speaking > total by >5%
+    if speaking_time > total_duration * 1.05:
         data_quality = "QUESTIONABLE_HIGH_SPEECH"
     elif total_duration < 10:
         data_quality = "INSUFFICIENT_DURATION"
@@ -1480,33 +1261,24 @@ def compute_research_metrics(stats: RunningStatistics) -> dict:
         "data_quality": data_quality
     }
 
-def finalize_interview(stats: RunningStatistics,
-                       user_answer: str,
-                       expected_answer: str) -> dict:
-    """
-    FINAL research-safe output.
-    Called ONLY on clean interview end.
-    """
 
+def finalize_interview(stats: RunningStatistics, user_answer: str, expected_answer: str) -> dict:
+    """FINAL research-safe output"""
     metrics = compute_research_metrics(stats)
-
-    # 🔒 VALIDITY GATE (CRITICAL)
+    
     analysis_valid = True
-
-    if stats.speaking_time < 3 or stats.total_words < 5:
+    if stats.total_speaking_time < 3 or stats.total_words < 5:
         analysis_valid = False
-
-    # 🔥 Use the pre-calculated Q&A scores from stats
-    # (No need to calculate again - they're already stored)
-
+    
     return {
         "metrics": metrics,
-        "semantic_similarity": metrics.get('avg_semantic_similarity', 0),  # Average across all questions
+        "semantic_similarity": metrics.get('avg_semantic_similarity', 0),
         "keyword_coverage": metrics.get('avg_keyword_coverage', 0),
         "overall_relevance": metrics.get('overall_relevance', 0),
         "questions_answered": metrics.get('questions_answered', 0),
         "analysis_valid": analysis_valid
     }
+
 
 if __name__ == '__main__':
     print("Interview Analyzer module loaded and ready.")
