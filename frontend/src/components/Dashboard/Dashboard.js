@@ -34,13 +34,6 @@ const Dashboard = ({ user, onLogout }) => {
       color: "technical"
     },
     {
-      title: "HR Interview",
-      description: "Prepare for behavioral and HR questions tailored to your profile and experience.",
-      icon: "fas fa-users",
-      link: "/hr-interview",
-      color: "hr"
-    },
-    {
       title: "Resume Analysis & Mock Interview",
       description: "Upload your resume for intelligent parsing and start personalized mock interviews based on your profile.",
       icon: "fas fa-file-upload",
@@ -56,7 +49,7 @@ const Dashboard = ({ user, onLogout }) => {
     },
 
     {
-      title: "Agentic Interview",
+      title: "Mock Interview",
       description: "A fully autonomous, voice-first interview where AI asks, listens, thinks, and adapts in real time.",
       icon: "fas fa-brain",
       link: "/agentic-interview",

@@ -272,6 +272,12 @@ def finalize_user_answer(session_key):
     """
     The Single Source of Truth for ending a turn.
     Triggered ONLY by silence (Clock B).
+    
+    RESEARCH-GRADE LOGIC:
+    - VAD already handled speech start/end events (Clock A)
+    - Silence watcher already recorded forced_silence (Clock B)
+    - This function ONLY processes the answer and gets next question
+    - NO MANUAL SPEECH END CALLS - that would double-count
     """
     session = streaming_sessions.get(session_key)
     if not session:
@@ -296,22 +302,20 @@ def finalize_user_answer(session_key):
 
     print(f"✅ FINAL USER ANSWER: {final_answer}")
 
-    # ✅ CRITICAL: Record speech end in new RunningStatistics
-    stats = session.get("stats")
-    if stats:
-        stats.record_speech_end(time.time())
-        
-        # ----- REMOVED: Don't manually adjust total_duration here -----
-        # The new RunningStatistics handles this correctly with forced_silence_time
-        # The old code that subtracted final silence is no longer needed
-    else:
-        print("⚠️ No stats object found in session")
+    # ========== 🚫 REMOVED: NO SPEECH END CALL HERE ==========
+    # The VAD system already recorded speech end events correctly
+    # Calling record_speech_end() here would:
+    #   1. Double-count silence time
+    #   2. Inflate speaking time artificially
+    #   3. Corrupt pause detection
+    # ========================================================
 
     # 3. Call the AI Agent (USE ADAPTIVE CONTROLLER)
     try:
         room = session["room"]
         question = session.get("current_question")
         adaptive_session_id = session.get("adaptive_session_id")
+        stats = session.get("stats")
         
         if not adaptive_session_id:
             print(f"❌ No adaptive_session_id found for session {session_key}")
@@ -385,6 +389,11 @@ def finalize_user_answer(session_key):
 
             print(f"📊 Q&A Scores - Semantic: {semantic_score:.3f}, Keyword: {keyword_score:.3f}")
             
+            # ===== DEBUG: Print current timing stats for verification =====
+            print(f"   📊 Current speaking time: {stats.total_speaking_time:.1f}s")
+            print(f"   📊 Current silence time: {stats.total_silence_time:.1f}s")
+            print(f"   📊 Current forced silence: {stats.forced_silence_time:.1f}s")
+            
         if next_question:
             if session.get("terminated") or session.get("destroyed"):
                 print("🚫 Session terminated — skipping agent_next_question emit")
@@ -427,6 +436,12 @@ def silence_watcher(session_key, timeout=15):
     """
     Clock B: The Logic Engine.
     Monitors time since last voice activity.
+    
+    RESEARCH-GRADE LOGIC:
+    - VAD handles speech start/end events (Clock A)
+    - This monitors silence between turns (Clock B)
+    - Thinking pauses are counted as silence_time (via VAD)
+    - Timeout period is forced_silence (removed from effective_duration)
     """
     print(f"👂 Silence watcher started for {session_key}")
 
@@ -446,7 +461,7 @@ def silence_watcher(session_key, timeout=15):
             print("💀 Silence watcher exiting (Session Destroyed)")
             return
 
-        # 2️⃣ Turn check
+        # 2️⃣ Turn check - only monitor during USER turn
         if session.get("turn") != "USER":
             if session.get("finalized"):
                 print("✅ Silence watcher exiting (Turn already finalized)")
@@ -479,21 +494,24 @@ def silence_watcher(session_key, timeout=15):
         except Exception:
             pass
 
-        # 5️⃣ DECISION POINT
+        # 5️⃣ DECISION POINT - SILENCE TIMEOUT REACHED
         if elapsed >= timeout:
-            print(f"🛑 Silence limit ({timeout}s) reached. Finalizing.")
-
+            print(f"🛑 Silence limit ({timeout}s) reached. Finalizing turn.")
+            
             stats = session.get("stats")
-
+            
             if stats:
-                # End any active speech segment
-                if stats.current_speech_start is not None:
-                    stats.record_speech_end(now_ts())
-                
-                # ✅ CRITICAL: Record forced silence (NOT added to speaking/silence)
+                # ✅ CORRECT: Do NOT manually close speech segments
+                # ✅ VAD already handled that accurately
+                # ✅ Only record forced system wait time
                 stats.record_forced_silence(timeout)
+                
+                print(f"   📊 Recorded forced silence: {timeout}s")
+                print(f"   📊 Speaking time untouched: {stats.total_speaking_time:.1f}s")
+                print(f"   📊 Silence time (thinking): {stats.total_silence_time:.1f}s")
+                print(f"   📊 New forced silence total: {stats.forced_silence_time:.1f}s")
 
-            # Legacy metrics (unchanged, safe)
+            # Legacy metrics for backward compatibility
             metrics = session.get("speech_metrics")
             if metrics:
                 if hasattr(metrics, 'questions_answered'):
@@ -506,7 +524,7 @@ def silence_watcher(session_key, timeout=15):
 
                 print(f"📊 Question #{getattr(metrics, 'questions_answered', 0)} completed")
 
-            # Finalize turn
+            # Finalize the turn
             finalize_user_answer(session_key)
             return
 

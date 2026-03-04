@@ -1,0 +1,807 @@
+[
+    {
+        "id": "1",
+        "question": "What is a database and how is it different from a DBMS?",
+        "answer": "A **database** is an organized collection of structured data stored electronically. It's the actual data itself. A **DBMS (Database Management System)** is the software that manages and controls access to the database. It acts as an interface between users/applications and the database. For example, MySQL is a DBMS that manages databases, while the actual customer records stored in tables form the database.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "2",
+        "question": "What are the key characteristics of a database approach?",
+        "answer": "The database approach has several key characteristics: 1) **Self-describing nature** - contains metadata about itself in the system catalog, 2) **Program-data independence** - separation of program logic from data structure, 3) **Multiple views** - different users see different representations of data, 4) **Data abstraction** - hides complexity from users, 5) **Controlled redundancy** - minimal data duplication, 6) **Data integrity** - maintains accuracy and consistency, 7) **Transaction support** - ensures reliable concurrent access.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "3",
+        "question": "What is an RDBMS and how does it differ from DBMS?",
+        "answer": "An **RDBMS (Relational Database Management System)** is a DBMS that follows the relational model proposed by E.F. Codd. Key differences: 1) RDBMS stores data in tables with rows and columns, while DBMS can use hierarchical, network, or other structures, 2) RDBMS enforces relationships through foreign keys, 3) RDBMS supports ACID properties, 4) RDBMS requires primary keys and normalization, 5) RDBMS uses SQL for querying. Examples of RDBMS: MySQL, PostgreSQL, Oracle. DBMS examples include older systems like IMS (hierarchical) or modern NoSQL databases.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "4",
+        "question": "Explain the difference between a schema and an instance in DBMS.",
+        "answer": "A **schema** is the logical structure or blueprint of the database - it defines tables, columns, data types, relationships, and constraints. It remains relatively stable over time. An **instance** is the actual data stored in the database at a particular moment - the current set of records. For example, if we have a Student table schema with columns (id, name, age), an instance would be the actual rows like (1, 'John', 20). The schema defines the structure; instances represent the changing data.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "5",
+        "question": "What are the advantages of using a DBMS over file-based systems?",
+        "answer": "Advantages of DBMS over file systems: 1) **Data redundancy control** - minimizes duplication, 2) **Data consistency** - updates reflect everywhere, 3) **Data sharing** - multiple users access same data, 4) **Data integrity** - constraints maintain accuracy, 5) **Security** - user authentication and access control, 6) **Concurrent access** - handles multiple users simultaneously, 7) **Backup and recovery** - automated recovery from failures, 8) **Data independence** - programs isolated from data structure changes, 9) **Query capabilities** - powerful data retrieval, 10) **Standardization** - follows industry standards.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "6",
+        "question": "What is data independence and why is it important?",
+        "answer": "Data independence is the ability to modify the schema definition at one level without affecting the next higher level. It's important because it reduces maintenance costs and increases system flexibility. Two types: **Physical data independence** - changes to physical storage (like indexing) don't affect logical schema; **Logical data independence** - changes to logical schema (adding columns) don't affect external views. This separation allows database administrators to optimize performance and evolve the database without breaking existing applications.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "7",
+        "question": "What are the different types of database users?",
+        "answer": "Database users can be categorized into: 1) **Database Administrators (DBA)** - manage the database, handle security, performance tuning, 2) **Database Designers** - design the database structure, 3) **Application Developers** - write programs that interact with database, 4) **End Users** - query and update data through applications (naive users), 5) **Sophisticated Users** - write complex queries using query languages, 6) **System Analysts** - determine requirements and design solutions, 7) **Casual Users** - occasional users who need specific information.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "8",
+        "question": "What is the role of a Database Administrator (DBA)?",
+        "answer": "A DBA's responsibilities include: 1) **Database design and implementation** - creating schemas and tables, 2) **Security management** - user accounts, permissions, encryption, 3) **Backup and recovery** - regular backups, disaster recovery plans, 4) **Performance monitoring and tuning** - optimizing queries, indexing strategies, 5) **Capacity planning** - forecasting storage needs, 6) **Data integrity** - enforcing constraints, 7) **Migration and upgrades** - version updates, data migration, 8) **User support** - helping users with database issues, 9) **Documentation** - maintaining system documentation, 10) **Compliance** - ensuring data regulations compliance.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "9",
+        "question": "What are the main components of a DBMS?",
+        "answer": "Main DBMS components: 1) **Storage Manager** - manages data storage on disk, 2) **Query Processor** - interprets and executes queries, 3) **Transaction Manager** - ensures ACID properties, 4) **Lock Manager** - handles concurrent access, 5) **Recovery Manager** - manages database recovery, 6) **Buffer Manager** - caches data in memory, 7) **Data Dictionary** - stores metadata, 8) **Security Manager** - handles authentication/authorization, 9) **Integrity Manager** - enforces constraints, 10) **Index Manager** - manages indexes for faster access.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "10",
+        "question": "What is data abstraction in DBMS?",
+        "answer": "Data abstraction is the process of hiding complex implementation details and providing a simplified interface to users. In DBMS, there are three levels of abstraction: 1) **Physical level** - how data is actually stored (blocks, files, indexing), 2) **Logical level** - what data is stored and relationships between data (tables, columns), 3) **View level** - how users see the data (restricted views for different users). This layered approach allows multiple users to interact with data without understanding storage complexities.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "11",
+        "question": "Explain the concept of metadata in databases.",
+        "answer": "Metadata is 'data about data' - it describes the structure, constraints, and properties of the actual data stored in the database. In DBMS, metadata includes: table names, column names, data types, constraints (primary keys, foreign keys), indexes, views, user permissions, and statistics. It's stored in the **system catalog** or **data dictionary**. For example, if you have a table 'Employees', metadata would tell you it has columns 'id' (integer), 'name' (varchar), and 'salary' (decimal).",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "12",
+        "question": "What is the difference between logical and physical data independence?",
+        "answer": "**Logical data independence** refers to the ability to modify the logical schema (conceptual level) without affecting external schemas (views). Example: adding a new column to a table doesn't affect existing views that don't include that column. **Physical data independence** refers to the ability to modify the physical schema (storage structures) without affecting the logical schema. Example: changing from B-tree to hash indexing doesn't require changes to table definitions. Physical independence is easier to achieve; logical independence is more complex.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "13",
+        "question": "What are the disadvantages of DBMS?",
+        "answer": "DBMS disadvantages include: 1) **High cost** - software licensing, hardware requirements, 2) **Complexity** - requires trained personnel, 3) **Performance overhead** - general-purpose nature may be slower than specialized systems, 4) **Single point of failure** - if DBMS fails, all applications fail, 5) **Vendor lock-in** - difficult to switch vendors, 6) **Training requirements** - staff need specialized training, 7) **Size** - can require significant disk space, 8) **Backup challenges** - backing up large databases is time-consuming, 9) **Security complexity** - more attack surfaces, 10) **Version compatibility** - issues with different versions.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "14",
+        "question": "What is a database instance?",
+        "answer": "A database instance refers to the current snapshot of data stored in the database at a specific point in time. It represents the actual values in tables, indexes, and other structures. The instance changes frequently as data is inserted, updated, or deleted. For example, if you query the database at 9:00 AM and again at 5:00 PM, you might see different instances if changes occurred during the day. The schema remains the same, but the instance (actual data) evolves over time.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "15",
+        "question": "What is data integrity and what types exist?",
+        "answer": "Data integrity ensures the accuracy, consistency, and reliability of data throughout its lifecycle. Types: 1) **Entity integrity** - primary keys must be unique and not null, 2) **Referential integrity** - foreign keys must reference valid existing records, 3) **Domain integrity** - data must conform to defined domains (data types, ranges), 4) **User-defined integrity** - business rules specific to the application, 5) **Column integrity** - ensures all values in a column are of the correct type, 6) **Row integrity** - ensures row-level constraints are satisfied.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "16",
+        "question": "What is data redundancy and why is it problematic?",
+        "answer": "Data redundancy means storing the same data in multiple places within the database. Problems include: 1) **Wasted storage space** - duplicate data consumes extra disk space, 2) **Update anomalies** - need to update every occurrence of data, 3) **Insertion anomalies** - difficulty inserting data due to dependencies, 4) **Deletion anomalies** - losing more information than intended when deleting, 5) **Data inconsistency** - copies may not match after updates, 6) **Performance impact** - slower updates due to multiple copies, 7) **Maintenance complexity** - harder to maintain data quality. Normalization helps reduce redundancy.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "17",
+        "question": "What is a data dictionary and what does it contain?",
+        "answer": "A data dictionary (system catalog) is a centralized repository of metadata about the database. It contains: 1) **Table information** - names, owners, creation dates, 2) **Column information** - names, data types, lengths, nullability, 3) **Constraint definitions** - primary keys, foreign keys, check constraints, 4) **Index information** - index names, types, columns, 5) **View definitions** - view names, underlying queries, 6) **User privileges** - access rights and permissions, 7) **Stored procedures** - code and parameters, 8) **Statistics** - data distribution, size information, 9) **Triggers** - event-action rules, 10) **Sequence information** - auto-increment counters.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "18",
+        "question": "What is the difference between a database and a data warehouse?",
+        "answer": "A **database** is designed for OLTP (Online Transaction Processing) - handling day-to-day operations with frequent inserts, updates, and queries. It's normalized, supports many concurrent users, and focuses on data integrity. A **data warehouse** is designed for OLAP (Online Analytical Processing) - analyzing large volumes of historical data for decision support. It's denormalized, optimized for complex queries and aggregations, and updated in batches. Data warehouses consolidate data from multiple sources and focus on query performance rather than transaction speed.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "19",
+        "question": "What are the main functions of a DBMS?",
+        "answer": "Main DBMS functions: 1) **Data definition** - creating and modifying database structures, 2) **Data manipulation** - inserting, updating, deleting, retrieving data, 3) **Data storage management** - managing physical data storage, 4) **Data security management** - controlling access and permissions, 5) **Data integrity management** - enforcing constraints and rules, 6) **Transaction management** - ensuring ACID properties, 7) **Concurrency control** - managing simultaneous access, 8) **Backup and recovery** - protecting against data loss, 9) **Data dictionary management** - maintaining metadata, 10) **Performance optimization** - query optimization, indexing, 11) **Data communication** - interfacing with applications, 12) **Utility functions** - import, export, monitoring tools.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "20",
+        "question": "What is meant by data consistency?",
+        "answer": "Data consistency means that data across the database adheres to defined rules, constraints, and accurately reflects the real-world state. It ensures that: 1) All data satisfies integrity constraints, 2) Related data in different tables matches (referential integrity), 3) Transactions maintain database consistency (from one valid state to another), 4) No contradictions exist in the data, 5) All copies of data (if redundant) are synchronized. Consistency is one of the ACID properties and is crucial for reliable decision-making from the data.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "21",
+        "question": "What is data security in DBMS and why is it important?",
+        "answer": "Data security in DBMS refers to protecting the database from unauthorized access, modification, or destruction. It's important because: 1) **Confidentiality** - sensitive data must be protected, 2) **Compliance** - meet legal requirements (GDPR, HIPAA), 3) **Business continuity** - prevent data loss, 4) **Competitive advantage** - protect proprietary information, 5) **Trust** - maintain customer confidence. Security measures include: authentication (verifying identity), authorization (access control), encryption (data protection), auditing (tracking access), and backup (data recovery).",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "22",
+        "question": "What is the role of a database designer?",
+        "answer": "A database designer is responsible for designing the structure of the database. Key responsibilities: 1) **Requirements analysis** - understanding what data needs to be stored, 2) **Conceptual design** - creating ER diagrams and models, 3) **Logical design** - defining tables, columns, relationships, 4) **Normalization** - eliminating redundancy, ensuring data integrity, 5) **Physical design** - choosing storage structures, indexing strategies, 6) **Constraint definition** - primary keys, foreign keys, check constraints, 7) **View design** - creating appropriate views for users, 8) **Documentation** - documenting the database design, 9) **Performance considerations** - designing for optimal query performance, 10) **Collaboration** - working with developers and DBAs.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "23",
+        "question": "What are database languages and their types?",
+        "answer": "Database languages are used to define, manipulate, and control database operations. Types include: 1) **DDL (Data Definition Language)** - CREATE, ALTER, DROP, TRUNCATE, RENAME - for defining database structures, 2) **DML (Data Manipulation Language)** - SELECT, INSERT, UPDATE, DELETE - for data operations, 3) **DCL (Data Control Language)** - GRANT, REVOKE - for access control, 4) **TCL (Transaction Control Language)** - COMMIT, ROLLBACK, SAVEPOINT - for transaction management. Some also include DQL (Data Query Language) as a subset of DML focusing only on SELECT operations.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "24",
+        "question": "What is a database system and what are its components?",
+        "answer": "A database system (or database environment) consists of: 1) **Hardware** - servers, storage devices, network infrastructure, 2) **Software** - DBMS software, operating system, network software, 3) **Data** - the actual stored data and metadata, 4) **Procedures** - instructions and rules for using the database, 5) **People** - users, administrators, developers. The database system encompasses everything needed to manage and use the database, from physical components to human elements, working together to provide reliable data management.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "25",
+        "question": "Explain the concept of data sharing in DBMS.",
+        "answer": "Data sharing in DBMS refers to multiple users and applications accessing the same database simultaneously. Benefits include: 1) **Reduced redundancy** - common data stored once, 2) **Consistency** - all users see the same data, 3) **Economy of scale** - shared resources reduce costs, 4) **Enhanced collaboration** - teams work with same data. Challenges include: concurrency control (managing simultaneous access), security (ensuring proper access controls), and performance (handling multiple requests). DBMS uses locking mechanisms, transaction management, and access controls to enable safe data sharing.",
+        "topic": "DBMS",
+        "subtopic": "DBMS basics"
+    },
+    {
+        "id": "26",
+        "question": "What is an entity in ER modeling?",
+        "answer": "An **entity** is a real-world object or concept that can be distinctly identified and about which we want to store data. In ER modeling, entities are represented as rectangles. For example, in a university database, Student, Course, Professor are entities. Each entity has attributes that describe its properties. Entities can be: 1) **Strong entities** - exist independently (e.g., Student), 2) **Weak entities** - depend on another entity (e.g., Dependent depends on Employee). Instances of entities (individual records) are called entity instances.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "27",
+        "question": "What are attributes in ER modeling and what types exist?",
+        "answer": "Attributes are properties that describe entities or relationships. Types include: 1) **Simple (atomic)** - cannot be divided (e.g., age), 2) **Composite** - can be subdivided (e.g., address → street, city, zip), 3) **Single-valued** - one value (e.g., age), 4) **Multi-valued** - multiple values (e.g., phone numbers), 5) **Derived** - calculated from other attributes (e.g., age from birthdate), 6) **Stored** - physically stored in database, 7) **Key** - uniquely identifies entity instances, 8) **Descriptive** - provide information about entity. In ER diagrams, attributes are shown as ovals connected to entities.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "28",
+        "question": "Explain relationships in ER modeling and their types.",
+        "answer": "Relationships represent associations between entities. They show how entities interact with each other. Types based on degree: 1) **Unary (recursive)** - relationship within same entity (e.g., Employee manages Employee), 2) **Binary** - between two entities (most common), 3) **Ternary** - among three entities. Relationships have cardinality constraints (one-to-one, one-to-many, many-to-many) and participation constraints (total/partial). In ER diagrams, relationships are represented as diamonds connecting entities.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "29",
+        "question": "What is cardinality in ER modeling?",
+        "answer": "Cardinality defines the number of entity instances that can be associated with another entity instance through a relationship. Types: 1) **One-to-One (1:1)** - one entity instance related to exactly one other (e.g., Person has one Passport), 2) **One-to-Many (1:N)** - one entity instance related to multiple others (e.g., Department has many Employees), 3) **Many-to-Many (M:N)** - multiple instances related to multiple others (e.g., Students enroll in many Courses, Courses have many Students). Cardinality constraints are crucial for database design and later implementation.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "30",
+        "question": "What is a weak entity and how is it represented?",
+        "answer": "A **weak entity** is an entity that cannot be uniquely identified by its own attributes alone; it depends on another entity (owner/strong entity) for identification. It has a **discriminator** (partial key) that uniquely identifies it within the owner's context. Weak entities are represented with a double rectangle, and their identifying relationship (with the owner) is a double diamond. For example, Dependent is a weak entity - we identify dependents by their name combined with the Employee they depend on. Dependents cannot exist without their employee owner.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "31",
+        "question": "What is the difference between an entity and an attribute?",
+        "answer": "An **entity** is an object or concept about which we store data (e.g., Customer, Product). An **attribute** is a property or characteristic that describes an entity (e.g., Customer has name, address, phone). The key difference: entities become tables in the database, while attributes become columns. An attribute cannot exist independently - it must belong to an entity. Sometimes what appears to be an attribute in one context might be an entity in another (e.g., Address could be an attribute of Customer, or an entity if we need to track multiple addresses with detailed properties).",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "32",
+        "question": "Explain participation constraints in ER modeling.",
+        "answer": "Participation constraints specify whether every entity instance must participate in a relationship. Two types: 1) **Total participation (existence dependency)** - every entity instance must participate in the relationship (represented by double line). Example: Every employee must belong to a department. 2) **Partial participation** - some entity instances may not participate (single line). Example: Not every employee manages a department - only some do. Participation constraints affect database design and integrity rules, influencing whether foreign keys can be NULL.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "33",
+        "question": "What is a composite attribute and when would you use it?",
+        "answer": "A **composite attribute** is an attribute that can be divided into smaller sub-parts (component attributes). For example, 'Address' can be composite with components: Street, City, State, ZipCode. Composite attributes are used when: 1) We need to access components individually (search by city), 2) Different components have different validation rules, 3) We want to maintain logical grouping while having detailed access. In implementation, composite attributes often become multiple columns in a table, or sometimes separate tables if the structure is complex.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "34",
+        "question": "What is a multivalued attribute and how is it handled in database design?",
+        "answer": "A **multivalued attribute** is an attribute that can have multiple values for a single entity instance. For example, an employee can have multiple phone numbers, or a book can have multiple authors. In ER diagrams, multivalued attributes are shown as double ovals. In relational database implementation, we handle multivalued attributes by: 1) Creating a separate table for the multivalued attribute, 2) Including the primary key of the original entity as a foreign key in the new table. This maintains 1NF (first normal form) by avoiding repeating groups.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "35",
+        "question": "What is a derived attribute and give examples?",
+        "answer": "A **derived attribute** is an attribute whose value can be calculated from other attributes or related data. It's not stored in the database but computed when needed. In ER diagrams, derived attributes are shown as dashed ovals. Examples: 1) Age (derived from birthdate and current date), 2) TotalPrice in Order (derived from sum of line items), 3) YearsOfService (derived from hire date), 4) GPA (derived from course grades). Derived attributes reduce redundancy but may impact performance if calculations are complex; they can be stored as materialized views for optimization.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "36",
+        "question": "What is a recursive relationship in ER modeling?",
+        "answer": "A **recursive relationship** (or unary relationship) is a relationship where an entity is related to itself. For example: 1) Employee manages Employee (supervisor-subordinate), 2) Course requires Course (prerequisites), 3) Part contains Part (bill of materials). Recursive relationships require careful handling in database design - they often use foreign keys that reference the same table's primary key. Role names are important to distinguish the different roles entities play in the relationship (e.g., supervisor vs. subordinate).",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "37",
+        "question": "Explain the concept of an identifying relationship.",
+        "answer": "An **identifying relationship** is the relationship between a weak entity and its owner (strong) entity. It's called 'identifying' because it helps identify the weak entity. Characteristics: 1) The weak entity's primary key includes the primary key of the owner entity, 2) The relationship shows total participation from the weak entity (can't exist without owner), 3) Represented with a double diamond in ER diagrams. For example, the relationship between Employee and Dependent is identifying - Dependent's key is (EmployeeID, DependentName) where EmployeeID comes from the owner.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "38",
+        "question": "What is a ternary relationship and when would you use it?",
+        "answer": "A **ternary relationship** is a relationship involving three entity types simultaneously. It's used when the association between three entities is meaningful as a whole and cannot be decomposed into binary relationships. Example: Doctors prescribe medications to patients. This involves Doctor, Patient, and Medication - the relationship captures which doctor prescribed which medication to which patient. Ternary relationships are represented as a diamond connected to all three entities. They're less common than binary relationships and often can be decomposed into multiple binary relationships with an associative entity.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "39",
+        "question": "How do you convert an ER diagram to relational schema?",
+        "answer": "Converting ER to relational schema involves steps: 1) **Strong entities** become tables, attributes become columns, 2) **Weak entities** become tables with foreign key to owner, primary key includes owner's key, 3) **1:1 relationships** - foreign key in either table, 4) **1:N relationships** - foreign key in the 'many' side table, 5) **M:N relationships** - create new junction table with foreign keys from both entities, 6) **Multivalued attributes** - create separate table, 7) **Composite attributes** - flatten into multiple columns, 8) **Derived attributes** - usually not stored, 9) **Relationships with attributes** - attributes move to junction table if M:N, or to entity table if 1:N.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "40",
+        "question": "What is the difference between an entity and a relationship?",
+        "answer": "An **entity** is a thing/object (noun) about which we store data - it exists independently. A **relationship** is an association between entities (verb) - it shows how entities interact. Entities become tables; relationships become foreign keys or junction tables. For example: Student and Course are entities (nouns). 'Enrolls in' is a relationship (verb) connecting them. Relationships can have attributes too (like enrollment date, grade), which describe the association. In implementation, relationships with attributes often become junction tables containing both foreign keys and relationship attributes.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "41",
+        "question": "Explain the concept of an associative entity.",
+        "answer": "An **associative entity** (also called junction table or bridge table) is an entity that represents a many-to-many relationship between two entities, possibly with additional attributes. It resolves M:N relationships into two 1:N relationships. For example, Enrollment is an associative entity between Student and Course - it contains StudentID and CourseID (foreign keys) plus attributes like grade, enrollment date. The primary key of an associative entity is typically a composite of the two foreign keys, though sometimes a surrogate key is used instead.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "42",
+        "question": "What are the different notations used in ER modeling?",
+        "answer": "Common ER diagram notations: 1) **Chen notation** - rectangles for entities, diamonds for relationships, ovals for attributes, double for weak/multivalued, 2) **Crow's Foot notation** - rectangles for entities, lines with symbols at ends showing cardinality (crow's foot for many side), 3) **UML notation** - class-like boxes for entities, lines with multiplicity indicators (1, *, etc.), 4) **IDEF1X** - boxes with key areas, relationship lines with solid/dots. Chen notation is more academic and expressive for complex constraints; Crow's Foot is popular in tools because it's intuitive for showing cardinality; UML is common in software engineering.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "43",
+        "question": "What is a key attribute in ER modeling?",
+        "answer": "A **key attribute** is an attribute (or set of attributes) that uniquely identifies each entity instance. It's underlined in ER diagrams. Types: 1) **Simple key** - single attribute (e.g., StudentID), 2) **Composite key** - multiple attributes together (e.g., (FirstName, LastName, BirthDate)), 3) **Candidate key** - all possible keys that could be primary, 4) **Primary key** - chosen main identifier, 5) **Alternate key** - candidate keys not chosen as primary. For weak entities, the key combines the owner's key with a discriminator (partial key).",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "44",
+        "question": "Explain total vs. partial participation with examples.",
+        "answer": "**Total participation** means every entity instance must participate in the relationship. Example: Every employee must work in a department (assuming company policy). Represented by double line in ER diagrams. **Partial participation** means some instances may not participate. Example: Not every employee manages a department - some are regular employees. This affects database design: total participation often means NOT NULL constraints on foreign keys, while partial participation allows NULLs. In implementation, total participation from the 'many' side in 1:N relationships is common; total participation from both sides in M:N is typical for junction tables.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "45",
+        "question": "What is a discriminator in weak entities?",
+        "answer": "A **discriminator** (or partial key) is an attribute that uniquely identifies weak entity instances that are related to the same owner entity. It's not sufficient alone for unique identification - needs to combine with owner's key. For example, in Dependent weak entity, 'name' is a discriminator because different employees might have dependents with same name, but for one employee, dependents have unique names. In ER diagrams, discriminator attributes are underlined with a dashed line. In implementation, the weak entity's primary key is (owner's key + discriminator).",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "26",
+        "question": "What is an entity in ER modeling?",
+        "answer": "An **entity** is a real-world object or concept that can be distinctly identified and about which we want to store data. In ER modeling, entities are represented as rectangles. For example, in a university database, Student, Course, Professor are entities. Each entity has attributes that describe its properties. Entities can be: 1) **Strong entities** - exist independently (e.g., Student), 2) **Weak entities** - depend on another entity (e.g., Dependent depends on Employee). Instances of entities (individual records) are called entity instances.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "27",
+        "question": "What are attributes in ER modeling and what types exist?",
+        "answer": "Attributes are properties that describe entities or relationships. Types include: 1) **Simple (atomic)** - cannot be divided (e.g., age), 2) **Composite** - can be subdivided (e.g., address → street, city, zip), 3) **Single-valued** - one value (e.g., age), 4) **Multi-valued** - multiple values (e.g., phone numbers), 5) **Derived** - calculated from other attributes (e.g., age from birthdate), 6) **Stored** - physically stored in database, 7) **Key** - uniquely identifies entity instances, 8) **Descriptive** - provide information about entity. In ER diagrams, attributes are shown as ovals connected to entities.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "28",
+        "question": "Explain relationships in ER modeling and their types.",
+        "answer": "Relationships represent associations between entities. They show how entities interact with each other. Types based on degree: 1) **Unary (recursive)** - relationship within same entity (e.g., Employee manages Employee), 2) **Binary** - between two entities (most common), 3) **Ternary** - among three entities. Relationships have cardinality constraints (one-to-one, one-to-many, many-to-many) and participation constraints (total/partial). In ER diagrams, relationships are represented as diamonds connecting entities.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "29",
+        "question": "What is cardinality in ER modeling?",
+        "answer": "Cardinality defines the number of entity instances that can be associated with another entity instance through a relationship. Types: 1) **One-to-One (1:1)** - one entity instance related to exactly one other (e.g., Person has one Passport), 2) **One-to-Many (1:N)** - one entity instance related to multiple others (e.g., Department has many Employees), 3) **Many-to-Many (M:N)** - multiple instances related to multiple others (e.g., Students enroll in many Courses, Courses have many Students). Cardinality constraints are crucial for database design and later implementation.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "30",
+        "question": "What is a weak entity and how is it represented?",
+        "answer": "A **weak entity** is an entity that cannot be uniquely identified by its own attributes alone; it depends on another entity (owner/strong entity) for identification. It has a **discriminator** (partial key) that uniquely identifies it within the owner's context. Weak entities are represented with a double rectangle, and their identifying relationship (with the owner) is a double diamond. For example, Dependent is a weak entity - we identify dependents by their name combined with the Employee they depend on. Dependents cannot exist without their employee owner.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "31",
+        "question": "What is the difference between an entity and an attribute?",
+        "answer": "An **entity** is an object or concept about which we store data (e.g., Customer, Product). An **attribute** is a property or characteristic that describes an entity (e.g., Customer has name, address, phone). The key difference: entities become tables in the database, while attributes become columns. An attribute cannot exist independently - it must belong to an entity. Sometimes what appears to be an attribute in one context might be an entity in another (e.g., Address could be an attribute of Customer, or an entity if we need to track multiple addresses with detailed properties).",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "32",
+        "question": "Explain participation constraints in ER modeling.",
+        "answer": "Participation constraints specify whether every entity instance must participate in a relationship. Two types: 1) **Total participation (existence dependency)** - every entity instance must participate in the relationship (represented by double line). Example: Every employee must belong to a department. 2) **Partial participation** - some entity instances may not participate (single line). Example: Not every employee manages a department - only some do. Participation constraints affect database design and integrity rules, influencing whether foreign keys can be NULL.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "33",
+        "question": "What is a composite attribute and when would you use it?",
+        "answer": "A **composite attribute** is an attribute that can be divided into smaller sub-parts (component attributes). For example, 'Address' can be composite with components: Street, City, State, ZipCode. Composite attributes are used when: 1) We need to access components individually (search by city), 2) Different components have different validation rules, 3) We want to maintain logical grouping while having detailed access. In implementation, composite attributes often become multiple columns in a table, or sometimes separate tables if the structure is complex.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "34",
+        "question": "What is a multivalued attribute and how is it handled in database design?",
+        "answer": "A **multivalued attribute** is an attribute that can have multiple values for a single entity instance. For example, an employee can have multiple phone numbers, or a book can have multiple authors. In ER diagrams, multivalued attributes are shown as double ovals. In relational database implementation, we handle multivalued attributes by: 1) Creating a separate table for the multivalued attribute, 2) Including the primary key of the original entity as a foreign key in the new table. This maintains 1NF (first normal form) by avoiding repeating groups.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "35",
+        "question": "What is a derived attribute and give examples?",
+        "answer": "A **derived attribute** is an attribute whose value can be calculated from other attributes or related data. It's not stored in the database but computed when needed. In ER diagrams, derived attributes are shown as dashed ovals. Examples: 1) Age (derived from birthdate and current date), 2) TotalPrice in Order (derived from sum of line items), 3) YearsOfService (derived from hire date), 4) GPA (derived from course grades). Derived attributes reduce redundancy but may impact performance if calculations are complex; they can be stored as materialized views for optimization.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "36",
+        "question": "What is a recursive relationship in ER modeling?",
+        "answer": "A **recursive relationship** (or unary relationship) is a relationship where an entity is related to itself. For example: 1) Employee manages Employee (supervisor-subordinate), 2) Course requires Course (prerequisites), 3) Part contains Part (bill of materials). Recursive relationships require careful handling in database design - they often use foreign keys that reference the same table's primary key. Role names are important to distinguish the different roles entities play in the relationship (e.g., supervisor vs. subordinate).",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "37",
+        "question": "Explain the concept of an identifying relationship.",
+        "answer": "An **identifying relationship** is the relationship between a weak entity and its owner (strong) entity. It's called 'identifying' because it helps identify the weak entity. Characteristics: 1) The weak entity's primary key includes the primary key of the owner entity, 2) The relationship shows total participation from the weak entity (can't exist without owner), 3) Represented with a double diamond in ER diagrams. For example, the relationship between Employee and Dependent is identifying - Dependent's key is (EmployeeID, DependentName) where EmployeeID comes from the owner.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "38",
+        "question": "What is a ternary relationship and when would you use it?",
+        "answer": "A **ternary relationship** is a relationship involving three entity types simultaneously. It's used when the association between three entities is meaningful as a whole and cannot be decomposed into binary relationships. Example: Doctors prescribe medications to patients. This involves Doctor, Patient, and Medication - the relationship captures which doctor prescribed which medication to which patient. Ternary relationships are represented as a diamond connected to all three entities. They're less common than binary relationships and often can be decomposed into multiple binary relationships with an associative entity.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "39",
+        "question": "How do you convert an ER diagram to relational schema?",
+        "answer": "Converting ER to relational schema involves steps: 1) **Strong entities** become tables, attributes become columns, 2) **Weak entities** become tables with foreign key to owner, primary key includes owner's key, 3) **1:1 relationships** - foreign key in either table, 4) **1:N relationships** - foreign key in the 'many' side table, 5) **M:N relationships** - create new junction table with foreign keys from both entities, 6) **Multivalued attributes** - create separate table, 7) **Composite attributes** - flatten into multiple columns, 8) **Derived attributes** - usually not stored, 9) **Relationships with attributes** - attributes move to junction table if M:N, or to entity table if 1:N.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "40",
+        "question": "What is the difference between an entity and a relationship?",
+        "answer": "An **entity** is a thing/object (noun) about which we store data - it exists independently. A **relationship** is an association between entities (verb) - it shows how entities interact. Entities become tables; relationships become foreign keys or junction tables. For example: Student and Course are entities (nouns). 'Enrolls in' is a relationship (verb) connecting them. Relationships can have attributes too (like enrollment date, grade), which describe the association. In implementation, relationships with attributes often become junction tables containing both foreign keys and relationship attributes.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "41",
+        "question": "Explain the concept of an associative entity.",
+        "answer": "An **associative entity** (also called junction table or bridge table) is an entity that represents a many-to-many relationship between two entities, possibly with additional attributes. It resolves M:N relationships into two 1:N relationships. For example, Enrollment is an associative entity between Student and Course - it contains StudentID and CourseID (foreign keys) plus attributes like grade, enrollment date. The primary key of an associative entity is typically a composite of the two foreign keys, though sometimes a surrogate key is used instead.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "42",
+        "question": "What are the different notations used in ER modeling?",
+        "answer": "Common ER diagram notations: 1) **Chen notation** - rectangles for entities, diamonds for relationships, ovals for attributes, double for weak/multivalued, 2) **Crow's Foot notation** - rectangles for entities, lines with symbols at ends showing cardinality (crow's foot for many side), 3) **UML notation** - class-like boxes for entities, lines with multiplicity indicators (1, *, etc.), 4) **IDEF1X** - boxes with key areas, relationship lines with solid/dots. Chen notation is more academic and expressive for complex constraints; Crow's Foot is popular in tools because it's intuitive for showing cardinality; UML is common in software engineering.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "43",
+        "question": "What is a key attribute in ER modeling?",
+        "answer": "A **key attribute** is an attribute (or set of attributes) that uniquely identifies each entity instance. It's underlined in ER diagrams. Types: 1) **Simple key** - single attribute (e.g., StudentID), 2) **Composite key** - multiple attributes together (e.g., (FirstName, LastName, BirthDate)), 3) **Candidate key** - all possible keys that could be primary, 4) **Primary key** - chosen main identifier, 5) **Alternate key** - candidate keys not chosen as primary. For weak entities, the key combines the owner's key with a discriminator (partial key).",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "44",
+        "question": "Explain total vs. partial participation with examples.",
+        "answer": "**Total participation** means every entity instance must participate in the relationship. Example: Every employee must work in a department (assuming company policy). Represented by double line in ER diagrams. **Partial participation** means some instances may not participate. Example: Not every employee manages a department - some are regular employees. This affects database design: total participation often means NOT NULL constraints on foreign keys, while partial participation allows NULLs. In implementation, total participation from the 'many' side in 1:N relationships is common; total participation from both sides in M:N is typical for junction tables.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "45",
+        "question": "What is a discriminator in weak entities?",
+        "answer": "A **discriminator** (or partial key) is an attribute that uniquely identifies weak entity instances that are related to the same owner entity. It's not sufficient alone for unique identification - needs to combine with owner's key. For example, in Dependent weak entity, 'name' is a discriminator because different employees might have dependents with same name, but for one employee, dependents have unique names. In ER diagrams, discriminator attributes are underlined with a dashed line. In implementation, the weak entity's primary key is (owner's key + discriminator).",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "26",
+        "question": "What is an entity in ER modeling?",
+        "answer": "An **entity** is a real-world object or concept that can be distinctly identified and about which we want to store data. In ER modeling, entities are represented as rectangles. For example, in a university database, Student, Course, Professor are entities. Each entity has attributes that describe its properties. Entities can be: 1) **Strong entities** - exist independently (e.g., Student), 2) **Weak entities** - depend on another entity (e.g., Dependent depends on Employee). Instances of entities (individual records) are called entity instances.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "27",
+        "question": "What are attributes in ER modeling and what types exist?",
+        "answer": "Attributes are properties that describe entities or relationships. Types include: 1) **Simple (atomic)** - cannot be divided (e.g., age), 2) **Composite** - can be subdivided (e.g., address → street, city, zip), 3) **Single-valued** - one value (e.g., age), 4) **Multi-valued** - multiple values (e.g., phone numbers), 5) **Derived** - calculated from other attributes (e.g., age from birthdate), 6) **Stored** - physically stored in database, 7) **Key** - uniquely identifies entity instances, 8) **Descriptive** - provide information about entity. In ER diagrams, attributes are shown as ovals connected to entities.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "28",
+        "question": "Explain relationships in ER modeling and their types.",
+        "answer": "Relationships represent associations between entities. They show how entities interact with each other. Types based on degree: 1) **Unary (recursive)** - relationship within same entity (e.g., Employee manages Employee), 2) **Binary** - between two entities (most common), 3) **Ternary** - among three entities. Relationships have cardinality constraints (one-to-one, one-to-many, many-to-many) and participation constraints (total/partial). In ER diagrams, relationships are represented as diamonds connecting entities.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "29",
+        "question": "What is cardinality in ER modeling?",
+        "answer": "Cardinality defines the number of entity instances that can be associated with another entity instance through a relationship. Types: 1) **One-to-One (1:1)** - one entity instance related to exactly one other (e.g., Person has one Passport), 2) **One-to-Many (1:N)** - one entity instance related to multiple others (e.g., Department has many Employees), 3) **Many-to-Many (M:N)** - multiple instances related to multiple others (e.g., Students enroll in many Courses, Courses have many Students). Cardinality constraints are crucial for database design and later implementation.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "30",
+        "question": "What is a weak entity and how is it represented?",
+        "answer": "A **weak entity** is an entity that cannot be uniquely identified by its own attributes alone; it depends on another entity (owner/strong entity) for identification. It has a **discriminator** (partial key) that uniquely identifies it within the owner's context. Weak entities are represented with a double rectangle, and their identifying relationship (with the owner) is a double diamond. For example, Dependent is a weak entity - we identify dependents by their name combined with the Employee they depend on. Dependents cannot exist without their employee owner.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "31",
+        "question": "What is the difference between an entity and an attribute?",
+        "answer": "An **entity** is an object or concept about which we store data (e.g., Customer, Product). An **attribute** is a property or characteristic that describes an entity (e.g., Customer has name, address, phone). The key difference: entities become tables in the database, while attributes become columns. An attribute cannot exist independently - it must belong to an entity. Sometimes what appears to be an attribute in one context might be an entity in another (e.g., Address could be an attribute of Customer, or an entity if we need to track multiple addresses with detailed properties).",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "32",
+        "question": "Explain participation constraints in ER modeling.",
+        "answer": "Participation constraints specify whether every entity instance must participate in a relationship. Two types: 1) **Total participation (existence dependency)** - every entity instance must participate in the relationship (represented by double line). Example: Every employee must belong to a department. 2) **Partial participation** - some entity instances may not participate (single line). Example: Not every employee manages a department - only some do. Participation constraints affect database design and integrity rules, influencing whether foreign keys can be NULL.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "33",
+        "question": "What is a composite attribute and when would you use it?",
+        "answer": "A **composite attribute** is an attribute that can be divided into smaller sub-parts (component attributes). For example, 'Address' can be composite with components: Street, City, State, ZipCode. Composite attributes are used when: 1) We need to access components individually (search by city), 2) Different components have different validation rules, 3) We want to maintain logical grouping while having detailed access. In implementation, composite attributes often become multiple columns in a table, or sometimes separate tables if the structure is complex.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "34",
+        "question": "What is a multivalued attribute and how is it handled in database design?",
+        "answer": "A **multivalued attribute** is an attribute that can have multiple values for a single entity instance. For example, an employee can have multiple phone numbers, or a book can have multiple authors. In ER diagrams, multivalued attributes are shown as double ovals. In relational database implementation, we handle multivalued attributes by: 1) Creating a separate table for the multivalued attribute, 2) Including the primary key of the original entity as a foreign key in the new table. This maintains 1NF (first normal form) by avoiding repeating groups.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "35",
+        "question": "What is a derived attribute and give examples?",
+        "answer": "A **derived attribute** is an attribute whose value can be calculated from other attributes or related data. It's not stored in the database but computed when needed. In ER diagrams, derived attributes are shown as dashed ovals. Examples: 1) Age (derived from birthdate and current date), 2) TotalPrice in Order (derived from sum of line items), 3) YearsOfService (derived from hire date), 4) GPA (derived from course grades). Derived attributes reduce redundancy but may impact performance if calculations are complex; they can be stored as materialized views for optimization.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "36",
+        "question": "What is a recursive relationship in ER modeling?",
+        "answer": "A **recursive relationship** (or unary relationship) is a relationship where an entity is related to itself. For example: 1) Employee manages Employee (supervisor-subordinate), 2) Course requires Course (prerequisites), 3) Part contains Part (bill of materials). Recursive relationships require careful handling in database design - they often use foreign keys that reference the same table's primary key. Role names are important to distinguish the different roles entities play in the relationship (e.g., supervisor vs. subordinate).",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "37",
+        "question": "Explain the concept of an identifying relationship.",
+        "answer": "An **identifying relationship** is the relationship between a weak entity and its owner (strong) entity. It's called 'identifying' because it helps identify the weak entity. Characteristics: 1) The weak entity's primary key includes the primary key of the owner entity, 2) The relationship shows total participation from the weak entity (can't exist without owner), 3) Represented with a double diamond in ER diagrams. For example, the relationship between Employee and Dependent is identifying - Dependent's key is (EmployeeID, DependentName) where EmployeeID comes from the owner.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "38",
+        "question": "What is a ternary relationship and when would you use it?",
+        "answer": "A **ternary relationship** is a relationship involving three entity types simultaneously. It's used when the association between three entities is meaningful as a whole and cannot be decomposed into binary relationships. Example: Doctors prescribe medications to patients. This involves Doctor, Patient, and Medication - the relationship captures which doctor prescribed which medication to which patient. Ternary relationships are represented as a diamond connected to all three entities. They're less common than binary relationships and often can be decomposed into multiple binary relationships with an associative entity.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "39",
+        "question": "How do you convert an ER diagram to relational schema?",
+        "answer": "Converting ER to relational schema involves steps: 1) **Strong entities** become tables, attributes become columns, 2) **Weak entities** become tables with foreign key to owner, primary key includes owner's key, 3) **1:1 relationships** - foreign key in either table, 4) **1:N relationships** - foreign key in the 'many' side table, 5) **M:N relationships** - create new junction table with foreign keys from both entities, 6) **Multivalued attributes** - create separate table, 7) **Composite attributes** - flatten into multiple columns, 8) **Derived attributes** - usually not stored, 9) **Relationships with attributes** - attributes move to junction table if M:N, or to entity table if 1:N.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "40",
+        "question": "What is the difference between an entity and a relationship?",
+        "answer": "An **entity** is a thing/object (noun) about which we store data - it exists independently. A **relationship** is an association between entities (verb) - it shows how entities interact. Entities become tables; relationships become foreign keys or junction tables. For example: Student and Course are entities (nouns). 'Enrolls in' is a relationship (verb) connecting them. Relationships can have attributes too (like enrollment date, grade), which describe the association. In implementation, relationships with attributes often become junction tables containing both foreign keys and relationship attributes.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "41",
+        "question": "Explain the concept of an associative entity.",
+        "answer": "An **associative entity** (also called junction table or bridge table) is an entity that represents a many-to-many relationship between two entities, possibly with additional attributes. It resolves M:N relationships into two 1:N relationships. For example, Enrollment is an associative entity between Student and Course - it contains StudentID and CourseID (foreign keys) plus attributes like grade, enrollment date. The primary key of an associative entity is typically a composite of the two foreign keys, though sometimes a surrogate key is used instead.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "42",
+        "question": "What are the different notations used in ER modeling?",
+        "answer": "Common ER diagram notations: 1) **Chen notation** - rectangles for entities, diamonds for relationships, ovals for attributes, double for weak/multivalued, 2) **Crow's Foot notation** - rectangles for entities, lines with symbols at ends showing cardinality (crow's foot for many side), 3) **UML notation** - class-like boxes for entities, lines with multiplicity indicators (1, *, etc.), 4) **IDEF1X** - boxes with key areas, relationship lines with solid/dots. Chen notation is more academic and expressive for complex constraints; Crow's Foot is popular in tools because it's intuitive for showing cardinality; UML is common in software engineering.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "43",
+        "question": "What is a key attribute in ER modeling?",
+        "answer": "A **key attribute** is an attribute (or set of attributes) that uniquely identifies each entity instance. It's underlined in ER diagrams. Types: 1) **Simple key** - single attribute (e.g., StudentID), 2) **Composite key** - multiple attributes together (e.g., (FirstName, LastName, BirthDate)), 3) **Candidate key** - all possible keys that could be primary, 4) **Primary key** - chosen main identifier, 5) **Alternate key** - candidate keys not chosen as primary. For weak entities, the key combines the owner's key with a discriminator (partial key).",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "44",
+        "question": "Explain total vs. partial participation with examples.",
+        "answer": "**Total participation** means every entity instance must participate in the relationship. Example: Every employee must work in a department (assuming company policy). Represented by double line in ER diagrams. **Partial participation** means some instances may not participate. Example: Not every employee manages a department - some are regular employees. This affects database design: total participation often means NOT NULL constraints on foreign keys, while partial participation allows NULLs. In implementation, total participation from the 'many' side in 1:N relationships is common; total participation from both sides in M:N is typical for junction tables.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "45",
+        "question": "What is a discriminator in weak entities?",
+        "answer": "A **discriminator** (or partial key) is an attribute that uniquely identifies weak entity instances that are related to the same owner entity. It's not sufficient alone for unique identification - needs to combine with owner's key. For example, in Dependent weak entity, 'name' is a discriminator because different employees might have dependents with same name, but for one employee, dependents have unique names. In ER diagrams, discriminator attributes are underlined with a dashed line. In implementation, the weak entity's primary key is (owner's key + discriminator).",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "46",
+        "question": "How would you model a situation where an employee can have multiple skills and each skill can have multiple employees, but we also need to track the proficiency level and certification date for each employee-skill combination?",
+        "answer": "This is a many-to-many relationship with attributes, best modeled using an associative entity. You would create:\n\n1) **Employee entity** with attributes: EmployeeID (PK), Name, etc.\n2) **Skill entity** with attributes: SkillID (PK), SkillName, Description\n3) **EmployeeSkill associative entity** with: EmployeeID (FK), SkillID (FK), ProficiencyLevel (e.g., Beginner/Intermediate/Expert), CertificationDate, YearsOfExperience\n\nThe primary key of EmployeeSkill would be composite (EmployeeID + SkillID). This design captures both the relationship and its attributes while maintaining data integrity and allowing queries like \"find all employees with Expert level in Java certified after 2020.\"",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "47",
+        "question": "Explain the difference between an entity set and an entity instance with a real-world example.",
+        "answer": "An **entity set** is a collection of similar entities (like a table), while an **entity instance** is a single occurrence (like a row).\n\nExample: In a university database:\n- **Entity set**: Student - represents the entire collection of all students\n- **Entity instance**: John Doe, student with ID 12345 - one specific student\n\nThink of it as the difference between:\n- The concept of 'Car' (entity set) vs. 'My red Toyota Camry with license plate ABC123' (entity instance)\n- The Student table (entity set) vs. the row for student ID 101 (entity instance)\n\nEntity sets have structure (attributes), while instances have values for those attributes.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "48",
+        "question": "How would you handle a situation where a customer can have multiple addresses, but one address must be marked as the primary address? Walk me through your ER modeling approach.",
+        "answer": "This requires careful modeling to maintain data integrity while capturing the requirement. Approach:\n\n1) **Customer entity**: CustomerID (PK), Name, Email, Phone\n\n2) **Address entity**: AddressID (PK), Street, City, State, ZipCode, Country\n\n3) **CustomerAddress relationship table** (associative entity): CustomerID (FK), AddressID (FK), AddressType (e.g., Home/Work/Shipping), IsPrimary (boolean), ValidFrom, ValidTo\n\nConstraints to implement:\n- Composite unique key on (CustomerID, AddressID)\n- Ensure each customer has exactly one primary address: use a filtered unique index or trigger\n- Total participation: each address must belong to at least one customer\n\nAlternative simpler approach: Store addresses as multivalued composite attribute in Customer table with JSON, but this loses queryability and referential integrity.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "49",
+        "question": "What is the difference between an entity and a table in the context of database design?",
+        "answer": "An **entity** is a conceptual modeling construct (in ER modeling) representing a real-world object. A **table** is a physical implementation construct in a relational database.\n\nKey differences:\n1) **Abstraction level**: Entities exist in logical design; tables exist in physical implementation\n2) **Attributes vs columns**: Entity attributes become table columns, but tables may have additional technical columns (surrogate keys, audit timestamps)\n3) **Relationships**: Entities show relationships conceptually; tables implement them via foreign keys\n4) **Normalization**: Entities may be split into multiple tables during physical design (vertical/horizontal partitioning)\n5) **Constraints**: Tables enforce constraints (PK, FK, CHECK) that entities only imply\n\nIn practice: One entity typically maps to one table, but complex entities might map to multiple tables (e.g., an entity with multivalued attributes needs multiple tables).",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "50",
+        "question": "Describe a scenario where you would use a ternary relationship instead of multiple binary relationships. Provide a concrete example.",
+        "answer": "Use a ternary relationship when the relationship between three entities is meaningful only when all three are considered together, and decomposing into binary relationships loses information or allows invalid combinations.\n\n**Example: Hospital Patient Prescriptions**\nEntities: Doctor, Patient, Medication\n\nA ternary relationship \"Prescribes\" captures:\n- Which doctor prescribed which medication to which patient\n\nIf we decomposed into binary relationships:\n1) Doctor-Patient (treats)\n2) Doctor-Medication (can prescribe)\n3) Patient-Medication (takes)\n\nThis could allow invalid combinations like:\n- Dr. Smith treats Patient John\n- Dr. Smith can prescribe Aspirin\n- Patient John takes Aspirin\nBut this doesn't guarantee Dr. Smith actually prescribed Aspirin to John - maybe Dr. Jones did.\n\nThe ternary relationship ensures we track exactly which doctor prescribed which medication to which patient, capturing the complete medical transaction.",
+        "topic": "DBMS",
+        "subtopic": "ER Modeling"
+    },
+    {
+        "id": "51",
+        "question": "What is the three-schema architecture in DBMS?",
+        "answer": "The **three-schema architecture** is a framework for database systems that separates the database into three levels of abstraction. Proposed by ANSI/SPARC in 1975, it includes:\n\n1. **Internal schema (Physical level)**: Describes how data is physically stored on storage media - file organizations, indexing methods, data compression, etc.\n\n2. **Conceptual schema (Logical level)**: Describes what data is stored and the relationships among data - tables, constraints, entire database structure, independent of physical details.\n\n3. **External schema (View level)**: Describes how users view the data - different views for different users, hiding irrelevant details.\n\nThis architecture provides **data independence** - changes at lower levels don't affect higher levels, reducing maintenance costs and increasing flexibility.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "52",
+        "question": "Explain the physical level of database architecture in detail.",
+        "answer": "The **physical level** (internal level) is the lowest level of abstraction, dealing with how data is actually stored. It includes:\n\n**Storage structures**:\n- File organizations (heap, sequential, hash, B-tree)\n- Block and page sizes\n- Record formats (fixed/variable length)\n- Data compression techniques\n\n**Access methods**:\n- Indexing structures (B+ trees, hash indexes, bitmap indexes)\n- Pointers and references between records\n- Clustering of related records\n\n**Storage management**:\n- Buffer management and caching\n- Disk space allocation\n- Data encryption at rest\n\n**Database administrators** work at this level for performance tuning, but application developers typically don't interact with it directly. Changes here provide **physical data independence**.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "53",
+        "question": "What is the logical level in database architecture and what does it contain?",
+        "answer": "The **logical level** (conceptual level) describes the entire database structure without concerning how data is physically stored. It contains:\n\n**Structural elements**:\n- Entity definitions (tables) with their attributes (columns)\n- Data types and domains for each attribute\n- Relationships between entities (primary keys, foreign keys)\n\n**Constraints**:\n- Entity integrity (primary key uniqueness, NOT NULL)\n- Referential integrity (foreign key rules)\n- Domain constraints (CHECK constraints)\n- Business rules and triggers\n\n**Schema objects**:\n- Views (virtual tables)\n- Indexes (logical definitions)\n- Stored procedures and functions\n- Sequences and synonyms\n\nDatabase designers and DBAs work at this level. Changes here affect applications (logical data independence is harder to achieve).",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "54",
+        "question": "Explain the view level in database architecture with examples.",
+        "answer": "The **view level** (external level) is the highest level of abstraction, showing only relevant parts of the database to specific users. Examples:\n\n**HR Application View**:\n```sql\nCREATE VIEW HR_EmployeeView AS\nSELECT EmployeeID, Name, Department, HireDate\nFROM Employees\n-- Excludes Salary, SSN for privacy\n```\n\n**Manager View**:\n```sql\nCREATE VIEW Manager_TeamView AS\nSELECT e.Name, e.Department, p.ProjectName, p.Deadline\nFROM Employees e\nJOIN Projects p ON e.EmployeeID = p.LeadID\n```\n\n**Customer View**:\n```sql\nCREATE VIEW Customer_OrderView AS\nSELECT OrderID, OrderDate, Status, TotalAmount\nFROM Orders\nWHERE CustomerID = CURRENT_USER_ID()\n```\n\nBenefits:\n- **Security**: Hide sensitive data\n- **Simplicity**: Present complex joins as simple tables\n- **Customization**: Different views for different roles\n- **Independence**: Shield applications from schema changes",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "55",
+        "question": "What is the difference between physical and logical data independence?",
+        "answer": "**Physical Data Independence**:\n- **Definition**: Ability to modify physical schema without changing logical schema\n- **Examples**: Changing storage engine, adding indexes, reorganizing files, changing block size\n- **Ease**: Easier to achieve\n- **Impact**: Applications unaffected by storage changes\n\n**Logical Data Independence**:\n- **Definition**: Ability to modify logical schema without changing external schemas (views)\n- **Examples**: Adding new columns, splitting tables, creating new relationships, adding constraints\n- **Ease**: Harder to achieve\n- **Impact**: Views may need updating, but applications using views remain unchanged\n\n**Real-world analogy**:\n- Physical independence = Changing the engine of a car without changing how you drive it\n- Logical independence = Redesigning the dashboard layout while keeping the steering wheel and pedals in the same place",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "56",
+        "question": "How does the three-schema architecture achieve data independence?",
+        "answer": "The three-schema architecture achieves data independence through separation of concerns and mappings between levels:\n\n**Mappings between levels**:\n1. **Conceptual/Internal mapping**: Defines how logical records map to physical storage\n2. **External/Conceptual mapping**: Defines how views map to logical tables\n\n**Physical independence**:\n- Changes to internal schema only require updating conceptual/internal mapping\n- Example: Adding an index doesn't affect conceptual schema or views\n\n**Logical independence**:\n- Changes to conceptual schema only require updating external/conceptual mapping\n- Example: Adding a column to a table doesn't affect views that don't use it\n\n**Benefits**:\n- **Maintenance**: Changes isolated to one level\n- **Evolution**: Database can evolve without breaking applications\n- **Performance**: Can optimize storage without affecting users\n- **Security**: Can restrict access through views\n\nThis layered approach ensures that each level can change independently as long as mappings are maintained.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "57",
+        "question": "What is a view in DBMS and how is it different from a base table?",
+        "answer": "A **view** is a virtual table based on the result of a SELECT query. It doesn't store data physically (except materialized views).\n\n**Differences from base tables**:\n\n| Aspect | Base Table | View |\n|--------|------------|------|\n| **Storage** | Stores data physically | No physical storage (virtual) |\n| **Data** | Contains actual data | Displays data from underlying tables |\n| **Updates** | Directly updatable | Limited updatability (through INSTEAD OF triggers) |\n| **Indexes** | Can have indexes | Cannot have indexes (except materialized) |\n| **Dependencies** | Independent | Depends on underlying tables |\n| **Performance** | Direct access | May have overhead of running query |\n| **Security** | Base level security | Can provide row/column-level security |\n\n**Example**:\n```sql\n-- Base table\nCREATE TABLE Employees (ID, Name, Salary, SSN);\n\n-- View hiding sensitive data\nCREATE VIEW EmployeePublic AS\nSELECT ID, Name FROM Employees;\n```",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "58",
+        "question": "What is a materialized view and when would you use it?",
+        "answer": "A **materialized view** is a view that physically stores the query results on disk, refreshing periodically or on demand.\n\n**Characteristics**:\n- Physically stores data like a table\n- Can be indexed for faster access\n- May become stale and need refresh\n- Requires storage space\n\n**When to use**:\n1. **Data warehousing**: Pre-compute complex aggregations for reporting\n2. **Performance optimization**: Frequently accessed complex queries\n3. **Distributed databases**: Replicate data across locations\n4. **Summary tables**: Store pre-calculated totals, averages\n5. **Historical snapshots**: Capture point-in-time data states\n\n**Example**:\n```sql\nCREATE MATERIALIZED VIEW SalesSummary\nREFRESH COMPLETE ON DEMAND AS\nSELECT ProductID, SUM(Amount) as TotalSales, COUNT(*) as OrderCount\nFROM Orders\nGROUP BY ProductID;\n```\n\n**Refresh options**:\n- **ON COMMIT**: Refresh when underlying data changes\n- **ON DEMAND**: Manual refresh\n- **REFRESH COMPLETE**: Rebuild entire view\n- **REFRESH FAST**: Incremental update using logs",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "59",
+        "question": "Explain client-server architecture in DBMS with tiers.",
+        "answer": "**Client-server architecture** divides database system into clients (requesters) and servers (providers).\n\n**Two-tier architecture**:\n- Client directly connects to database server\n- Client handles UI and application logic\n- Database server handles data management\n- Example: Desktop application connecting to Oracle\n- Pros: Simple, low latency\n- Cons: Security risks, scalability limits\n\n**Three-tier architecture**:\n- **Presentation tier** (client): UI, browser\n- **Application tier** (middleware): Business logic, web server\n- **Data tier** (database server): Data storage and management\n- Example: Web application with app server and database\n- Pros: Scalability, security, maintainability\n- Cons: More complex, additional network hops\n\n**N-tier architecture**:\n- Multiple specialized tiers (cache tier, message queue, etc.)\n- Microservices architecture\n- Cloud-native designs\n\nModern web applications typically use three-tier or n-tier architectures for scalability and security.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "60",
+        "question": "What is the role of a database schema in the three-schema architecture?",
+        "answer": "A **database schema** is the structural description of data at each level of the three-schema architecture:\n\n**Internal schema**:\n- Describes physical storage structures\n- File organizations, indexes, access paths\n- Storage parameters (block size, compression)\n- Example: \"Employees table stored as clustered index on ID with B-tree\"\n\n**Conceptual schema**:\n- Describes entire logical structure\n- All tables, columns, relationships, constraints\n- Independent of physical details\n- Example: \"Employees(ID int PK, Name varchar(50), DeptID int FK)\"\n\n**External schemas**:\n- Describe user views (subsets of conceptual schema)\n- May include derived data, restrictions\n- Multiple external schemas possible\n- Example: \"HR_View(ID, Name) from Employees\"\n\nEach schema level has its own Data Definition Language (DDL) and is maintained in the system catalog. The schemas together provide complete description of the database.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "61",
+        "question": "How does data abstraction help in database management?",
+        "answer": "**Data abstraction** hides complex implementation details and provides simplified interfaces at different levels:\n\n**Three levels of abstraction**:\n\n1. **Physical level** (how data is stored):\n   - Hidden from typical users\n   - Only DBAs and system programmers see this\n   - Manages files, blocks, indexes\n\n2. **Logical level** (what data is stored):\n   - Database designers see this\n   - Shows tables, columns, relationships\n   - Hides storage complexity\n\n3. **View level** (how users see data):\n   - End users see only relevant data\n   - Hides unrelated data and complexity\n   - Provides security through restriction\n\n**Benefits**:\n- **Simplifies user interaction**: Users don't need technical knowledge\n- **Enables changes**: Can modify lower levels without affecting higher levels\n- **Improves security**: Users see only authorized data\n- **Reduces complexity**: Each level focuses on specific concerns\n- **Promotes reusability**: Same data can be presented differently\n\nAnalogy: Car drivers use steering wheel and pedals (view level) without understanding engine mechanics (physical level).",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "62",
+        "question": "What is the difference between a schema and an instance in DBMS architecture?",
+        "answer": "**Schema** vs **Instance** in database architecture:\n\n| Aspect | Schema | Instance |\n|--------|--------|----------|\n| **Definition** | Structure/blueprint of database | Actual data at a moment |\n| **Changes** | Changes infrequently | Changes constantly |\n| **Level** | Design-time concept | Run-time concept |\n| **Size** | Fixed, small | Variable, can be huge |\n| **Storage** | Stored in data dictionary | Stored in data files |\n\n**At each architectural level**:\n\n- **Internal level**:\n  - Schema: Description of storage structures\n  - Instance: Actual bytes on disk\n\n- **Conceptual level**:\n  - Schema: Table definitions, constraints\n  - Instance: Actual rows in tables\n\n- **External level**:\n  - Schema: View definitions\n  - Instance: Data visible through views\n\n**Example**:\n- Schema: \"Student table has columns ID(int), Name(varchar)\"\n- Instance: \"(1, 'John'), (2, 'Jane')\" at 10:00 AM",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "63",
+        "question": "Explain the concept of mapping in three-schema architecture.",
+        "answer": "**Mapping** in three-schema architecture defines how data at one level corresponds to data at another level:\n\n**Conceptual/Internal Mapping**:\n- Defines how logical records map to physical storage\n- Specifies which physical files/store contain each logical table\n- Determines how logical operations translate to physical access\n- Example: \"Employee table stored in employee.dat file with B-tree index on ID\"\n- Enables **physical data independence**\n\n**External/Conceptual Mapping**:\n- Defines how views map to base tables\n- Specifies transformations, joins, restrictions\n- Determines how view operations translate to table operations\n- Example: \"HR_View gets ID and Name from Employees table, excludes salary\"\n- Enables **logical data independence**\n\n**Characteristics**:\n- Mappings are stored in system catalog\n- They're transparent to users\n- Changes at one level require updating mappings\n- Complex mappings may impact performance\n\nWithout mappings, any schema change would require changing all applications.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "64",
+        "question": "What is a database instance and how does it relate to the three levels?",
+        "answer": "A **database instance** is the actual collection of data stored in the database at a particular moment. It manifests differently at each level:\n\n**At Physical Level**:\n- Actual bits and bytes on disk\n- Physical blocks and pages\n- Index structures with actual pointers\n- Example: The binary data in employee.dat file\n\n**At Logical Level**:\n- Actual rows in tables\n- Current values in columns\n- Existing relationships through foreign keys\n- Example: The record for Employee #101 with Name='John', Salary=50000\n\n**At View Level**:\n- Subset of data visible through views\n- Computed or derived values\n- Data formatted for specific users\n- Example: Through HR_View, just seeing 'John' without salary\n\n**Characteristics**:\n- Changes with every INSERT, UPDATE, DELETE\n- Different instances at different times\n- All levels see the same logical data but differently\n- Instance size can grow/shrink over time\n\nAnalogy: Schema is like a form template; instance is the filled-out form.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "65",
+        "question": "How do you achieve physical data independence in a DBMS?",
+        "answer": "**Physical data independence** is achieved through separation between logical and physical layers:\n\n**Mechanisms**:\n\n1. **Conceptual/Internal Mapping**:\n   - Maintain mapping between logical tables and physical storage\n   - Update mapping when physical structures change\n   - Keep logical schema unchanged\n\n2. **Storage Abstraction**:\n   - DBMS provides uniform access methods regardless of storage\n   - Query processor works with logical operators, not physical addresses\n   - Buffer manager hides disk specifics\n\n3. **Examples of physical changes that don't affect logical schema**:\n   ```sql\n   -- Adding an index (physical change)\n   CREATE INDEX idx_emp_name ON Employees(Name);\n   -- No change to logical table structure\n   \n   -- Changing storage engine\n   ALTER TABLE Employees ENGINE=InnoDB;\n   -- Table definition remains same\n   \n   -- Reorganizing file storage\n   -- Application queries unchanged\n   ```\n\n4. **Benefits realized**:\n   - Applications continue working without changes\n   - DBAs can optimize performance freely\n   - Hardware upgrades don't require application changes\n\nThis independence is fundamental to DBMS design and a key advantage over file systems.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "66",
+        "question": "What are the advantages and disadvantages of three-schema architecture?",
+        "answer": "**Advantages of three-schema architecture**:\n\n1. **Data independence**:\n   - Physical changes don't affect logical schema\n   - Logical changes can be isolated from views\n\n2. **Multiple views**:\n   - Different users see customized data\n   - Supports diverse user requirements\n\n3. **Security**:\n   - Hide sensitive data through views\n   - Control access at multiple levels\n\n4. **Centralized management**:\n   - Single logical schema for whole organization\n   - Consistent data definitions\n\n5. **Evolution support**:\n   - Database can evolve without breaking applications\n   - Technology upgrades possible with minimal disruption\n\n**Disadvantages**:\n\n1. **Complexity**:\n   - More complex than single-level systems\n   - Requires mapping maintenance\n\n2. **Performance overhead**:\n   - Mapping between levels adds processing\n   - Views may have query performance impact\n\n3. **Limited logical independence**:\n   - Some logical changes still affect views\n   - Complete logical independence is difficult\n\n4. **Implementation difficulty**:\n   - Not all DBMS fully implement all levels\n   - Mapping management is complex\n\n5. **Cost**:\n   - More resources needed for design and maintenance\n   - Specialized skills required",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "67",
+        "question": "Explain the concept of data independence with real-world examples.",
+        "answer": "**Data independence** is the ability to change schema at one level without affecting the next higher level. Real-world examples:\n\n**Physical independence examples**:\n\n1. **Library analogy**:\n   - Before: Books organized by title (physical)\n   - After: Reorganized by Dewey Decimal system\n   - Effect: Card catalog (logical) still shows same books, just different location\n\n2. **Database example**:\n   - Before: Table stored as heap file\n   - After: Add B-tree index on ID column\n   - Effect: SELECT * FROM Employees WHERE ID=101 still works, just faster\n\n3. **Storage migration**:\n   - Before: Data on HDD\n   - After: Move to SSD\n   - Effect: All queries work same way, just faster\n\n**Logical independence examples**:\n\n1. **Store analogy**:\n   - Before: Products displayed in aisles by category\n   - After: Add new organic section, reorganize some products\n   - Effect: Shopping lists (views) for \"dairy items\" still work\n\n2. **Database example**:\n   - Before: Employees table with Name, Dept\n   - After: Split Name into FirstName, LastName, add view:\n     ```sql\n     CREATE VIEW Employees AS\n     SELECT CONCAT(FirstName,' ',LastName) as Name, Dept\n     FROM EmployeeDetails;\n     ```\n   - Effect: Applications using old Employees view still work\n\n3. **Adding columns**:\n   - Add new column without affecting existing views that don't use it\n\nThese examples show how independence reduces maintenance costs and increases system flexibility.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "68",
+        "question": "What is the difference between logical and physical schema?",
+        "answer": "**Logical Schema** vs **Physical Schema**:\n\n| Aspect | Logical Schema | Physical Schema |\n|--------|----------------|-----------------|\n| **Focus** | What data is stored | How data is stored |\n| **Level** | Conceptual level | Internal level |\n| **Contents** | Tables, columns, relationships, constraints | Files, indexes, partitions, storage parameters |\n| **Stability** | Relatively stable | May change frequently for performance |\n| **Designer** | Database designer | DBA |\n| **Users** | Application developers, analysts | System administrators |\n\n**Logical schema example**:\n```sql\nCREATE TABLE Employees (\n    EmpID INT PRIMARY KEY,\n    Name VARCHAR(100) NOT NULL,\n    DeptID INT,\n    Salary DECIMAL(10,2),\n    FOREIGN KEY (DeptID) REFERENCES Departments(DeptID)\n);\n```\n\n**Physical schema example**:\n```sql\n-- Storage parameters\nCREATE TABLE Employees (\n    -- column definitions\n) \nSTORAGE (INITIAL 10M NEXT 5M)\nTABLESPACE user_data\nINDEX (EmpID) USING BTREE\nPARTITION BY HASH(EmpID) PARTITIONS 4;\n```\n\nThe logical schema focuses on data structure and business rules; the physical schema focuses on performance and storage optimization.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "69",
+        "question": "How do external schemas (views) provide security in database systems?",
+        "answer": "External schemas (views) provide security through several mechanisms:\n\n**1. Column-level security**:\n```sql\n-- Hide sensitive columns\nCREATE VIEW EmployeePublic AS\nSELECT EmpID, Name, Department\nFROM Employees;\n-- Salary and SSN hidden\n```\n\n**2. Row-level security**:\n```sql\n-- Users see only their department\nCREATE VIEW DeptEmployees AS\nSELECT * FROM Employees \nWHERE DeptID = SESSION_CONTEXT('DeptID');\n```\n\n**3. Derived data security**:\n```sql\n-- Show aggregated data only\nCREATE VIEW DepartmentStats AS\nSELECT DeptID, COUNT(*) as EmpCount, AVG(Salary) as AvgSalary\nFROM Employees GROUP BY DeptID;\n-- Individual salaries hidden\n```\n\n**4. Restricting operations**:\n- Views can be read-only, preventing unauthorized modifications\n- WITH CHECK OPTION prevents inserts/updates that would make row disappear from view\n\n**5. Combining multiple tables securely**:\n```sql\n-- Join without exposing keys\nCREATE VIEW OrderSummary AS\nSELECT o.OrderID, o.OrderDate, c.CustomerName\nFROM Orders o\nJOIN Customers c ON o.CustomerID = c.CustomerID;\n-- CustomerID hidden\n```\n\n**6. Application-level security**:\n- Different applications get different views\n- Mobile app sees limited data, desktop app sees full data\n\nViews implement the **principle of least privilege** - users get exactly the data they need, nothing more.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "70",
+        "question": "What is the role of the system catalog in three-schema architecture?",
+        "answer": "The **system catalog** (data dictionary) is a centralized repository that stores metadata about the database, supporting all three schema levels:\n\n**Contents at each level**:\n\n1. **Internal level information**:\n   - Storage structures and file locations\n   - Index definitions and types\n   - Partition information\n   - Space allocation details\n\n2. **Conceptual level information**:\n   - Table and column definitions\n   - Data types and lengths\n   - Constraint definitions (PK, FK, CHECK)\n   - Relationship mappings\n\n3. **External level information**:\n   - View definitions\n   - User access rights and privileges\n   - Application-specific schemas\n\n**Functions**:\n\n- **Mapping support**: Stores mappings between levels\n- **Query optimization**: Provides statistics for optimizer\n- **Authorization**: Maintains security information\n- **Integrity enforcement**: Stores constraint definitions\n- **Version control**: Tracks schema versions\n\n**Example queries**:\n```sql\n-- Query catalog for table info\nSELECT * FROM INFORMATION_SCHEMA.TABLES;\nSELECT * FROM pg_catalog.pg_indexes;  -- PostgreSQL\n```\n\nThe system catalog is self-describing - it contains data about itself, supporting the three-schema architecture's metadata management.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "71",
+        "question": "Explain the concept of transparency in DBMS architecture.",
+        "answer": "**Transparency** in DBMS architecture means hiding implementation details from users at various levels:\n\n**Types of transparency**:\n\n1. **Data independence transparency**:\n   - Physical changes hidden from logical level\n   - Logical changes hidden from view level\n\n2. **Network transparency**:\n   - Location of data hidden from users\n   - Distributed database appears as single database\n\n3. **Replication transparency**:\n   - Multiple copies of data appear as one\n   - User unaware of replication\n\n4. **Transaction transparency**:\n   - Concurrent transactions appear isolated\n   - ACID properties maintained transparently\n\n5. **Failure transparency**:\n   - Recovery from failures hidden from users\n   - System continues despite faults\n\n6. **Performance transparency**:\n   - Optimization happens automatically\n   - Users don't need to tune queries\n\n**Examples**:\n```sql\n-- User writes simple query, DBMS handles complexity\nSELECT * FROM Employees WHERE ID = 101;\n-- DBMS decides whether to use index, which partition to access\n\n-- Distributed database query appears local\nSELECT * FROM Customers;  -- Data may come from multiple servers\n```\n\nTransparency is achieved through the three-schema architecture's layered approach and DBMS components working together.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "72",
+        "question": "How does the three-schema architecture support database evolution?",
+        "answer": "The three-schema architecture supports database evolution through separation of concerns and independence:\n\n**Physical evolution**:\n- Upgrade storage hardware without application changes\n- Change indexing strategies for performance\n- Migrate to new storage engines\n- Reorganize files for better space utilization\n- Example: Moving from HDD to SSD, adding partitions\n\n**Logical evolution**:\n- Add new tables for new business requirements\n- Extend existing tables with new columns\n- Split tables for better organization\n- Add new relationships\n- Example:\n  ```sql\n  -- Add column without breaking views\n  ALTER TABLE Employees ADD COLUMN TwitterHandle VARCHAR(50);\n  -- Existing views continue working\n  ```\n\n**External evolution**:\n- Create new views for new user requirements\n- Modify views without changing base tables\n- Deprecate old views gradually\n\n**Version management**:\n- Maintain multiple schema versions simultaneously\n- Gradual migration of applications\n- Backward compatibility through views\n\n**Example scenario**:\n1. Company expands internationally\n2. Add CountryCode column to Employees (logical change)\n3. Create view for US employees only (external change)\n4. Optimize with partitioned tables by country (physical change)\n5. All existing US applications continue working unchanged\n\nThis flexibility allows databases to grow with business needs without disrupting existing operations.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "73",
+        "question": "What is the difference between a view and a base table at the external level?",
+        "answer": "**Base Table** vs **View** at the external level:\n\n| Aspect | Base Table | View |\n|--------|------------|------|\n| **Definition** | Physical storage structure | Virtual table from query |\n| **Data storage** | Stores actual data | No data storage |\n| **Dependencies** | Independent | Depends on base tables |\n| **Updates** | Directly updatable | Limited updatability |\n| **Indexes** | Can have indexes | Cannot have indexes (except materialized) |\n| **Performance** | Direct access | Query execution overhead |\n| **Security** | Table-level permissions | Fine-grained control |\n| **Maintenance** | DDL changes affect structure | Can be redefined easily |\n\n**Usage scenarios**:\n\n**Base tables for**:\n- Core data storage\n- Transaction processing\n- Referential integrity\n- Indexed access\n\n**Views for**:\n- Data security (hide columns/rows)\n- Query simplification\n- Legacy compatibility\n- Aggregated reporting\n\n**Example**:\n```sql\n-- Base table\nCREATE TABLE Orders (\n    OrderID INT PRIMARY KEY,\n    CustomerID INT,\n    TotalAmount DECIMAL,\n    CreditCardNumber VARCHAR(16)  -- sensitive\n);\n\n-- View at external level\nCREATE VIEW OrderSummary AS\nSELECT OrderID, CustomerID, TotalAmount\nFROM Orders;  -- CreditCardNumber hidden\n\n-- Users query view, not base table\nSELECT * FROM OrderSummary WHERE CustomerID = 101;\n```\n\nAt the external level, both appear as tables to users, but views provide abstraction and security.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "74",
+        "question": "Explain how query processing works across the three schema levels.",
+        "answer": "Query processing spans all three levels of the three-schema architecture:\n\n**1. External level processing**:\n- User submits query against a view\n- Query parser validates against external schema\n- View expansion occurs (view replaced by underlying query)\n- Example: \n  ```sql\n  -- User query\n  SELECT * FROM HighValueCustomers;\n  -- Expanded to\n  SELECT * FROM Customers WHERE TotalPurchases > 10000;\n  ```\n\n**2. Conceptual level processing**:\n- Query optimizer works with logical schema\n- Rewrites query for efficiency\n- Determines join orders, operation sequences\n- Generates logical query plan\n- Checks constraints and permissions\n\n**3. Internal level processing**:\n- Translates logical plan to physical operations\n- Uses indexes and access paths\n- Determines join algorithms (hash join, nested loops)\n- Reads/writes data from storage\n- Returns results\n\n**Complete flow**:\n```\nUser Query (External)\n    → View Resolution (External→Conceptual)\n    → Query Optimization (Conceptual)\n    → Access Plan Generation (Conceptual→Internal)\n    → Data Access (Internal)\n    → Result Formatting (Internal→Conceptual→External)\n    → User Result\n```\n\nEach level adds value: external provides security, conceptual provides optimization, internal provides efficient access.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    },
+    {
+        "id": "75",
+        "question": "What are the main components of a DBMS that implement the three-schema architecture?",
+        "answer": "The three-schema architecture is implemented through various DBMS components:\n\n**1. Components handling external schema**:\n- **View manager**: Creates and maintains views\n- **Security manager**: Enforces access permissions\n- **User interface**: Presents data to users\n- **Report generator**: Formats output\n\n**2. Components handling conceptual schema**:\n- **DDL compiler**: Processes schema definitions\n- **Query optimizer**: Generates efficient execution plans\n- **Integrity manager**: Enforces constraints\n- **Transaction manager**: Ensures ACID properties\n\n**3. Components handling internal schema**:\n- **Storage manager**: Manages data files\n- **Buffer manager**: Caches data in memory\n- **Index manager**: Maintains access structures\n- **File manager**: Handles disk I/O\n\n**Cross-cutting components**:\n- **Data dictionary**: Stores all schema information\n- **Authorization manager**: Controls access across levels\n- **Recovery manager**: Handles failures\n\n**Implementation example**:\n```\nExternal Level → [View Manager + Security Manager]\n                     ↓\nConceptual Level → [Query Optimizer + Integrity Manager]\n                     ↓\nInternal Level  → [Storage Manager + Index Manager]\n                     ↓\nPhysical Storage → [Data Files + Index Files]\n```\n\nEach component works together to maintain the separation between levels while providing efficient data access.",
+        "topic": "DBMS",
+        "subtopic": "DBMS Architecture"
+    }
+]

@@ -9,21 +9,21 @@
   {
     "id": "2",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "3",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "4",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -37,7 +37,7 @@
   {
     "id": "6",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -51,14 +51,14 @@
   {
     "id": "8",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "9",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -72,14 +72,14 @@
   {
     "id": "11",
     "topic": "DBMS",
-    "subtopic": "Indexing",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "12",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -107,14 +107,14 @@
   {
     "id": "16",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
   {
     "id": "17",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -149,7 +149,7 @@
   {
     "id": "22",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -170,7 +170,7 @@
   {
     "id": "25",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -191,35 +191,35 @@
   {
     "id": "28",
     "topic": "DBMS",
-    "subtopic": "DDL",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
   {
     "id": "29",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "30",
     "topic": "DBMS",
-    "subtopic": "Indexing",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
   {
     "id": "31",
     "topic": "DBMS",
-    "subtopic": "DDL",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "32",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -233,14 +233,14 @@
   {
     "id": "34",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "35",
     "topic": "DBMS",
-    "subtopic": "DDL",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -254,21 +254,21 @@
   {
     "id": "37",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "38",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "39",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -282,7 +282,7 @@
   {
     "id": "41",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -373,7 +373,7 @@
   {
     "id": "54",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -422,21 +422,21 @@
   {
     "id": "61",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
   {
     "id": "62",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "63",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -450,7 +450,7 @@
   {
     "id": "65",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -471,7 +471,7 @@
   {
     "id": "68",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -485,7 +485,7 @@
   {
     "id": "70",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -499,7 +499,7 @@
   {
     "id": "72",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -520,7 +520,7 @@
   {
     "id": "75",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -534,7 +534,7 @@
   {
     "id": "77",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -555,14 +555,14 @@
   {
     "id": "80",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "81",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -576,14 +576,14 @@
   {
     "id": "83",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
   {
     "id": "84",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "Logging & Recovery",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -604,42 +604,42 @@
   {
     "id": "87",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
   {
     "id": "88",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "89",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "90",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "91",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "92",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -653,21 +653,21 @@
   {
     "id": "94",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "95",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "96",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -688,7 +688,7 @@
   {
     "id": "99",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -709,7 +709,7 @@
   {
     "id": "102",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -737,7 +737,7 @@
   {
     "id": "106",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -758,14 +758,14 @@
   {
     "id": "109",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
   {
     "id": "110",
     "topic": "DBMS",
-    "subtopic": "Entities & Keys",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -821,14 +821,14 @@
   {
     "id": "118",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "119",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -870,14 +870,14 @@
   {
     "id": "125",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "126",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "Locks",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -898,7 +898,7 @@
   {
     "id": "129",
     "topic": "DBMS",
-    "subtopic": "Indexing",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -919,14 +919,14 @@
   {
     "id": "132",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ACID",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
   {
     "id": "133",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "Indexing",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -975,14 +975,14 @@
   {
     "id": "140",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "141",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1052,7 +1052,7 @@
   {
     "id": "151",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1080,7 +1080,7 @@
   {
     "id": "155",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1108,7 +1108,7 @@
   {
     "id": "159",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1122,14 +1122,14 @@
   {
     "id": "161",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
   {
     "id": "162",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1178,14 +1178,14 @@
   {
     "id": "169",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "170",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1227,7 +1227,7 @@
   {
     "id": "176",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1262,14 +1262,14 @@
   {
     "id": "181",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
   {
     "id": "182",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1283,14 +1283,14 @@
   {
     "id": "184",
     "topic": "DBMS",
-    "subtopic": "Entities & Keys",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "185",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1311,7 +1311,7 @@
   {
     "id": "188",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1332,7 +1332,7 @@
   {
     "id": "191",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1346,7 +1346,7 @@
   {
     "id": "193",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1360,21 +1360,21 @@
   {
     "id": "195",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "196",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ER Modeling",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
   {
     "id": "197",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1388,7 +1388,7 @@
   {
     "id": "199",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1402,7 +1402,7 @@
   {
     "id": "201",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1416,7 +1416,7 @@
   {
     "id": "203",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1437,7 +1437,7 @@
   {
     "id": "206",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1479,14 +1479,14 @@
   {
     "id": "212",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "213",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1507,21 +1507,21 @@
   {
     "id": "216",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "217",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "218",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ACID",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1535,21 +1535,21 @@
   {
     "id": "220",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "221",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
   {
     "id": "222",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1591,7 +1591,7 @@
   {
     "id": "228",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1605,14 +1605,14 @@
   {
     "id": "230",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "231",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1640,14 +1640,14 @@
   {
     "id": "235",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
   {
     "id": "236",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1696,14 +1696,14 @@
   {
     "id": "243",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ER Modeling",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "244",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1773,7 +1773,7 @@
   {
     "id": "254",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1787,7 +1787,7 @@
   {
     "id": "256",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1808,7 +1808,7 @@
   {
     "id": "259",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1857,7 +1857,7 @@
   {
     "id": "266",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1948,7 +1948,7 @@
   {
     "id": "279",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1962,7 +1962,7 @@
   {
     "id": "281",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1990,7 +1990,7 @@
   {
     "id": "285",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2200,14 +2200,14 @@
   {
     "id": "345",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "346",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2242,7 +2242,7 @@
   {
     "id": "351",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2256,7 +2256,7 @@
   {
     "id": "353",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2270,7 +2270,7 @@
   {
     "id": "355",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2347,14 +2347,14 @@
   {
     "id": "366",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "367",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2410,7 +2410,7 @@
   {
     "id": "375",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2536,7 +2536,7 @@
   {
     "id": "393",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "Locks",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2606,7 +2606,7 @@
   {
     "id": "403",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "ACID",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2683,7 +2683,7 @@
   {
     "id": "414",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "Locks",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2697,7 +2697,7 @@
   {
     "id": "416",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "Locks",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2711,7 +2711,7 @@
   {
     "id": "418",
     "topic": "DBMS",
-    "subtopic": "DDL",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2739,7 +2739,7 @@
   {
     "id": "422",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "Locks",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2767,7 +2767,7 @@
   {
     "id": "426",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2837,7 +2837,7 @@
   {
     "id": "436",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "Distributed Databases",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -2872,7 +2872,7 @@
   {
     "id": "441",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2900,7 +2900,7 @@
   {
     "id": "445",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2921,7 +2921,7 @@
   {
     "id": "448",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ACID",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -2984,7 +2984,7 @@
   {
     "id": "457",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3005,7 +3005,7 @@
   {
     "id": "460",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -3047,7 +3047,7 @@
   {
     "id": "466",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ACID",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3061,7 +3061,7 @@
   {
     "id": "468",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "Distributed Databases",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3096,7 +3096,7 @@
   {
     "id": "473",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ACID",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3159,21 +3159,21 @@
   {
     "id": "482",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ACID",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "483",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
   {
     "id": "484",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "NoSQL",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3250,7 +3250,7 @@
   {
     "id": "495",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -5511,7 +5511,7 @@
   {
     "id": "12",
     "topic": "OS",
-    "subtopic": "Deadlocks",
+    "subtopic": "Processes",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -5784,7 +5784,7 @@
   {
     "id": "51",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -5805,7 +5805,7 @@
   {
     "id": "54",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },
@@ -5889,7 +5889,7 @@
   {
     "id": "66",
     "topic": "OS",
-    "subtopic": "Deadlocks",
+    "subtopic": "Processes",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -6001,7 +6001,7 @@
   {
     "id": "82",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -6022,7 +6022,7 @@
   {
     "id": "85",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -6106,7 +6106,7 @@
   {
     "id": "97",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -6134,7 +6134,7 @@
   {
     "id": "101",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },
@@ -6281,7 +6281,7 @@
   {
     "id": "122",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },
@@ -6302,7 +6302,7 @@
   {
     "id": "125",
     "topic": "OS",
-    "subtopic": "File Systems",
+    "subtopic": "OS basics",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },
@@ -6344,7 +6344,7 @@
   {
     "id": "131",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -6470,7 +6470,7 @@
   {
     "id": "149",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },
@@ -6540,7 +6540,7 @@
   {
     "id": "159",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "I/O Management",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },
@@ -6638,7 +6638,7 @@
   {
     "id": "173",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },

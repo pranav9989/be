@@ -3,13 +3,15 @@
     "keywords": [
       "dbms",
       "database",
+      "database management system",
       "rdbms",
-      "sql",
       "relational database",
-      "database management system"
+      "data independence",
+      "schema",
+      "instance"
     ],
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture"
+    "subtopic": "DBMS basics"
   },
   {
     "keywords": [
@@ -42,14 +44,14 @@
   },
   {
     "keywords": [
-      "referential integrity",
       "primary key",
       "foreign key",
       "candidate key",
       "superkey",
       "composite key",
       "alternate key",
-      "unique key"
+      "unique key",
+      "referential integrity"
     ],
     "topic": "DBMS",
     "subtopic": "Entities & Keys"
@@ -89,28 +91,24 @@
   {
     "keywords": [
       "ddl",
+      "dml",
+      "dcl",
+      "tcl",
       "create table",
       "alter table",
       "drop table",
       "truncate",
-      "rename",
-      "schema"
-    ],
-    "topic": "DBMS",
-    "subtopic": "DDL"
-  },
-  {
-    "keywords": [
-      "dml",
       "select",
       "insert",
       "update",
       "delete",
-      "merge",
-      "query"
+      "grant",
+      "revoke",
+      "commit",
+      "rollback"
     ],
     "topic": "DBMS",
-    "subtopic": "DML"
+    "subtopic": "DDL DML DCL TCL"
   },
   {
     "keywords": [
@@ -184,14 +182,19 @@
   },
   {
     "keywords": [
-      "deadlock",
-      "deadlock prevention",
-      "deadlock detection",
-      "deadlock avoidance",
-      "wait for graph"
+      "dbms deadlock",
+      "transaction deadlock",
+      "deadlock in dbms",
+      "wait for graph",
+      "deadlock detection in dbms",
+      "deadlock prevention in dbms",
+      "deadlock avoidance in dbms",
+      "lock based deadlock",
+      "transaction waiting",
+      "two phase locking deadlock"
     ],
     "topic": "DBMS",
-    "subtopic": "Deadlocks"
+    "subtopic": "Deadlocks DBMS"
   },
   {
     "keywords": [
@@ -373,13 +376,22 @@
   },
   {
     "keywords": [
+      "operating system",
+      "os",
+      "kernel",
+      "system software",
+      "resource management"
+    ],
+    "topic": "OS",
+    "subtopic": "OS basics"
+  },
+  {
+    "keywords": [
       "process",
       "process state",
       "pcb",
       "process control block",
-      "context switching",
-      "os",
-      "operating system"
+      "context switching"
     ],
     "topic": "OS",
     "subtopic": "Processes"
@@ -418,20 +430,25 @@
   },
   {
     "keywords": [
-      "deadlock",
+      "os deadlock",
+      "deadlock in os",
+      "operating system deadlock",
+      "deadlock in operating system",
       "bankers algorithm",
-      "deadlock prevention",
-      "deadlock detection"
+      "resource allocation graph",
+      "process deadlock",
+      "deadlock in operating systems",
+      "mutual exclusion deadlock",
+      "circular wait"
     ],
     "topic": "OS",
-    "subtopic": "Deadlocks"
+    "subtopic": "Deadlocks OS"
   },
   {
     "keywords": [
       "memory management",
       "contiguous allocation",
       "fragmentation",
-      "paging",
       "segmentation"
     ],
     "topic": "OS",

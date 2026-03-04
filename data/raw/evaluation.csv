@@ -1,0 +1,163 @@
+topic,subtopic,concept1,concept2,difficulty,expected_keywords
+DBMS,DBMS basics,database,dbms,easy,data storage system
+DBMS,DBMS basics,schema,instance,medium,database structure
+DBMS,DBMS basics,rdbms,data independence,medium,relational model
+DBMS,ER Modeling,entity,attribute,easy,data modeling
+DBMS,ER Modeling,relationship,cardinality,medium,relationship mapping
+DBMS,ER Modeling,weak entity,relationship,medium,entity dependency
+DBMS,DBMS Architecture,three schema architecture,logical level,medium,data abstraction
+DBMS,DBMS Architecture,physical level,view level,medium,architecture layers
+DBMS,Entities & Keys,primary key,foreign key,easy,table relationship
+DBMS,Entities & Keys,candidate key,composite key,medium,key constraints
+DBMS,Entities & Keys,referential integrity,foreign key,medium,integrity constraint
+DBMS,Normalization,1NF,2NF,easy,normal form
+DBMS,Normalization,3NF,BCNF,medium,functional dependency
+DBMS,Normalization,functional dependency,transitive dependency,hard,dependency analysis
+DBMS,Joins,inner join,left join,easy,relational join
+DBMS,Joins,right join,full join,medium,outer join
+DBMS,Joins,self join,inner join,medium,table relation
+DBMS,DDL DML DCL TCL,create,alter,easy,schema modification
+DBMS,DDL DML DCL TCL,insert,update,medium,data manipulation
+DBMS,DDL DML DCL TCL,delete,select,medium,data query
+DBMS,DDL DML DCL TCL,drop,truncate,medium,schema changes
+DBMS,DDL DML DCL TCL,grant,revoke,medium,access control
+DBMS,DDL DML DCL TCL,commit,rollback,medium,transaction control
+DBMS,Aggregations,group by,count,easy,aggregation query
+DBMS,Aggregations,sum,avg,medium,numeric aggregation
+DBMS,Aggregations,min,max,medium,aggregation result
+DBMS,Aggregations,group by,having,medium,filtering groups
+DBMS,Indexing,B+ tree,clustered index,medium,index structure
+DBMS,Indexing,hash index,non-clustered index,medium,index lookup
+DBMS,Indexing,clustered index,non-clustered index,medium,index comparison
+DBMS,ACID,atomicity,consistency,easy,transaction property
+DBMS,ACID,isolation,durability,easy,transaction reliability
+DBMS,Isolation Levels,read committed,dirty read,medium,isolation anomaly
+DBMS,Isolation Levels,repeatable read,phantom read,medium,concurrency anomaly
+DBMS,Isolation Levels,serializable,repeatable read,hard,isolation guarantee
+DBMS,Isolation Levels,read uncommitted,dirty read,medium,isolation level
+DBMS,Locks,shared lock,exclusive lock,medium,locking protocol
+DBMS,Locks,two phase locking,intention lock,hard,concurrency control
+DBMS,Locks,shared lock,exclusive lock,medium,lock compatibility
+DBMS,Deadlocks DBMS,wait-for graph,deadlock detection,medium,cycle detection
+DBMS,Deadlocks DBMS,deadlock prevention,deadlock avoidance,medium,resource allocation
+DBMS,Deadlocks DBMS,wait-for graph,deadlock detection,hard,cycle detection
+DBMS,Logging & Recovery,write ahead logging,checkpoint,medium,recovery logging
+DBMS,Logging & Recovery,undo,redo,medium,transaction recovery
+DBMS,Logging & Recovery,checkpoint,log based recovery,medium,recovery process
+DBMS,Query Optimization,query plan,execution plan,medium,query optimization
+DBMS,Query Optimization,cost based optimization,query plan,hard,query cost
+DBMS,Distributed Databases,replication,sharding,medium,data distribution
+DBMS,Distributed Databases,two phase commit,CAP theorem,hard,distributed consistency
+DBMS,Distributed Databases,replication,CAP theorem,hard,data availability
+DBMS,NoSQL,document store,key value store,easy,nosql storage
+DBMS,NoSQL,column family,graph database,medium,nosql models
+DBMS,NoSQL,document store,column family,medium,nosql comparison
+OOPS,Classes,class,methods,easy,class structure
+OOPS,Classes,attributes,instance,medium,class members
+OOPS,Classes,static,class,medium,class level members
+OOPS,Objects,instantiation,state,easy,object creation
+OOPS,Objects,behavior,identity,medium,object properties
+OOPS,Constructors,default constructor,parameterized constructor,easy,object initialization
+OOPS,Constructors,copy constructor,destructor,medium,object lifecycle
+OOPS,Constructors,default constructor,copy constructor,medium,constructor types
+OOPS,Encapsulation,data hiding,private,medium,access control
+OOPS,Encapsulation,public,protected,medium,visibility modifiers
+OOPS,Encapsulation,private,protected,medium,access specifiers
+OOPS,Inheritance,single inheritance,multiple inheritance,medium,class hierarchy
+OOPS,Inheritance,diamond problem,multiple inheritance,hard,inheritance conflict
+OOPS,Inheritance,single inheritance,multilevel inheritance,medium,inheritance types
+OOPS,Polymorphism,overloading,overriding,medium,compile runtime polymorphism
+OOPS,Polymorphism,runtime polymorphism,overriding,medium,dynamic dispatch
+OOPS,Polymorphism,overloading,overriding,hard,polymorphism types
+OOPS,Abstraction,abstract class,interface,medium,implementation hiding
+OOPS,Abstraction,abstract class,interface,medium,abstraction mechanisms
+OOPS,Interfaces,interface,implements,medium,contract implementation
+OOPS,Interfaces,contract,interface,medium,api design
+OOPS,Virtual Functions,virtual function,vtable,medium,runtime binding
+OOPS,Virtual Functions,dynamic binding,virtual function,medium,method dispatch
+OOPS,Virtual Functions,pure virtual function,abstract class,medium,abstract class
+OOPS,Object Relationships,association,aggregation,medium,object relationship
+OOPS,Object Relationships,composition,aggregation,medium,object ownership
+OOPS,Object Relationships,association,composition,medium,relationship strength
+OOPS,Design Patterns,singleton,factory,medium,design pattern
+OOPS,Design Patterns,observer,strategy,medium,behavioral pattern
+OOPS,Design Patterns,singleton,observer,medium,pattern examples
+OOPS,Memory Management in OOP,garbage collection,memory leak,medium,memory lifecycle
+OOPS,Memory Management in OOP,smart pointer,RAII,hard,memory safety
+OOPS,Memory Management in OOP,garbage collection,smart pointer,hard,memory management
+OS,OS basics,kernel,user mode,easy,system operation
+OS,OS basics,system software,resource management,medium,os functionality
+OS,Processes,process state,PCB,medium,process lifecycle
+OS,Processes,zombie process,orphan process,medium,process termination
+OS,Processes,process state,context switch,medium,process management
+OS,Threads,user thread,kernel thread,medium,thread management
+OS,Threads,multithreading,kernel thread,medium,parallel execution
+OS,Threads,user thread,kernel thread,hard,thread models
+OS,CPU Scheduling,FCFS,SJF,medium,scheduling algorithm
+OS,CPU Scheduling,round robin,priority scheduling,medium,cpu scheduling
+OS,CPU Scheduling,SJF,priority scheduling,medium,scheduling comparison
+OS,Process Synchronization,mutex,semaphore,medium,critical section
+OS,Process Synchronization,monitor,critical section,medium,synchronization mechanism
+OS,Process Synchronization,mutex,semaphore,hard,synchronization tools
+OS,Deadlocks OS,mutual exclusion,hold and wait,medium,deadlock condition
+OS,Deadlocks OS,no preemption,circular wait,medium,deadlock condition
+OS,Deadlocks OS,banker's algorithm,resource allocation graph,hard,deadlock avoidance
+OS,Deadlocks OS,deadlock prevention,deadlock avoidance,medium,deadlock handling
+OS,Memory Management,segmentation,fragmentation,medium,memory allocation
+OS,Memory Management,contiguous allocation,fragmentation,medium,allocation strategy
+OS,Memory Management,segmentation,paging,medium,memory techniques
+OS,Virtual Memory,page fault,thrashing,medium,demand paging
+OS,Virtual Memory,working set,thrashing,hard,memory pressure
+OS,Virtual Memory,page fault,working set,medium,virtual memory concepts
+OS,Paging,page,frame,medium,address mapping
+OS,Paging,TLB,page,medium,address translation
+OS,Paging,page table,TLB,medium,address translation
+OS,File Systems,inode,directory structure,medium,file organization
+OS,File Systems,file allocation,directory structure,medium,file storage
+OS,File Systems,inode,file allocation,medium,file system structures
+OS,Disk Scheduling,SSTF,SCAN,medium,disk algorithm
+OS,Disk Scheduling,C-SCAN,LOOK,medium,disk optimization
+OS,Disk Scheduling,SSTF,C-SCAN,medium,disk scheduling comparison
+OS,I/O Management,interrupt,DMA,medium,io transfer
+OS,I/O Management,device driver,interrupt,medium,hardware interface
+OS,I/O Management,DMA,interrupt,medium,data transfer modes
+OS,System Calls,fork,exec,medium,process creation
+OS,System Calls,wait,syscall,medium,process control
+OS,System Calls,fork,wait,medium,process management calls
+OS,Interprocess Communication,pipe,shared memory,medium,ipc mechanism
+OS,Interprocess Communication,message queue,socket,medium,process communication
+OS,Interprocess Communication,shared memory,message queue,medium,ipc comparison
+OS,Networking,TCP,UDP,medium,network protocol
+OS,Networking,socket programming,TCP,medium,network communication
+OS,Networking,TCP,UDP,hard,protocol differences
+OS,Security,authentication,authorization,medium,security control
+OS,Security,access control,authorization,medium,permission model
+OS,Security,authentication,access control,medium,security mechanisms
+OS,OS basics,kernel,system call,medium,kernel interface
+OS,Processes,PCB,context switch,medium,process control
+OS,Threads,multithreading,concurrency,medium,parallel execution
+OS,CPU Scheduling,scheduling criteria,turnaround time,medium,scheduling evaluation
+OS,Process Synchronization,atomic operation,race condition,medium,synchronization challenges
+OS,Deadlocks OS,resource allocation graph,deadlock detection,medium,deadlock analysis
+OS,Memory Management,swapping,memory allocation,medium,memory techniques
+OS,Virtual Memory,demand paging,page fault,medium,paging mechanism
+OS,Paging,segmentation with paging,page table,hard,combined techniques
+OS,File Systems,file access methods,directory implementation,medium,file operations
+OS,Disk Scheduling,disk scheduling,seek time,medium,disk performance
+OS,I/O Management,io buffering,io scheduling,medium,io optimization
+OS,System Calls,open,read,medium,file system calls
+OS,Interprocess Communication,signals,pipe,medium,ipc mechanisms
+OS,Networking,socket,port,medium,network addressing
+OS,Security,encryption,authentication,medium,security principles
+OS,OS basics,operating system types,batch system,medium,os classification
+OS,Processes,process creation,process termination,medium,process lifecycle
+OS,Threads,thread pool,multithreading,medium,thread management
+OS,CPU Scheduling,preemptive scheduling,non preemptive scheduling,medium,scheduling types
+OS,Process Synchronization,busy waiting,spinlock,medium,synchronization
+OS,Deadlocks OS,starvation,deadlock,medium,resource allocation issues
+OS,Memory Management,buddy system,memory allocation,medium,allocation algorithm
+OS,Virtual Memory,page replacement algorithm,FIFO,medium,page replacement
+OS,Paging,page size,internal fragmentation,medium,paging efficiency
+OS,File Systems,free space management,disk blocks,medium,storage management
+OS,Disk Scheduling,FCFS disk scheduling,SSTF,medium,disk algorithms
+OS,I/O Management,mmap,file io,medium,memory mapped io

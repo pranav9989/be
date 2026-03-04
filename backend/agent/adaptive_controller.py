@@ -182,8 +182,10 @@ class AdaptiveInterviewController:
             else:
                 print(f"      {topic}: NEW (no history)")
         
+        # 🔥 FIX 1: Q1 ALWAYS MEDIUM - override any mastery-based difficulty
         mastery_for_topic = state.ensure_topic_mastery(first_topic)
-        difficulty = mastery_for_topic.get_recommended_difficulty()
+        difficulty = "medium"  # Force Q1 to be MEDIUM
+        print(f"   🎯 Q1 difficulty: MEDIUM (enforced by rule)")
         
         if user_id not in self.subtopic_trackers:
             self.subtopic_trackers[user_id] = SubtopicTracker(user_id)
@@ -206,7 +208,7 @@ class AdaptiveInterviewController:
         first_question, subtopic, sampled_concepts = self._generate_question(
             session_id=session_id,
             topic=first_topic,
-            difficulty=difficulty,
+            difficulty=difficulty,  # This is now "medium"
             user_name=user_name,
             force_subtopic=chosen_subtopic,
             weak_concepts=weak_concepts
@@ -217,7 +219,7 @@ class AdaptiveInterviewController:
         state.current_topic = first_topic
         state.current_subtopic = subtopic
         state.current_question = first_question
-        state.current_difficulty = difficulty
+        state.current_difficulty = difficulty  # This is now "medium"
         state.question_start_time = time.time()
         state.topics_covered_this_session.append(first_topic)
         
@@ -243,7 +245,7 @@ class AdaptiveInterviewController:
             "question": first_question,
             "topic": first_topic,
             "subtopic": subtopic,
-            "difficulty": difficulty,
+            "difficulty": difficulty,  # This will be "medium"
             "time_remaining": state.time_remaining_sec(),
             "topic_order": topic_order,
             "current_topic_index": 0,
@@ -592,14 +594,39 @@ class AdaptiveInterviewController:
                     if r.topic == topic and r.subtopic == state.current_subtopic]
         prev_score = prev_scores[-1] if prev_scores else 0.5
         
-        # 🔥 USE STRICT DIFFICULTY MATRIX
-        next_difficulty = self._calculate_next_difficulty(
-            question_number=current_question_num,
-            previous_score=prev_score,
-            previous_difficulty=state.current_difficulty
-        )
+        # 🔥 FIX 1: ENFORCE STRICT DIFFICULTY MATRIX (REPLACING _calculate_next_difficulty)
+        def determine_difficulty(question_num, last_score):
+            """
+            STRICT 9-CASE DIFFICULTY MATRIX
+            
+            Q1: Always MEDIUM
+            Q2: Based on Q1 score
+            Q3: Based on Q2 score
+            """
+            if question_num == 1:
+                return "medium"
+            
+            if question_num == 2:
+                if last_score >= 0.7:
+                    return "hard"
+                elif last_score >= 0.4:
+                    return "medium"
+                else:
+                    return "easy"
+            
+            if question_num == 3:
+                if last_score >= 0.7:
+                    return "hard"
+                elif last_score >= 0.4:
+                    return "medium"
+                else:
+                    return "easy"
+            
+            return "medium"  # Fallback
         
-        print(f"\n   ✅ NEXT DIFFICULTY: {next_difficulty.upper()} (score: {prev_score:.2f})")
+        next_difficulty = determine_difficulty(current_question_num, prev_score)
+        
+        print(f"\n   ✅ NEXT DIFFICULTY: {next_difficulty.upper()} (Q{current_question_num}, score: {prev_score:.2f})")
         
         # 🔥 STRESS TEST HANDLING - WITHOUT BREAKING THE SYSTEM
         if stress_test:

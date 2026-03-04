@@ -36,7 +36,7 @@ const AgenticInterview = ({ user, onLogout }) => {
     const [started, setStarted] = useState(false);
     const [showMetrics, setShowMetrics] = useState(false);
     const [expandedQA, setExpandedQA] = useState({});
-    const [stressTestMode, setStressTestMode] = useState(false);
+    // Stress test mode state removed
     const [persona] = useState(() => getPersona(getSessionCount())); // lock persona for this mount
     const chatBoxRef = useRef(null);
 
@@ -57,7 +57,8 @@ const AgenticInterview = ({ user, onLogout }) => {
     const startAgenticInterview = async () => {
         setStarted(true);
         setShowMetrics(false);
-        startRecording(stressTestMode);
+        // Remove stressTestMode parameter, pass false as default
+        startRecording(false);
     };
 
     const handleEndInterview = () => {
@@ -388,18 +389,7 @@ const AgenticInterview = ({ user, onLogout }) => {
                             <div className="pre-tip"><i className="fas fa-robot"></i> AI adapts to your skill level</div>
                         </div>
 
-                        <div className="agentic-mode-toggles" style={{ margin: '20px 0', padding: '15px', background: 'var(--bg-elevated)', borderRadius: '12px', border: '1px solid var(--border)' }}>
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '10px', cursor: 'pointer', fontSize: '1.05rem', color: 'var(--text-primary)' }}>
-                                <input
-                                    type="checkbox"
-                                    checked={stressTestMode}
-                                    onChange={(e) => setStressTestMode(e.target.checked)}
-                                    style={{ width: '20px', height: '20px', accentColor: persona.accentColor }}
-                                />
-                                <strong>Stress Test Mode</strong>
-                                <span style={{ fontSize: '0.9rem', color: 'var(--text-muted)', marginLeft: '10px' }}>(AI actively challenges your answers)</span>
-                            </label>
-                        </div>
+                        {/* Stress Test Mode checkbox removed */}
 
                         <div className="pre-connection">
                             <div className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`} />

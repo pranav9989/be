@@ -13,7 +13,7 @@
     "question": "What is a DBMS and what are its primary functions?",
     "answer": "A Database Management System (DBMS) is a software suite that provides a systematic and scalable way to create, retrieve, update, and manage data in a database. It acts as an intermediary between the database and end-users/application programs. Its core functions include: data storage and retrieval, concurrency control to manage simultaneous access, security and authorization, integrity enforcement to ensure data accuracy, and backup and recovery. Examples include MySQL, PostgreSQL, Oracle, and MongoDB.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -22,7 +22,7 @@
     "question": "How does a Database System differ from just a database?",
     "answer": "The term 'Database System' or 'Database Management System (DBMS)' refers to the entire software application, which includes both the database itself (the stored data) and the DBMS software that manipulates it. It's the complete ecosystem: the data, the hardware it resides on, the software to manage it, and the personnel who use and administer it. You can't have a functional database system without the DBMS software.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -31,7 +31,7 @@
     "question": "What are the key advantages of using a DBMS over traditional file systems?",
     "answer": "DBMS offers significant advantages over file processing systems: 1. **Reduced Data Redundancy:** Data is stored in one place, minimizing duplication. 2. **Improved Data Integrity:** Rules and constraints ensure data is accurate and consistent. 3. **Enhanced Data Sharing and Security:** Multiple users can access data concurrently with controlled permissions. 4. **Data Independence:** Application programs are insulated from changes in how the data is stored. 5. **Powerful Data Retrieval:** SQL provides a efficient, standardized language for complex queries. 6. **Backup and Recovery:** Built-in mechanisms protect data from system failures.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -49,7 +49,7 @@
     "question": "Can you describe the three-schema architecture for data abstraction in DBMS?",
     "answer": "The three-schema architecture defines different levels of abstraction to achieve data independence: 1. **Internal Level (Physical Schema):** Describes *how* the data is physically stored on the storage device (files, indices, storage structures). 2. **Conceptual Level (Logical Schema):** Describes *what* data is stored and the relationships between them. It defines the structure of the entire database for the community of users (entities, attributes, relationships, constraints). 3. **External Level (View Schema):** Describes the data as it is seen by specific end-user groups or applications. It is a tailored subset of the conceptual schema, hiding irrelevant data.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -67,7 +67,7 @@
     "question": "What is the difference between the intension and extension of a database?",
     "answer": "This distinction separates the database's blueprint from its current state: * **Intension (Database Schema):** This is the constant, logical design of the database. It's the overall structure, including table definitions, attributes, data types, constraints, and relationships. It changes infrequently, only when the design is modified. * **Extension (Database Instance):** This is the dynamic, time-dependent collection of data stored in the database at a particular moment. It's the set of all tuples (rows) in all the tables. The extension changes every time data is inserted, updated, or deleted.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -76,7 +76,7 @@
     "question": "What was System R and why was it historically significant?",
     "answer": "System R was a groundbreaking research project at IBM's San Jose Research Laboratory in the 1970s. It was one of the first systems to demonstrate that a relational database management system could be implemented with practical performance. Its two major subsystems were: 1. **Research Storage (RS):** Managed the low-level storage of data on disk. 2. **System Relational Data System (RDS):** Provided the higher-level relational interface, including the pioneering SQL query language (then called SEQUEL). System R proved the viability of relational databases and directly influenced the development of commercial RDBMS like IBM's DB2 and SQL/DS.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -94,7 +94,7 @@
     "question": "What is meant by data independence in a DBMS?",
     "answer": "Data independence is the immunity of application programs to changes in the definition and organization of data. It is a fundamental benefit of the three-schema architecture. There are two types: 1. **Physical Data Independence:** The ability to modify the physical schema (storage structures, indexing) without needing to change the logical or conceptual schema. Applications are shielded from changes like switching from one storage engine to another. 2. **Logical Data Independence:** The ability to modify the conceptual schema (adding a new column, splitting a table) without having to change existing external schemas (views) or application programs, as long as the data they use remains available.",
     "topic": "DBMS",
-    "subtopic": "Indexing",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -103,7 +103,7 @@
     "question": "What is a database view and how does it promote data independence?",
     "answer": "A view is a virtual table derived from one or more base tables. It does not store data itself but represents a stored query. Views are crucial for logical data independence because they create an abstraction layer. Users and applications can interact with views instead of base tables. If the underlying base tables need to be restructured (e.g., a table is split), the view's definition can be updated to reconstruct the original virtual table for the user. This means the application's interface to the data remains unchanged, insulating it from changes in the database's logical structure.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -139,7 +139,7 @@
     "question": "In database design, what is an entity?",
     "answer": "An entity is a distinct, identifiable object or concept in the real world that we want to store information about. It has an independent existence and can be uniquely identified. Entities are represented as tables in a relational database. * **Example:** In a hospital management system, `PATIENT`, `DOCTOR`, `APPOINTMENT`, and `MEDICATION` could all be entities.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -148,7 +148,7 @@
     "question": "What defines an entity type?",
     "answer": "An entity type defines a category or a blueprint for a set of entities that share the same properties or attributes. It is the structure or schema. * **Example:** The entity type `CAR` defines the structure for all car entities. Its attributes could be `VIN`, `Make`, `Model`, `Year`, and `Color`. Every individual car (e.g., the specific car with VIN '123ABC') is an instance of the `CAR` entity type.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -193,7 +193,7 @@
     "question": "Can you explain the difference between a relation schema and a relation instance?",
     "answer": "This is the structure vs. content distinction for a table: * **Relation Schema:** This is the table's structure or blueprint. It is defined by the relation name and a fixed set of attributes. It is static and rarely changes. For example: `Student(StudentID, Name, Major, GPA)`. * **Relation Instance:** This is the actual set of data (the rows or tuples) that populates the table at a given moment. It is dynamic and changes frequently with data manipulation operations (INSERT, UPDATE, DELETE). The instance is the current 'state' of the relation.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -220,7 +220,7 @@
     "question": "What is a relationship set?",
     "answer": "A relationship set is a collection of relationships of the same type. It groups together all the individual instances of a specific relationship that exist in the database. * **Example:** If the relationship is `WORKS_FOR` between `Employee` and `Department`, then the relationship set is the complete list of all (Employee, Department) pairs that currently exist, such as {(Alice, Sales), (Bob, Engineering), (Charlie, Sales)}.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -247,7 +247,7 @@
     "question": "What is the purpose of the Data Definition Language (DDL)?",
     "answer": "Data Definition Language (DDL) is a subset of SQL used to define, modify, and delete the structure of database objects, but not the data within them. It is used by database designers and administrators to create the database's schema. Common DDL commands are `CREATE` (to create tables, indexes, views), `ALTER` (to modify existing structures), and `DROP` (to delete objects). DDL statements implicitly commit transactions.",
     "topic": "DBMS",
-    "subtopic": "DDL",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -256,7 +256,7 @@
     "question": "What role does a View Definition Language (VDL) play?",
     "answer": "View Definition Language (VDL) is the component of a DBMS used to specify user views and their mappings to the conceptual schema. In modern SQL-based systems, this functionality is integrated into the standard DDL using the `CREATE VIEW` statement. This statement allows the definition of a virtual table (a view) as a query on other base tables or views, effectively customizing how different users perceive the database.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -265,7 +265,7 @@
     "question": "What is the function of the Storage Definition Language (SDL)?",
     "answer": "Storage Definition Language (SDL) is used to specify the internal schema of the database. It defines how the data is physically stored on the storage device. This includes specifying file organizations, indexing techniques, storage media, and the mapping between the conceptual and internal levels. SDL is typically used by database administrators to tune the database for performance and is often hidden from regular users and application developers.",
     "topic": "DBMS",
-    "subtopic": "Indexing",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -274,7 +274,7 @@
     "question": "How does Data Storage-Definition Language relate to physical storage?",
     "answer": "Data Storage-Definition Language is a specific type of DDL focused exclusively on the physical layer. It is used to define the low-level storage structures and access methods that the database system will use. This includes commands to create table spaces, data files, and to control physical properties like page size, buffer pools, and encryption at rest. It provides the crucial link between the logical data model and its physical implementation on disk.",
     "topic": "DBMS",
-    "subtopic": "DDL",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -283,7 +283,7 @@
     "question": "What are the two main types of Data Manipulation Language (DML)?",
     "answer": "DML is used for managing data within database objects. The two main types are: 1. **Procedural DML (Low-Level):** Requires the user to specify *what* data is needed and *how* to get it. The user must express the logic to navigate the database (e.g., using loops and pointers). Relational Algebra is a procedural language. 2. **Non-Procedural DML (High-Level/Declarative):** Requires the user to specify *only what* data is needed, without describing how to retrieve it. The DBMS's query optimizer determines the most efficient execution path. SQL's `SELECT`, `INSERT`, `UPDATE`, `DELETE` are non-procedural.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -301,7 +301,7 @@
     "question": "What does the Query Evaluation Engine do?",
     "answer": "The Query Evaluation Engine is the component that executes the low-level instructions generated by the DML compiler. It is responsible for carrying out the actual operations required to fulfill a data request. This includes reading data from storage, performing operations like sorting and joining, applying filters, and returning the final result set to the user or application. It interacts directly with the storage manager.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -310,7 +310,7 @@
     "question": "What is the function of a DDL Interpreter?",
     "answer": "The DDL Interpreter processes Data Definition Language (DDL) statements. It parses DDL commands (like `CREATE TABLE`, `ALTER VIEW`) and executes them. Its key function is to record the definitions of database objects (their metadata) in the system catalog or data dictionary. This metadata includes table schemas, constraints, indexes, and privileges, which is essential for the DBMS to understand and manage the database structure.",
     "topic": "DBMS",
-    "subtopic": "DDL",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -328,7 +328,7 @@
     "question": "What is a Set-at-a-time DML operation?",
     "answer": "Set-at-a-time DML is a high-level, declarative style of data manipulation where operations are performed on entire sets of records simultaneously. A single DML statement (like a SQL `UPDATE` or `DELETE` with a `WHERE` clause) can identify and modify multiple rows in one go. This is a fundamental strength of the relational model, leading to more concise code and allowing the DBMS to optimize execution for high performance.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -337,7 +337,7 @@
     "question": "What is Relational Algebra?",
     "answer": "Relational Algebra is a formal, procedural query language for the relational model. It provides a set of operations that take one or two relations (tables) as input and produce a new relation as output. Its operations form the theoretical foundation for SQL. Core operations include **Select (s)** to filter rows, **Project (p)** to select columns, **Union ()**, **Set Difference (-)**, **Cartesian Product (x)**, and various **Join** operations. It specifies *how* a query should be executed.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -346,7 +346,7 @@
     "question": "What is Relational Calculus?",
     "answer": "Relational Calculus is a formal, non-procedural query language for the relational model. It is based on first-order predicate logic. Instead of specifying *how* to retrieve data, it describes *what* data is desired by stating the desired properties of the result set. There are two variants: Tuple Relational Calculus and Domain Relational Calculus. SQL's `SELECT...WHERE` clause is heavily influenced by relational calculus, as you declare the conditions the result must satisfy.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -364,7 +364,7 @@
     "question": "What is database normalization and what are its goals?",
     "answer": "Normalization is a systematic process of decomposing (breaking down) complex database tables into smaller, simpler tables to eliminate data redundancy and avoid data anomalies. The primary goals are: 1. **Minimize Data Redundancy:** Store each piece of data only once to save space and prevent update anomalies. 2. **Eliminate Anomalies:** Prevent inconsistencies that can occur during data insertion, deletion, and updating. 3. **Simplify Data Integrity:** Make it easier to enforce integrity constraints. The process involves analyzing tables based on their functional dependencies and primary keys.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -481,7 +481,7 @@
     "question": "What is the system catalog and what is its common name?",
     "answer": "The system catalog is a collection of special tables within a database that contain metadata, which is 'data about the data'. It stores comprehensive information about every database object, including tables, columns, data types, constraints, indexes, views, privileges, and users. This catalog is maintained automatically by the DBMS itself. It is more commonly known as the **Data Dictionary**. The DBMS constantly consults the data dictionary to parse queries, enforce constraints, and manage security.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -544,7 +544,7 @@
     "question": "What is a flat file database?",
     "answer": "A flat file database is a simple database that stores all its data in a single table, often in a plain text file (like a CSV or TSV file). Unlike relational databases, it lacks programmatic access languages (like SQL) and has no capability to establish relationships or enforce referential integrity between different files. While user-friendly for very small, simple datasets, it suffers severely from data redundancy, inconsistency, and the other limitations of file processing systems as the data grows.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -553,7 +553,7 @@
     "question": "What is a transparent DBMS?",
     "answer": "A transparent DBMS is one that hides its physical storage details and internal implementation complexities from the users and application programs. Users interact with the database through a logical, high-level interface (like SQL) without needing to know how or where the data is physically stored, what indexes are used, or how queries are optimized. This transparency is a key benefit of the DBMS, providing physical and logical data independence.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -562,7 +562,7 @@
     "question": "What is a database query?",
     "answer": "A query is a request for data or for manipulation of data from a database. It is a user command, written in a database query language, that instructs the DBMS to perform a specific operation. Queries can be used to retrieve, insert, update, or delete data. The most common standard is the Structured Query Language (SQL), which includes Data Manipulation Language (DML) commands like `SELECT`, `INSERT`, `UPDATE`, and `DELETE`.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -580,7 +580,7 @@
     "question": "What are the primitive operations common to all record management systems?",
     "answer": "At their most fundamental level, all record management systems, from simple flat files to complex DBMS, must support three basic primitive operations on data: 1. **Addition:** Inserting new records into the dataset. 2. **Deletion:** Removing existing records from the dataset. 3. **Modification (Update):** Changing the values within existing records. All other complex operations, like querying and reporting, are built upon these three core actions.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -607,7 +607,7 @@
     "question": "What is the RDBMS Kernel?",
     "answer": "The RDBMS Kernel, often just called the kernel, is the core heart of the database management system. It is the central software component that resides in memory and handles the most critical tasks. Its functions include: parsing and optimizing SQL statements, managing memory buffers and caching, controlling transaction management (ACID properties), handling locking and concurrency control, enforcing security and authorization, and interacting directly with the data storage layer. Think of it as the database's operating system.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -625,7 +625,7 @@
     "question": "Which part of the RDBMS manages the data dictionary and how?",
     "answer": "The data dictionary is exclusively managed and maintained by the RDBMS kernel itself. It is stored as a set of special system tables within the database. The kernel is the only software component with the privilege to directly modify these tables. When a user issues a DDL statement (like `CREATE TABLE`), the kernel's DDL interpreter processes the command and updates the corresponding metadata entries in the data dictionary tables. All other components of the RDBMS and all user queries constantly read from the data dictionary to function correctly.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -643,7 +643,7 @@
     "question": "How do you communicate with a relational database management system?",
     "answer": "The primary and standard method to communicate with an RDBMS is through the Structured Query Language (SQL). Applications and users send SQL statements to the DBMS. These statements can be sent through: 1. **Command-Line Interfaces:** Tools like `mysql` or `psql`. 2. **Graphical User Interfaces (GUIs):** Applications like MySQL Workbench or DBeaver. 3. **Application Programming Interfaces (APIs):** Code in languages like Python, Java, or PHP uses drivers (e.g., JDBC, ODBC) to connect to the database and send SQL commands. The DBMS receives the SQL, processes it, and returns the result.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -670,7 +670,7 @@
     "question": "What is a database trigger?",
     "answer": "A database trigger is a named program unit, written in a procedural language like PL/SQL, that is stored in the database and automatically executed ('fired') in response to a specific event on a particular table or view. The events are typically Data Manipulation Language (DML) statements: `INSERT`, `UPDATE`, or `DELETE`. Triggers can be defined to fire once per statement or once for every row affected by the statement. They are used to enforce complex business rules, audit changes, maintain derived data, and enhance security.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -688,7 +688,7 @@
     "question": "What is the role of the Storage Manager in a DBMS?",
     "answer": "The Storage Manager is a crucial DBMS component that provides the interface between the low-level data stored on disk and the rest of the DBMS components (e.g., the query processor). It is responsible for: 1. **Managing Storage:** Allocating space on disk for database files. 2. **Managing Data Structures:** Implementing and managing efficient file structures for storing data (e.g., heap files, hashing) and indexes. 3. **Translating Requests:** Converting the logical requests for data (e.g., 'get row with id=5') into low-level commands to read from or write to the physical storage system.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -715,7 +715,7 @@
     "question": "What is the role of the File Manager?",
     "answer": "The File Manager is a lower-level component within the Storage Manager. It handles the interaction with the operating system's file system. Its role is to: 1. **File Management:** Create, delete, and allocate database files on disk. 2. **Space Management:** Manage the free space available within these files. 3. **Page Management:** Read and write fixed-size blocks of data (pages) from and to these files as requested by the Buffer Manager. It abstracts the OS file system for the rest of the DBMS.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -724,7 +724,7 @@
     "question": "What is the Authorization and Integrity Manager?",
     "answer": "This DBMS component is responsible for enforcing rules that maintain database security and correctness: 1. **Authorization (Security):** It checks the authority of every user and program attempting to access the database. It verifies if the user has the required privileges (SELECT, INSERT, etc.) to perform the requested operation on the specified data object. 2. **Integrity (Correctness):** It tests for the satisfaction of integrity constraints (e.g., primary key uniqueness, foreign key validity, CHECK constraints) whenever data is inserted, updated, or deleted. It prevents invalid data from entering the database.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -742,7 +742,7 @@
     "question": "What are database cursors and what types exist?",
     "answer": "A cursor is a database control structure that enables traversal over the rows in a result set. It provides a way to retrieve more than one row from a database and then process each row individually. The two main types are: 1. **Implicit Cursors:** Automatically created and managed by the DBMS for every SQL statement that returns a result set. The programmer has no direct control over them. 2. **Explicit Cursors:** Defined and controlled explicitly by the programmer within a procedural code block (like PL/SQL). They offer fine-grained control, allowing the programmer to open, fetch rows from, and close the cursor as needed for complex row-by-row processing.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -751,7 +751,7 @@
     "question": "What is the difference between a cold backup and a hot backup?",
     "answer": "This distinction is based on the state of the database during the backup: * **Cold Backup (Offline Backup):** Performed while the database is shut down. This ensures a perfectly consistent copy of all database files (datafiles, control files, redo logs) at a single point in time. It is simple and safe but requires database downtime, making it unsuitable for 24/7 systems. * **Hot Backup (Online Backup):** Performed while the database is running and open for use. This allows backups without downtime. It is more complex because it requires the DBMS to put tablespaces into a special backup mode to ensure the backed-up files are consistent and can be used for recovery. This is essential for high-availability systems.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "Logging & Recovery",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -778,7 +778,7 @@
     "question": "What is ERP and what type of database does it use?",
     "answer": "Enterprise Resource Planning (ERP) is a suite of integrated applications that a company uses to manage its core business processes, such as finance, supply chain, manufacturing, operations, reporting, and human resources. An ERP system relies on a central, unified database to eliminate data redundancy and provide a single source of truth across the entire organization. This database is typically a robust, multi-user **Relational Database Management System (RDBMS)** like Oracle, SQL Server, or SAP HANA, capable of handling massive transactional workloads and complex queries from various functional modules.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -787,7 +787,7 @@
     "question": "Can you define DBMS in a comprehensive way?",
     "answer": "A Database Management System (DBMS) is a complex software system that serves as an intermediary between the database of stored data and the users or application programs that need to access it. Its primary purpose is to provide a convenient, efficient, and secure environment for defining, creating, manipulating, and controlling access to databases. It shields users from the physical storage details and provides abstract data views, while simultaneously ensuring data integrity, security, concurrency control, and reliable recovery from failures.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -796,7 +796,7 @@
     "question": "Why is a database considered 'self-describing'?",
     "answer": "A database is called self-describing because it contains not only the users' data but also a detailed description of its own structure. This descriptive data, known as **metadata**, is stored in the system catalog or data dictionary. The metadata includes definitions of all tables, columns, data types, constraints, indexes, views, and user privileges. Because this information is stored within the database itself, the DBMS always has the necessary context to understand and manage the data it contains, without relying on external sources.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -805,7 +805,7 @@
     "question": "Who was E.F. Codd and why is he important to database technology?",
     "answer": "Dr. Edgar F. Codd was a British computer scientist who worked for IBM. In 1970, he published a seminal paper titled 'A Relational Model of Data for Large Shared Data Banks' that introduced the **relational model** for database management. This groundbreaking work laid the theoretical foundation for relational databases. His 12 rules (Codd's Rules) defined the criteria for a system to be considered a fully relational database management system (RDBMS). His ideas are the reason SQL and modern RDBMS like Oracle, DB2, SQL Server, and MySQL exist today.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -814,7 +814,7 @@
     "question": "What is SQL and why is it so significant?",
     "answer": "Structured Query Language (SQL) is the standard and most widely used programming language for managing and querying data in relational database management systems (RDBMS). Its significance stems from several factors: 1. **Standardization:** It is an ANSI/ISO standard, ensuring portability across different database systems (though with some vendor-specific extensions). 2. **Declarative Nature:** Users specify *what* data they want, not *how* to get it, making it powerful and relatively easy to learn. 3. **Comprehensive Functionality:** It provides a unified language for data definition (DDL), data manipulation (DML), data control (DCL), and transaction control (TCL). 4. **Ubiquity:** It is supported by all major relational databases, making it an essential skill for developers, analysts, and administrators.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -823,7 +823,7 @@
     "question": "Write a SQL query to select all data for students with a grade of 90 or higher.",
     "answer": "```sql\nSELECT *\nFROM STUDENT\nWHERE Grade >= 90;\n```\nThis query uses the `SELECT *` statement to retrieve all columns from the `STUDENT` table. The `WHERE` clause acts as a filter, specifying that only those rows where the value in the `Grade` column is greater than or equal to 90 should be included in the result set.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -841,7 +841,7 @@
     "question": "Write a SQL query to count all students and display the count with a column alias.",
     "answer": "```sql\nSELECT COUNT(*) AS NumStudents\nFROM STUDENT;\n```\nThis query uses the `COUNT(*)` function to count every row in the `STUDENT` table. The `AS NumStudents` clause provides a user-friendly alias for the output column, so the result will have a column named `NumStudents` instead of the default `COUNT(*)`.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -850,7 +850,7 @@
     "question": "What is an SQL subquery?",
     "answer": "An SQL subquery (or nested query) is a query placed within another SQL query. It is a `SELECT` statement enclosed in parentheses and embedded within a clause (most commonly the `WHERE` or `HAVING` clause) of the outer query. The result of the inner subquery is used by the outer query to complete its operation. Subqueries are powerful tools for performing complex filtering, calculations, and data retrieval that would be difficult or impossible with a single query. They can be used for comparisons using operators like `IN`, `ANY`, `ALL`, or `EXISTS`.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -859,7 +859,7 @@
     "question": "What alternative terms are used for the components of the relational model?",
     "answer": "The formal terms of the relational model have more common equivalents: * **Relation** is commonly called a **Table**. * **Tuple** is commonly called a **Row** or **Record**. * **Attribute** is commonly called a **Column** or **Field**. * **Relation Schema** is often referred to as the **Table Definition** or **Structure**. While the formal terms are used in academic and design contexts, the common terms (table, row, column) are ubiquitous in everyday database use and SQL syntax.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -886,7 +886,7 @@
     "question": "What are insertion and deletion anomalies?",
     "answer": "These are problems that occur in poorly designed, unnormalized tables: * **Insertion Anomaly:** The inability to add data about one entity without adding data about another, unrelated entity. For example, you cannot record a new department's information until at least one employee is assigned to it. * **Deletion Anomaly:** The unintended loss of data about one entity when deleting data about another entity. For example, if you delete the only employee in a department, you might also lose all information about that department itself. Normalization aims to eliminate these anomalies by splitting data into appropriate tables.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -913,7 +913,7 @@
     "question": "Why does using normalized tables often lead to more complex SQL in applications?",
     "answer": "Normalization involves breaking data down into multiple smaller tables to eliminate redundancy. To answer a business question that requires data from several of these tables, application code must reassemble it. This reassembly is done in SQL using **JOIN** operations to link tables together on their primary and foreign keys, and **subqueries**. Writing these multi-table joins and correlated subqueries is inherently more complex than writing a simple `SELECT * FROM one_big_table`. The trade-off is that this complexity in querying is accepted to gain massive benefits in data integrity, non-redundancy, and update performance.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -949,7 +949,7 @@
     "question": "Explain the relationship between entity, entity class, and entity instance.",
     "answer": "These terms describe different levels of abstraction in data modeling: * **Entity:** A general term for a 'thing' or object in the real world that can be distinctly identified (e.g., a specific customer named John Doe). * **Entity Class (Entity Type):** A classification or category of entities that share common properties. It is the template or definition (e.g., the 'Customer' class). * **Entity Instance:** A single, specific occurrence or example of an entity class (e.g., the database record for customer John Doe with ID 123). Analogy: 'Vehicle' is the class; your specific car with VIN 123ABC is an instance of that class.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -976,7 +976,7 @@
     "question": "What is the archetype/instance pattern?",
     "answer": "The archetype/instance pattern is a common data modeling pattern used to represent a template (the archetype) and its specific occurrences (the instances). A classic example is the relationship between a `CLASS` (the archetype, e.g., 'Introduction to Database Systems') and a `SECTION` (the instance, e.g., 'Fall 2023, Section 01' which has a specific time, room, and instructor). The instance is often ID-dependent on the archetype, meaning the primary key of the `SECTION` includes the key of the `CLASS`. This pattern separates the definition of a thing from its specific manifestations.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -985,7 +985,7 @@
     "question": "What is a recursive relationship?",
     "answer": "A recursive relationship (or unary relationship) is a relationship where an entity is related to itself. It links different instances of the same entity type. For example, in an `EMPLOYEE` entity: * A recursive relationship `Supervises` can model who supervises whom (an employee can supervise other employees). * A recursive relationship `Precedes` in a `TASK` entity can model task dependencies (one task must be completed before another can start). In the database table, this is implemented by adding a foreign key column that references the primary key of the same table (e.g., an `ReportsTo` column in the `EMPLOYEE` table that contains the `EmployeeID` of the manager).",
     "topic": "DBMS",
-    "subtopic": "Entities & Keys",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1057,7 +1057,7 @@
     "question": "What are four common applications for database triggers?",
     "answer": "Triggers are used to automatically enforce business rules and logic at the database level: 1. **Auditing and Logging:** Automatically recording changes made to sensitive data (e.g., logging every update to a `Salary` column into an `AUDIT_TRAIL` table). 2. **Enforcing Complex Constraints:** Implementing business rules that are too complex for standard CHECK or foreign key constraints (e.g., 'cannot update an order after it has been shipped'). 3. **Deriving Data:** Automatically maintaining derived or denormalized data (e.g., updating a `TotalOrderAmount` column in a `CUSTOMER` table whenever a new order is inserted). 4. **Implementing Security Authorizations:** Performing additional security checks beyond standard GRANT permissions before allowing a data modification.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1066,7 +1066,7 @@
     "question": "How do stored procedures differ from triggers?",
     "answer": "| Feature | Stored Procedure | Trigger |\n| :--- | :--- | :--- |\n| **Execution** | Explicitly called and executed by a user or application. | Automatically fired (executed) by the DBMS in response to a DML event (`INSERT`, `UPDATE`, `DELETE`). |\n| **Parameters** | Can have input and output parameters. | Cannot have explicit parameters; they use special pseudo-records (e.g., `:NEW`, `:OLD` in Oracle) to access row data. |\n| **Transaction Control** | Can contain transaction control statements like `COMMIT` or `ROLLBACK` (use with caution). | Generally cannot contain transaction control statements; they are part of the transaction that fired them. |\n| **Purpose** | Used to encapsulate and execute a defined business process. | Used to enforce business rules or maintain integrity in response to data changes.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1120,7 +1120,7 @@
     "question": "How do you convert a one-to-one relationship to a one-to-many relationship in a database schema?",
     "answer": "Consider two tables, `EMPLOYEE` and `COMPUTER`, in a 1:1 relationship where a computer is assigned to one employee and an employee has one computer. The `COMPUTER` table has a foreign key `EmpNumber` that must be unique. To change this to a 1:N relationship (one employee can have many computers), you simply need to **remove the uniqueness constraint** on the foreign key column (`EmpNumber`) in the `COMPUTER` table. This allows multiple rows in the `COMPUTER` table to have the same `EmpNumber` value, meaning one employee can now be associated with multiple computers. The physical structure of the tables remains the same; only the constraint changes.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1129,7 +1129,7 @@
     "question": "What is the difference between an exclusive lock and a shared lock?",
     "answer": "These locks control how multiple transactions can access the same data item concurrently: * **Exclusive Lock (X Lock):** Grants a transaction exclusive write access to a data item. While an exclusive lock is held, no other transaction can acquire any type of lock (shared or exclusive) on the same data item. It is used for `UPDATE`, `DELETE`, and `INSERT` operations. * **Shared Lock (S Lock):** Grants a transaction read-only access to a data item. Multiple transactions can hold shared locks on the same data item simultaneously, allowing for concurrent reads. However, no transaction can acquire an exclusive lock on the data item until all shared locks are released.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "Locks",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1156,7 +1156,7 @@
     "question": "What are the primary responsibilities of a Database Administrator (DBA)?",
     "answer": "A DBA's role is multifaceted and crucial for ensuring a database's health, performance, and security. Key responsibilities include: 1. **Database Design & Implementation:** Planning and creating new databases. 2. **Performance Tuning:** Monitoring and optimizing database performance (indexing, query optimization). 3. **Security Management:** Creating users, roles, and managing access permissions. 4. **Backup and Recovery:** Designing and testing robust strategies to prevent data loss. 5. **Availability Management:** Ensuring the database is highly available and online. 6. **Change Management:** Applying patches, upgrades, and managing schema changes. 7. **Capacity Planning:** Forecasting future storage and performance needs.",
     "topic": "DBMS",
-    "subtopic": "Indexing",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1183,7 +1183,7 @@
     "question": "What are database sequences and what are potential issues with their use?",
     "answer": "A sequence is a database object that generates a sequence of unique integers, typically used to create artificial primary key values. **Potential Issues:** 1. **Gaps in Sequence Values:** Gaps can occur naturally due to transaction rollbacks, database crashes, or caching. This is usually not a functional problem but can be undesirable for some business requirements (e.g., invoice numbers). 2. **Misuse:** A sequence created for one table might be accidentally used for another, or a developer might insert rows without using the sequence, breaking the consistency of key generation. 3. **Lack of Enforced Relationship:** The sequence itself is independent of the table; the DBMS does not enforce that its values are actually used as the primary key, which is the application's responsibility.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ACID",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1192,7 +1192,7 @@
     "question": "Under what conditions should you create a database index?",
     "answer": "Indexes should be created strategically to improve query performance. Consider creating an index when: 1. **Frequent Query Filters:** A column is commonly used in the `WHERE` clause for filtering (e.g., `WHERE email = 'x@y.com'`). 2. **Join Conditions:** A column is used frequently to join tables. 3. **Sorting and Grouping:** A column is often used in `ORDER BY` or `GROUP BY` clauses. 4. **Enforcing Uniqueness:** A unique index is required to enforce a primary key or unique constraint. **Caution:** Indexes slow down `INSERT`, `UPDATE`, and `DELETE` operations because the index must be maintained. Therefore, avoid over-indexing, especially on tables with heavy write operations.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "Indexing",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1255,7 +1255,7 @@
     "question": "What types of triggers does SQL Server support?",
     "answer": "SQL Server supports two main types of triggers based on their timing and purpose: 1. **AFTER Triggers (FOR Triggers):** These fire *after* the triggering DML action (`INSERT`, `UPDATE`, `DELETE`) has been processed. They are used for auditing, enforcing business rules, or creating follow-up actions. A table can have multiple AFTER triggers for each action. 2. **INSTEAD OF Triggers:** These fire *in place of* the triggering action. The original DML operation is not performed; instead, the code within the INSTEAD OF trigger is executed. They are often used to allow updates to complex views that would otherwise be non-updatable. A view or table can have at most one INSTEAD OF trigger per triggering action. SQL Server does not have built-in BEFORE triggers.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1264,7 +1264,7 @@
     "question": "How are ODBC, OLE DB, and ADO related to each other?",
     "answer": "These are Microsoft data access technologies that evolved over time: 1. **ODBC (Open Database Connectivity):** The oldest standard. It provides a C-language API specifically for accessing relational databases. 2. **OLE DB (Object Linking and Embedding for Databases):** The successor to ODBC. It is a COM-based specification that provides access to a broader range of data sources, not just relational databases (e.g., spreadsheets, text files, email). ODBC is for relational data; OLE DB is for any data. 3. **ADO (ActiveX Data Objects):** A high-level, easy-to-use API that provides an object-oriented interface to OLE DB. It simplifies data access for programmers in languages like Visual Basic and ASP by wrapping the complexity of OLE DB. The relationship is often visualized as ADO -> OLE DB -> ODBC -> Data Source.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1354,7 +1354,7 @@
     "question": "What are the four JDBC driver types defined by Sun?",
     "answer": "JDBC driver types are categorized by how they implement the connection to the database: 1. **Type 1: JDBC-ODBC Bridge Driver:** Uses an ODBC driver to connect to the database. Requires ODBC to be configured on the client machine. Legacy and not recommended for production. 2. **Type 2: Native-API Driver (Partly Java Driver):** Uses the client-side libraries of the database. Converts JDBC calls into calls to the native API (e.g., OCI for Oracle). Requires native libraries on the client. 3. **Type 3: Network-Protocol Driver (Pure Java Driver for Middleware):** Uses a middleware application server that converts JDBC calls into a database-independent network protocol. The middleware then translates this to the database-specific protocol. 4. **Type 4: Database-Protocol Driver (Pure Java Driver):** Directly converts JDBC calls into the network protocol used by the DBMS. This is a direct-to-database pure Java driver. It is the most common and efficient driver type for most applications (e.g., MySQL Connector/J).",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1390,7 +1390,7 @@
     "question": "How does MySQL handle surrogate keys and metadata?",
     "answer": "* **Surrogate Keys:** MySQL uses the `AUTO_INCREMENT` attribute for a column (typically an `INTEGER` or `BIGINT`) to automatically generate unique surrogate key values. When inserting a new row, you omit this column, and MySQL automatically assigns the next sequential number. * **Metadata:** MySQL stores its metadata in a special database named `mysql`. This database contains tables that store information about users, privileges, databases, tables, columns, and other system settings. For example, the `user` table stores user accounts and global privileges, while the `tables` table in the `information_schema` database provides information about all tables.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1426,7 +1426,7 @@
     "question": "What is OLAP?",
     "answer": "OLAP (Online Analytical Processing) is a category of software technology that allows users to interactively analyze multidimensional data from multiple perspectives. It is a core component of BI systems. Key characteristics include: * **Multidimensional View:** Data is organized in cubes with dimensions (e.g., Time, Product, Location) and measures (e.g., Sales, Profit). * **Complex Calculations:** Supports advanced operations like drilling down/up, slicing (selecting one dimension), dicing (selecting sub-cubes), and pivoting (rotating the view). * **Fast Query Performance:** Pre-aggregates data to provide very quick answers to complex analytical queries. OLAP enables users to gain insights from historical data for strategic planning and decision support.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1444,7 +1444,7 @@
     "question": "What is the difference between structured and unstructured data?",
     "answer": "This is a fundamental classification of data: * **Structured Data:** Data that is organized in a predefined format, typically a tabular schema with rows and columns. It is easily stored, queried, and analyzed in relational databases. Examples include numbers, dates, and strings in database tables or CSV files. * **Unstructured Data:** Data that does not have a predefined data model or is not organized in a predefined manner. It accounts for the vast majority of enterprise data. Examples include text documents, emails, videos, photos, audio files, social media posts, and web pages. Specialized databases (NoSQL) and techniques (NLP, computer vision) are needed to manage and analyze it.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1453,7 +1453,7 @@
     "question": "Why is it important to understand file processing systems even though they are outdated?",
     "answer": "Understanding the limitations of traditional file processing systems is crucial for two reasons: 1. **Legacy Systems:** Many businesses still rely on legacy applications built on file processing systems. DBAs and developers need to understand them to maintain, interface with, or migrate these systems. 2. **Appreciating DBMS Benefits:** Studying the problems of file processing (data redundancy, inconsistency, program-data dependence) provides a deep appreciation for the features and benefits of modern DBMS. It answers the 'why' behind database principles like data independence, data integrity, and non-redundancy, reinforcing their importance in good design.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1516,7 +1516,7 @@
     "question": "Who are the key members of a systems or database development team?",
     "answer": "A successful project requires a team with diverse skills: 1. **Systems Analyst:** Acts as a liaison between stakeholders and the technical team, gathering and translating business requirements. 2. **Database Designer (Data Architect):** Focuses on designing the database structure, including data models, schemas, and integrity constraints. 3. **Application Programmers:** Write the application code that interacts with the database. 4. **Database Administrator (DBA):** Implements and manages the database environment, ensuring performance, security, and availability. 5. **End Users:** The ultimate consumers of the system, who provide crucial input on requirements and test the final product. 6. **Project Manager:** Oversees the project's budget, schedule, and scope.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1525,7 +1525,7 @@
     "question": "What are the key database activities within the SDLC?",
     "answer": "Database development activities run in parallel with the general SDLC phases: 1. **Enterprise Modeling (Planning):** Analyzing the current data processing environment. 2. **Conceptual Data Modeling (Analysis):** Creating an ERD to identify entities, relationships, and attributes based on business requirements. 3. **Logical Database Design (Design):** Transforming the conceptual model into a logical schema (e.g., relational tables), normalizing the design, and defining integrity rules. 4. **Physical Database Design (Design):** Mapping the logical design to a specific DBMS, defining storage structures, indexing, and partitioning for performance. 5. **Database Implementation (Implementation):** Creating the database, loading data, and implementing application programs. 6. **Database Maintenance (Maintenance):** Tuning performance, fixing bugs, and adapting the schema to new requirements.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1579,7 +1579,7 @@
     "question": "What is the difference between total and partial specialization in a supertype/subtype relationship?",
     "answer": "This concept defines whether all instances of a supertype must also be an instance of a subtype. * **Total Specialization ( completeness constraint):** Every instance of the supertype *must* be an instance of at least one subtype. In an ERD, this is represented by a double line connecting the supertype to the circle. (e.g., Every `Vehicle` in the database MUST be either a `Car` or a `Truck`). * **Partial Specialization:** An instance of the supertype *can* be an instance of a subtype, but it is not mandatory. It is represented by a single line. (e.g., An `Employee` could be a `Manager` or a `Engineer`, but some employees might not be classified into either subtype).",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1624,7 +1624,7 @@
     "question": "What are the primary objectives of database normalization?",
     "answer": "The core goals of normalization are to: 1. **Minimize Data Redundancy:** Store each logical data item in only one place to conserve space and prevent update anomalies. 2. **Eliminate Anomalies:** Prevent inconsistencies that arise from insertion, deletion, and update operations. 3. **Simplify Data Integrity:** Make it easier to enforce integrity constraints by structuring data logically. 4. **Produce a Stable Database Structure:** Create a design that is less susceptible to changes in requirements and is logically flexible. The process achieves this by organizing data into tables based on their functional dependencies.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1633,7 +1633,7 @@
     "question": "What are the key properties of a well-defined relation in a database?",
     "answer": "A proper relation in the relational model adheres to these properties: 1. **Unique Name:** Every relation (table) must have a distinct name within its schema. 2. **Atomic Values:** Every attribute (column) must contain only atomic (indivisible) values, satisfying 1NF. 3. **Unique Rows:** Every tuple (row) must be unique; no two rows can be identical. 4. **Unordered Rows:** The order of the rows is not significant for data meaning. 5. **Unordered Columns:** The order of the columns is not significant; each column is identified by its name, not its position. 6. **Unique Attribute Names:** Every attribute within a relation must have a unique name.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1651,7 +1651,7 @@
     "question": "How is a supertype/subtype relationship mapped to physical database tables?",
     "answer": "The most common mapping strategy for supertype/subtype hierarchies is to create a separate table for the supertype and for each subtype: 1. **Supertype Table:** Contains all attributes common to all subtypes. Its primary key is the primary key for the entire hierarchy. 2. **Subtype Tables:** Each subtype table contains two types of columns: a) The primary key of the supertype (which is also the primary key of the subtype table and a foreign key back to the supertype). b) The attributes that are unique to that specific subtype. This design supports the 'is-a' relationship and allows for efficient querying of all instances (via the supertype) or just specific types (via the subtypes). A discriminator attribute (e.g., `EmployeeType`) is often added to the supertype to indicate which subtype table to look in for additional details.",
     "topic": "DBMS",
-    "subtopic": "Entities & Keys",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1660,7 +1660,7 @@
     "question": "How would you describe domain constraints in a database?",
     "answer": "Domain constraints are the most fundamental rules that enforce data integrity at the column level. A domain is the set of all possible valid values that an attribute is allowed to contain. Domain constraints ensure that the value for a given attribute must be: 1. **Of the Correct Data Type:** An `Age` column must be an integer. 2. **Within a Defined Set or Range:** An `Age` value must be between 0 and 120. A `Status` value must be in ('Active', 'Inactive', 'Pending'). 3. **A Member of a Distinct List:** Enforced by `CHECK` constraints or user-defined data types. 4. **Consistent with Nullability:** If a column is defined as `NOT NULL`, it must always contain a value. These constraints are checked whenever a value is inserted or updated.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1687,7 +1687,7 @@
     "question": "What is denormalization and why would a database designer use it?",
     "answer": "Denormalization is the **strategic process of intentionally introducing redundancy into a previously normalized database table.** It is a performance optimization technique that trades off some degree of data redundancy and potential anomaly risk for improved query speed. Designers use it when: 1. **Query Performance is Critical:** When joins between multiple normalized tables are too slow for frequently run reports or queries. 2. **Heavy Read Operations:** In data warehouses or reporting databases where the vast majority of operations are reads (SELECT), and writes (INSERT/UPDATE) are less frequent and controlled. The goal is to reduce the number of table joins needed by pre-consolidating data, which can dramatically speed up complex queries.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1714,7 +1714,7 @@
     "question": "What is the difference between a dynamic view and a materialized view?",
     "answer": "This is a key distinction in how views are implemented and updated: * **Dynamic View (Standard View):** A virtual table that does not store data. Whenever the view is queried, its defining `SELECT` statement is executed against the underlying base tables in real-time. It always returns the most current data but can be slow if the query is complex. * **Materialized View (Snapshot):** A physical copy of the view's result set is stored as a separate table. The data is persisted to disk. It is extremely fast to query because it avoids recomputing the join and aggregation, but the data can become stale. The view must be periodically **refreshed** to update its stored data with changes from the base tables. This is a trade-off between performance and data currency.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1732,7 +1732,7 @@
     "question": "What are the three main categories of SQL commands?",
     "answer": "SQL commands are broadly classified based on their function: 1. **Data Definition Language (DDL):** Commands used to define, alter, and drop the structure of database objects. These commands implicitly commit transactions. Key commands: `CREATE`, `ALTER`, `DROP`, `TRUNCATE`, `RENAME`. 2. **Data Manipulation Language (DML):** Commands used to manipulate data within existing objects. Key commands: `SELECT` (retrieval), `INSERT` (add), `UPDATE` (modify), `DELETE` (remove). 3. **Data Control Language (DCL):** Commands used to control access to the database and its objects. Key commands: `GRANT` (give privileges), `REVOKE` (take away privileges). Some systems also define Transaction Control Language (TCL) with commands like `COMMIT` and `ROLLBACK`.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1750,7 +1750,7 @@
     "question": "What are some potential disadvantages of a standardized language like SQL?",
     "answer": "While standardization is largely beneficial, it has some drawbacks: 1. **Complexity:** The SQL standard is vast and complex, making full compliance difficult for vendors and mastery difficult for developers. 2. **Vendor Extensions:** DBMS vendors often add proprietary extensions to standard SQL to provide additional functionality. This can hurt portability between different database systems. 3. **Pace of Innovation:** The formal standards process can be slow, sometimes lagging behind the innovative features introduced by individual vendors. 4. **'Lowest Common Denominator' Effect:** To ensure portability, developers might avoid using powerful vendor-specific features, potentially resulting in less efficient or more complex code.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1759,7 +1759,7 @@
     "question": "What is a table join and why is it fundamental to the relational model?",
     "answer": "A join is a fundamental SQL operation that combines rows from two or more tables based on a related column between them. It is the primary mechanism for querying data across multiple tables, which is the core principle of the relational model. By storing data in separate, normalized tables and using joins to reassemble it, the model achieves its goals of minimizing redundancy and maintaining data integrity. The join operation, typically based on primary key-foreign key relationships, allows the database to reconstruct complex entity relationships at query time, providing tremendous flexibility.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ER Modeling",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1768,7 +1768,7 @@
     "question": "How would you contrast a database trigger with a stored procedure?",
     "answer": "| Feature | Trigger | Stored Procedure |\n| :--- | :--- | :--- |\n| **Invocation** | Automatically fired (executed) by the DBMS in response to a specific DML event (`INSERT`, `UPDATE`, `DELETE`) on a table. | Explicitly called and executed by a user, application, or another procedure. |\n| **Control** | Event-driven; the programmer has no control over when it runs. | Called on demand; the programmer has full control over execution. |\n| **Parameters** | Cannot accept explicit parameters. They use special pseudo-records (e.g., `NEW` and `OLD`) to access the affected row data. | Can accept input, output, and input/output parameters. |\n| **Transaction Context** | Part of the transaction that caused it to fire. | Can contain its own transaction control statements (`COMMIT`, `ROLLBACK`). |\n| **Common Use Case** | Enforcing complex business rules, auditing, maintaining derived data automatically. | Modularizing application logic, performing complex operations, improving performance.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1786,7 +1786,7 @@
     "question": "What is a subquery and how is it used?",
     "answer": "A subquery (or inner query or nested query) is a `SELECT` statement embedded within the `WHERE` or `HAVING` clause of another SQL statement (the outer query). It is used to return a value or set of values that the outer query uses to complete its search condition. Subqueries are powerful for: 1. **Set Membership:** Using `IN` or `NOT IN` (e.g., `SELECT * FROM Products WHERE CategoryID IN (SELECT CategoryID FROM Categories WHERE Name = 'Beverages')`). 2. **Comparisons:** Using operators like `=`, `>`, `ANY`, `ALL`. 3. **Existence Checks:** Using `EXISTS` or `NOT EXISTS` with correlated subqueries. They allow for dynamic, data-driven query conditions that would be impossible to hard-code.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1804,7 +1804,7 @@
     "question": "What is the difference between two-tier and three-tier client-server architecture?",
     "answer": "This refers to the logical separation of an application's components: * **Two-Tier Architecture:** Has only two logical layers: 1) The **Client Tier** (Presentation Layer), which handles the user interface and application logic, and 2) The **Database Server Tier** (Data Layer), which houses the DBMS and database. The client communicates directly with the database. It is simpler but can lead to performance and scalability issues as the number of clients grows. * **Three-Tier Architecture:** Introduces a middle tier: 1) **Client Tier** (Presentation Layer: UI), 2) **Application Server Tier** (Business Logic Layer: rules, processing), and 3) **Database Server Tier** (Data Layer). The client talks to the application server, which in turn talks to the database. This improves scalability, security, and flexibility, as business logic is centralized and separated from the data and presentation layers.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1822,7 +1822,7 @@
     "question": "What is ODBC and what problem does it solve?",
     "answer": "ODBC (Open Database Connectivity) is a standard application programming interface (API) for accessing database management systems (DBMS). It solves the problem of application **portability** and **interoperability**. Before ODBC, applications had to be written to use the specific API of a single DBMS vendor (e.g., Oracle's OCI). To switch databases, the application had to be rewritten. ODBC provides a universal, vendor-neutral interface. An application written to the ODBC standard can connect to any DBMS (Oracle, SQL Server, MySQL, etc.) for which an ODBC driver exists, dramatically reducing development and maintenance costs.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1849,7 +1849,7 @@
     "question": "What is middleware in the context of web-database connectivity?",
     "answer": "In web-database integration, middleware is software that acts as a bridge between a web server and a database server. It resides on the web server and facilitates communication between the two. Its primary role is to: 1. **Receive Requests:** Accept requests from a user's web browser sent to the web server. 2. **Process Business Logic:** Execute the application's programming logic. 3. **Interact with the Database:** Generate database queries, connect to the DBMS, pass the queries, and retrieve the results. 4. **Format Results:** Format the database results (e.g., into HTML, JSON, or XML). 5. **Return Response:** Send the formatted response back to the web server, which then delivers it to the user's browser. Examples include ASP.NET, PHP, Java Servlets, and ColdFusion.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1903,7 +1903,7 @@
     "question": "Why are operational and informational systems typically kept separate?",
     "answer": "Operational systems (OLTP - Online Transaction Processing) and informational systems (OLAP - Online Analytical Processing) are separated because they have fundamentally different and conflicting purposes and characteristics: | Aspect | Operational System (OLTP) | Informational System (OLAP) |\n| :--- | :--- | :--- |\n| **Primary Purpose** | Run the day-to-day business. | Support decision-making and analysis. |\n| **Data Content** | Current, detailed data. | Historical, summarized, and consolidated data. |\n| **Data Model** | Highly normalized for integrity and update speed. | Denormalized (star/snowflake schema) for query speed. |\n| **Access Pattern** | Many small, quick read/write transactions. | Few, but complex and long-running, read-only queries. |\n| **Users** | Clerks, customers, administrators. | Managers, analysts, data scientists. |\n| Separating them prevents analytical queries from slowing down critical transaction processing and allows each system to be optimized for its specific workload.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1912,7 +1912,7 @@
     "question": "What are the defining characteristics of a data warehouse?",
     "answer": "A data warehouse, as defined by Bill Inmon, has four key characteristics: 1. **Subject-Oriented:** Data is organized around major subjects of the enterprise (e.g., customers, products, sales), rather than by specific operational applications. 2. **Integrated:** Data is gathered from various disparate source systems and made consistent. This involves resolving naming conflicts, data type differences, and encoding inconsistencies. 3. **Nonvolatile:** Once data is entered into the warehouse, it is not updated or deleted in the same way operational data is. It is a stable, read-only environment for analysis. Data is loaded and refreshed, not changed. 4. **Time-Variant:** Data is stored to provide a historical perspective. Every record is accurate with respect to some moment in time, enabling analysis of trends and changes over time.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1939,7 +1939,7 @@
     "question": "What is the difference between data administration and database administration?",
     "answer": "These are two distinct but related roles: * **Data Administration (DA):** A **business-oriented** function focused on the management of data as a strategic corporate asset. DA responsibilities are high-level and include: data planning, defining data standards and policies, managing the data dictionary, and resolving data ownership and privacy issues. * **Database Administration (DBA):** A **technically-oriented** function focused on the physical implementation and maintenance of the database management system (DBMS). DBA responsibilities are hands-on and include: DBMS installation, database design, performance tuning, backup and recovery, security implementation, and troubleshooting. DA is about *what* data is needed and *why*; DBA is about *how* to store and manage it effectively.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1948,7 +1948,7 @@
     "question": "What are key security features provided by a DBMS?",
     "answer": "A robust DBMS provides multiple layers of security features: 1. **Authentication:** Verifying the identity of a user trying to connect to the database (e.g., via username/password, integrated Windows authentication). 2. **Authorization:** Controlling what a user can do through **privileges** (e.g., `SELECT`, `INSERT`) and **roles** (groups of privileges). 3. **Views:** Providing a security mechanism to hide sensitive columns or rows from users. 4. **Encryption:** Scrambling data so it is unreadable without a key. Can be applied to data at rest (on disk) or in transit (over the network). 5. **Auditing:** Tracking and logging database activity to monitor for suspicious behavior and ensure compliance with regulations. 6. **Data Integrity Controls:** Ensuring data is valid through constraints, which is also a security measure.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1957,7 +1957,7 @@
     "question": "What is concurrency control?",
     "answer": "Concurrency control is the set of techniques a DBMS uses to manage simultaneous operations by multiple users or transactions on a database without allowing them to interfere with each other. Its primary goal is to ensure the **isolation** property of transactions, preventing problems like lost updates, dirty reads, and unrepeatable reads. The two main approaches are: 1. **Pessimistic Concurrency Control:** Prevents conflicts by locking data before it is used. This is the most common method. 2. **Optimistic Concurrency Control:** Allows conflicts to occur but detects them at transaction commit time. If a conflict is detected, the transaction is rolled back. It is used in low-contention environments.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ACID",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1975,7 +1975,7 @@
     "question": "What are the key factors affecting database performance?",
     "answer": "Database performance is influenced by factors across the entire system stack: 1. **Database Design:** Poorly designed schemas (lack of normalization, missing indexes, inefficient data types) are a primary cause of performance issues. 2. **Application Design:** Inefficient SQL queries (e.g., `SELECT *`, unnecessary loops, Cartesian products) and poor application logic place unnecessary load on the database. 3. **DBMS Configuration:** Improperly set memory allocation, cache sizes, and parallelism parameters can cripple performance. 4. **Hardware Resources:** Insufficient CPU power, RAM (leading to excessive disk I/O), and slow disk subsystems are common bottlenecks. 5. **Concurrency:** High levels of user contention for the same data can lead to locking and blocking, slowing down all transactions. Tuning requires a holistic approach addressing all these areas.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -1984,7 +1984,7 @@
     "question": "What is the difference between a homogeneous and a heterogeneous distributed database?",
     "answer": "This classification depends on the uniformity of the DBMS software across sites: * **Homogeneous DDBMS:** All sites in the distributed system use the **same** DBMS software (e.g., all run Oracle). The underlying operating system can be different. This is easier to manage, design, and implement because the software is uniform. * **Heterogeneous DDBMS:** Different sites may use **different** DBMS software (e.g., one site uses Oracle, another uses SQL Server, another uses IMS). This is much more complex. It requires additional middleware (gateways) to translate queries and resolve differences in data models, query languages, and transaction protocols. It is more common in real-world scenarios where different departments have chosen different systems over time.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -1993,7 +1993,7 @@
     "question": "What is a distributed database?",
     "answer": "A distributed database is a single logical database that is physically spread across multiple computers (nodes) located in different geographical locations and connected by a network. The key principle is that users can access the data as if it were all stored on their local machine, without needing to know where the data is physically located. The system is managed by a Distributed Database Management System (DDBMS) that provides: 1. **Location Transparency:** Hides the physical location of the data from the user. 2. **Replication Transparency:** Hides the fact that data may be duplicated (replicated) at multiple sites. 3. **Fragmentation Transparency:** Hides the fact that a table may be split (horizontally or vertically) and stored at different sites.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2047,7 +2047,7 @@
     "question": "What is a Database Management System (DBMS)?",
     "answer": "A Database Management System (DBMS) is a collection of programs that enables users to create and maintain databases and control all access to them. The primary goal of a DBMS is to provide an environment that is both convenient and efficient for users to retrieve and store information. It serves as an interface between the database and users/application programs, ensuring data is organized and accessible while maintaining security and integrity.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2065,7 +2065,7 @@
     "question": "What are the main characteristics and benefits of a database system?",
     "answer": "The main characteristics and benefits include: 1) Self-describing nature - contains both data and metadata, 2) Insulation between program and data (program-data independence), 3) Support for multiple views of data, 4) Sharing of data and multiuser system support, 5) Control of data redundancy, 6) Data sharing capabilities, 7) Enforcement of integrity constraints, 8) Restriction of unauthorized access, 9) Data independence, 10) Transaction processing capabilities, and 11) Backup and recovery facilities.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2074,7 +2074,7 @@
     "question": "What is data independence and why is it important?",
     "answer": "Data independence is the immunity of user applications to changes made in the definition and organization of data. It is important because it allows changes to the data structure without affecting application programs. There are two types: logical data independence (ability to change logical schema without changing external schema) and physical data independence (immunity of internal model to changes in physical model). This separation ensures that applications continue to work even when database structures are modified.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2110,7 +2110,7 @@
     "question": "How are database management systems classified?",
     "answer": "DBMS can be classified based on: 1) Data model - relational, hierarchical, network, or object-oriented models, 2) User numbers - single-user or multiuser database systems, and 3) Database distribution - centralized systems (DBMS and database stored at single site), distributed database systems (database distributed across multiple sites), homogeneous distributed systems (same DBMS software), or heterogeneous distributed systems (different DBMS software with common support for data exchange).",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -2119,7 +2119,7 @@
     "question": "What is the Relational Data Model and who introduced it?",
     "answer": "The relational data model was introduced by E. F. Codd in 1970. It describes the world as 'a collection of inter-related relations (or tables)' and has provided the basis for research on data theory, numerous database design methodologies, the SQL standard, and almost all modern commercial database management systems.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2182,7 +2182,7 @@
     "question": "What are the main types of relationships in ER modeling?",
     "answer": "Relationship types include: 1) One-to-many (1:M) - should be the norm in relational databases, 2) One-to-one (1:1) - should be rare and may indicate entities belong in same table, 3) Many-to-many (M:N) - implemented through composite entities and broken into two 1:M relationships, and 4) Unary/recursive - relationship between occurrences of the same entity set.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ER Modeling",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2191,7 +2191,7 @@
     "question": "What is relational algebra and what are its fundamental operations?",
     "answer": "Relational algebra is a procedural query language that provides a set of operations to manipulate relations. Fundamental operations include: 1) Selection (s) - selects rows satisfying a predicate, 2) Projection (p) - selects specific columns, 3) Union () - combines tuples from two relations, 4) Set difference (-) - finds tuples in one relation not in another, 5) Cartesian product (x) - combines all tuples from two relations, and 6) Rename (r) - renames relations or attributes.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2281,7 +2281,7 @@
     "question": "What are database indices and what types exist?",
     "answer": "Indices are data structures that improve data retrieval speed. Types include: 1) B-tree indices - balanced tree structure for range queries, 2) Hash indices - for equality queries using hash functions, 3) Bitmap indices - for columns with few distinct values, 4) Clustered indices - determine physical storage order of data, 5) Non-clustered indices - separate structure from data storage, and 6) Composite indices - on multiple columns. Indices trade off query performance against update overhead and storage space.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2299,7 +2299,7 @@
     "question": "What is a JOIN in SQL and why is it important?",
     "answer": "A JOIN is an SQL operation that combines rows from two or more tables based on a related column. It's fundamental to relational databases because it allows you to retrieve data from multiple normalized tables in a single query, reconstructing the relationships defined by foreign keys.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -2326,7 +2326,7 @@
     "question": "Explain the concept of a self-join with an example.",
     "answer": "A self-join is when a table is joined with itself. It's useful for querying hierarchical data stored in a single table. For example, in an EMPLOYEE table with EmployeeID and ManagerID columns, you can self-join to get each employee's manager name: SELECT e1.Name as Employee, e2.Name as Manager FROM Employee e1 LEFT JOIN Employee e2 ON e1.ManagerID = e2.EmployeeID.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2389,7 +2389,7 @@
     "question": "Write a SQL query to find employees who have never placed an order.",
     "answer": "SELECT e.EmployeeID, e.Name FROM Employees e LEFT JOIN Orders o ON e.EmployeeID = o.EmployeeID WHERE o.OrderID IS NULL; This uses LEFT JOIN to include all employees and filters for those with no matching orders.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2506,7 +2506,7 @@
     "question": "Write a query using LEFT JOIN to find departments with no employees.",
     "answer": "SELECT d.* FROM Departments d LEFT JOIN Employees e ON d.DeptID = e.DeptID WHERE e.EmployeeID IS NULL; This returns all departments, then filters to those with no matching employees (where EmployeeID is NULL from the right table).",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2524,7 +2524,7 @@
     "question": "What is a lateral join in PostgreSQL?",
     "answer": "A LATERAL join allows a subquery in the FROM clause to reference columns from preceding tables in the same FROM clause. It's like a correlated subquery but can return multiple columns and rows. Example: SELECT * FROM Employees e, LATERAL (SELECT * FROM Orders o WHERE o.EmployeeID = e.EmployeeID ORDER BY o.Date DESC LIMIT 1) AS last_order.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2560,7 +2560,7 @@
     "question": "Write a query using FULL OUTER JOIN to find mismatched records between two tables.",
     "answer": "SELECT COALESCE(a.id, b.id) as id, a.value as value_a, b.value as value_b FROM TableA a FULL OUTER JOIN TableB b ON a.id = b.id WHERE a.id IS NULL OR b.id IS NULL; This finds records that exist in one table but not the other.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2830,7 +2830,7 @@
     "question": "Explain the use of aggregate functions in subqueries.",
     "answer": "SELECT EmployeeID, Salary FROM Employees WHERE Salary > (SELECT AVG(Salary) FROM Employees); Subquery calculates average, outer query finds employees above it. Also: SELECT d.DepartmentName, (SELECT AVG(Salary) FROM Employees e WHERE e.DepartmentID = d.DepartmentID) as AvgSalary FROM Departments d;",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2839,7 +2839,7 @@
     "question": "What is an index in a database and why is it important?",
     "answer": "An index is a data structure that improves the speed of data retrieval operations on a table. Like a book index, it provides quick access to rows without scanning the entire table. Indexes are crucial for performance but add overhead on INSERT, UPDATE, and DELETE operations because they must be maintained.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2884,7 +2884,7 @@
     "question": "What are the trade-offs of using indexes?",
     "answer": "Indexes speed up SELECT queries but slow down INSERT, UPDATE, DELETE operations because indexes must be maintained. They consume disk space and memory. Over-indexing can hurt performance. Each index is a trade-off between query performance and write overhead. Strategic indexing based on actual query patterns is essential.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DDL DML DCL TCL",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2902,7 +2902,7 @@
     "question": "What is a covering index?",
     "answer": "A covering index contains all columns needed by a query, eliminating the need to access the table data. If index includes SELECT, WHERE, and JOIN columns, the database can satisfy the query entirely from the index. This dramatically improves performance. Example: Index on (DepartmentID, Salary, Name) covers query selecting these columns for a department.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -2920,7 +2920,7 @@
     "question": "What is index fragmentation and how do you fix it?",
     "answer": "Index fragmentation occurs as data is inserted, updated, and deleted, causing pages to become disorganized with wasted space. Fragmented indexes degrade performance. Fix with REBUILD or REORGANIZE (SQL Server), REINDEX (PostgreSQL), OPTIMIZE TABLE (MySQL). Regular maintenance schedules prevent fragmentation buildup.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3019,7 +3019,7 @@
     "question": "Explain index-only scans and their benefits.",
     "answer": "Index-only scans occur when all required columns are in the index, avoiding table access. The database reads only the index, which is much smaller than the table. Benefits: dramatically faster queries, reduced I/O, less buffer pool usage. Example: Index on (DepartmentID, Salary) covers query SELECT DepartmentID, Salary FROM Employees WHERE DepartmentID = 10.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3028,7 +3028,7 @@
     "question": "How do you monitor index usage and find unused indexes?",
     "answer": "Databases provide views for index usage: pg_stat_user_indexes (PostgreSQL), sys.dm_db_index_usage_stats (SQL Server), performance_schema.table_io_waits_summary_by_index_usage (MySQL). Find indexes with few or no seeks/scans, consider dropping them to reduce maintenance overhead. Regular monitoring identifies optimization opportunities.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3100,7 +3100,7 @@
     "question": "How do you estimate index size before creating it?",
     "answer": "Index size depends on number of rows, key column sizes, and index type. Rough estimate: size rows x (key_size + pointer_size) + overhead. For clustered indexes, include data row size. Many databases provide tools: SQL Server sp_spaceused, PostgreSQL pg_total_relation_size, MySQL information_schema. Test on representative data.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3262,7 +3262,7 @@
     "question": "Explain the concept of predicate locking in SERIALIZABLE isolation.",
     "answer": "Predicate locking locks the logical conditions of a query, not just specific rows. If a query has WHERE department = 'Sales', SERIALIZABLE may lock the concept of 'Sales department' to prevent phantoms - new Sales rows can't be inserted. Implemented via index locking or range locks in different databases.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "Locks",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3352,7 +3352,7 @@
     "question": "Explain how to test isolation level behavior in your database.",
     "answer": "Open two database sessions. Session 1: BEGIN TRANSACTION, UPDATE a row (don't commit). Session 2: Try to read that row with different isolation levels (SET TRANSACTION ISOLATION LEVEL ...; SELECT ...). Observe if you see the uncommitted change. Test with INSERT to check phantom reads. Document behavior for your specific database.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "ACID",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3451,7 +3451,7 @@
     "question": "What is the difference between optimistic and pessimistic locking?",
     "answer": "Pessimistic locking assumes conflicts are likely and locks data when read (SELECT FOR UPDATE). Prevents conflicts but reduces concurrency. Optimistic locking assumes conflicts are rare, checks at update time using version numbers or timestamps. If data changed, transaction rolls back and retries. Better for read-heavy, low-contention workloads.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "Locks",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3469,7 +3469,7 @@
     "question": "What is SELECT FOR UPDATE and when would you use it?",
     "answer": "SELECT FOR UPDATE acquires exclusive locks on selected rows, preventing other transactions from modifying them until your transaction ends. Used when you need to read data, then update it based on what you read, ensuring no other transaction changes it in between. Example: reading account balance before withdrawal.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "Locks",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3487,7 +3487,7 @@
     "question": "What is a schema stability lock?",
     "answer": "Schema stability lock (Sch-S) prevents modifications to table schema while queries are running. Allows concurrent queries but blocks DDL operations. SQL Server uses it. When you run SELECT, Sch-S lock acquired. ALTER TABLE needs Sch-M (schema modification) lock, which waits for Sch-S locks to release, ensuring schema changes don't corrupt running queries.",
     "topic": "DBMS",
-    "subtopic": "DDL",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3523,7 +3523,7 @@
     "question": "What is key-range locking and how does it prevent phantoms?",
     "answer": "Key-range locking locks ranges of index keys, preventing phantom inserts. Used in SERIALIZABLE isolation. For query with WHERE department = 'Sales', range lock on 'Sales' index entries prevents new Sales rows from being inserted. Implemented in SQL Server, MySQL (InnoDB) with next-key locking combining record lock and gap lock.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "Locks",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3559,7 +3559,7 @@
     "question": "What is the NOWAIT option with locks?",
     "answer": "NOWAIT specifies that a transaction should not wait for locks - if the resource is already locked, the statement immediately fails with an error. Example: SELECT * FROM Employees WITH (NOWAIT) (SQL Server); SELECT * FROM Employees FOR UPDATE NOWAIT (Oracle/PostgreSQL). Useful when you can't afford to wait and want immediate feedback.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3649,7 +3649,7 @@
     "question": "What is a distributed database system?",
     "answer": "A distributed database is a collection of multiple interconnected databases stored on different computers, appearing as a single logical database to users. Data can be fragmented, replicated, and distributed across sites. The distributed DBMS manages transparency (location, fragmentation, replication), distributed query processing, and distributed transaction management.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "Distributed Databases",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -3694,7 +3694,7 @@
     "question": "Explain the difference between homogeneous and heterogeneous distributed databases.",
     "answer": "Homogeneous: all sites use same DBMS software (e.g., all Oracle). Easier to manage, same query language, uniform protocols. Heterogeneous: sites may run different DBMS (Oracle, MySQL, MongoDB). Requires gateways for translation, more complex query processing, and may not support all transactions. Common in real-world when different departments chose different systems.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3730,7 +3730,7 @@
     "question": "Explain the concept of location transparency.",
     "answer": "Location transparency means users don't need to know where data is physically stored. Queries reference logical names (e.g., Customers table) without specifying site (NY server). The distributed DBMS maps logical names to physical locations, routes queries appropriately, and combines results. Essential for distributed database usability.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3757,7 +3757,7 @@
     "question": "What is eventual consistency in distributed databases?",
     "answer": "Eventual consistency means that if no new updates are made, all replicas will eventually become consistent. Reads may see stale data temporarily, but convergence is guaranteed. Used in many NoSQL databases (Cassandra, DynamoDB) and asynchronous replication. Provides high availability and partition tolerance at cost of temporary inconsistency. BASE (Basically Available, Soft state, Eventual consistency) vs ACID.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ACID",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -3838,7 +3838,7 @@
     "question": "Explain the concept of data shipping vs query shipping.",
     "answer": "Data shipping moves data to where query executes (traditional approach). Query shipping moves query to where data resides (pushdown). In distributed databases, optimizing queries often involves deciding which operations to ship (projections, selections) vs moving data. Modern systems use hybrid: push filtering/aggregation to data nodes, move only results.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3865,7 +3865,7 @@
     "question": "What is the difference between distributed database and federated database?",
     "answer": "Distributed database is a single logical database physically distributed, with tight integration and centralized control. Federated database integrates multiple autonomous databases with less central control. Federated systems preserve local autonomy, may have schema mapping, and provide looser coupling. Federated query processor translates between local and global schemas.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "DBMS basics",
     "difficulty": "Beginner",
     "source": "database_qna.json"
   },
@@ -3919,7 +3919,7 @@
     "question": "What is NoSQL and why did it emerge?",
     "answer": "NoSQL (Not Only SQL) databases emerged to handle limitations of relational databases for modern applications: massive scale (web-scale data), flexible schemas (semi-structured data), high velocity (real-time updates), and horizontal scaling. They sacrifice ACID transactions and strong consistency for scalability, availability, and performance. Types: document, key-value, column-family, graph.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ACID",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3937,7 +3937,7 @@
     "question": "What is MongoDB and what are its key features?",
     "answer": "MongoDB is a document-oriented NoSQL database storing data in BSON format (binary JSON). Key features: schema flexibility (documents can have different fields), horizontal scaling via sharding, rich query language, secondary indexes, aggregation pipeline, replication with automatic failover, and geospatial queries. Good for content management, real-time analytics, catalogs.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "Distributed Databases",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -3982,7 +3982,7 @@
     "question": "Explain the concept of BASE in NoSQL databases.",
     "answer": "BASE (Basically Available, Soft state, Eventual consistency) is the NoSQL alternative to ACID. Basically Available: system guarantees availability. Soft state: state may change over time without input (due to eventual consistency). Eventual consistency: system will become consistent over time if no new updates. Sacrifices immediate consistency for availability and partition tolerance.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ACID",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -4063,7 +4063,7 @@
     "question": "What is DynamoDB and its key features?",
     "answer": "DynamoDB is AWS's managed NoSQL key-value/document database. Features: fully managed, automatic scaling, single-digit millisecond performance, ACID transactions (limited), DAX (in-memory cache), streams for change capture, global tables (multi-region replication), on-demand/ provisioned capacity. Data model: tables with items (rows) and attributes. Supports both key-value and document patterns.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "ACID",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -4072,7 +4072,7 @@
     "question": "Explain the concept of materialized views in Cassandra.",
     "answer": "Materialized views in Cassandra automatically maintain denormalized views of base table data for different query patterns. When base table updated, view updates automatically. Example: base table by user_id, materialized view by email for lookups. Trade-off: write amplification (each write updates base + views) but faster reads. Alternative to manual denormalization.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -4081,7 +4081,7 @@
     "question": "What is the difference between RDBMS and NoSQL consistency models?",
     "answer": "RDBMS typically use ACID with strong consistency (serializable, repeatable read). All nodes see same data immediately after commit. NoSQL often use eventual consistency with BASE - data may be temporarily inconsistent but converges. Some NoSQL offer tunable consistency (Cassandra) or strong consistency options (MongoDB majority writes). Trade-off between consistency and performance.",
     "topic": "DBMS",
-    "subtopic": "DBMS Architecture",
+    "subtopic": "NoSQL",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -4180,7 +4180,7 @@
     "question": "Explain the concept of change streams in MongoDB.",
     "answer": "Change streams allow applications to subscribe to real-time data changes on collections, databases, or entire deployments. Returns ordered stream of change events (insert, update, replace, delete). Useful for: real-time analytics, cache invalidation, cross-system synchronization, event-driven architectures. Based on oplog, requires replica set. Provides resume tokens for fault tolerance.",
     "topic": "DBMS",
-    "subtopic": "DML",
+    "subtopic": "DBMS Architecture",
     "difficulty": "Intermediate",
     "source": "database_qna.json"
   },
@@ -7087,7 +7087,7 @@
     "question": "What are the necessary conditions for deadlock?",
     "answer": "Mutual exclusion, hold and wait, no preemption, and circular wait.",
     "topic": "OS",
-    "subtopic": "Deadlocks",
+    "subtopic": "Processes",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -7438,7 +7438,7 @@
     "question": "Explain the main purpose of an operating system.",
     "answer": "An operating system ensures a computer system performs well by managing computational activities and provides an environment for the development and execution of programs.",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -7465,7 +7465,7 @@
     "question": "What is kernel?",
     "answer": "The kernel is the core of an operating system, connecting applications to data processing and managing communication between software and hardware.",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },
@@ -7573,7 +7573,7 @@
     "question": "What necessary conditions can lead to a deadlock situation in a system?",
     "answer": "Deadlock occurs when mutual exclusion, hold and wait, no preemption, and circular wait conditions exist simultaneously.",
     "topic": "OS",
-    "subtopic": "Deadlocks",
+    "subtopic": "Processes",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -7717,7 +7717,7 @@
     "question": "What is root partition?",
     "answer": "The root partition stores the OS kernel and important system files mounted at boot time.",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -7744,7 +7744,7 @@
     "question": "What are the different types of CPU registers in a typical operating system design?",
     "answer": "Types include Accumulators, Index Registers, Stack Pointer, and General Purpose Registers.",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -7852,7 +7852,7 @@
     "question": "What is NOS?",
     "answer": "NOS (Network Operating System) is specialized software enabling computers to communicate, share files or folders, over a network.",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -7888,7 +7888,7 @@
     "question": "What is a system call?",
     "answer": "A system call is a programmatic way for a program to request a service from the operating system's kernel, such as file operations, process control, or communication.",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },
@@ -8077,7 +8077,7 @@
     "question": "What is a real-time operating system (RTOS)?",
     "answer": "An RTOS is designed to process data and events within strict time constraints, guaranteeing response times for critical tasks, used in embedded systems, robotics, and industrial control.",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },
@@ -8104,7 +8104,7 @@
     "question": "What is the difference between a monolithic kernel and a microkernel?",
     "answer": "A monolithic kernel includes all OS services (file system, device drivers, etc.) in kernel space, while a microkernel keeps only essential services (IPC, basic scheduling) in kernel space, with other services as user-space servers.",
     "topic": "OS",
-    "subtopic": "File Systems",
+    "subtopic": "OS basics",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },
@@ -8158,7 +8158,7 @@
     "question": "What is the difference between a shell and a kernel?",
     "answer": "The kernel is the core of the OS that manages hardware and provides essential services, while the shell is a command-line interpreter that provides an interface for users to interact with the kernel.",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Intermediate",
     "source": "os_qna.json"
   },
@@ -8320,7 +8320,7 @@
     "question": "What is the difference between a process scheduler and a thread scheduler?",
     "answer": "A process scheduler decides which process gets CPU time, while a thread scheduler (within a process or OS) decides which thread within that process executes, with user-level and kernel-level implementations.",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },
@@ -8410,7 +8410,7 @@
     "question": "What is the difference between preemptive and cooperative scheduling?",
     "answer": "In preemptive scheduling, the OS can interrupt a running process to give CPU to another, while in cooperative scheduling, processes voluntarily yield control when finished or waiting.",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "I/O Management",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },
@@ -8536,7 +8536,7 @@
     "question": "What is the purpose of the 'strace' command?",
     "answer": "'strace' traces system calls and signals made by a process, showing interactions with the kernel, useful for debugging, performance analysis, and understanding program behavior.",
     "topic": "OS",
-    "subtopic": "Processes",
+    "subtopic": "OS basics",
     "difficulty": "Beginner",
     "source": "os_qna.json"
   },

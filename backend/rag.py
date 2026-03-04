@@ -55,6 +55,21 @@ TOPIC_ALIASES = {
     "Object-Oriented Programming": "OOP",  # Add this
 }
 
+def detect_explicit_domain(query):
+    """Detect explicit domain mentions in the query"""
+    q = query.lower()
+    
+    if "operating system" in q or " operating systems" in q or " os " in q or q.startswith("os ") or q.endswith(" os"):
+        return "Operating Systems"
+    
+    if "database" in q or " dbms" in q or " sql" in q:
+        return "DBMS"
+    
+    if "object oriented" in q or " oop" in q or "class" in q or "inheritance" in q:
+        return "OOP"
+    
+    return None
+
 OUT_OF_DOMAIN_MESSAGE = (
     "I can only answer questions related to Operating Systems, DBMS, and Object-Oriented Programming. "
     "Please ask a question from one of these domains."
@@ -103,6 +118,11 @@ def load_index_and_metas():
         print(f"📚 Loading FAISS index from {INDEX_PATH}")
         _INDEX_CACHE = faiss.read_index(INDEX_PATH)
         _METAS_CACHE = load_json(METAS_PATH)
+        
+        # Normalize topic names in metas
+        for meta in _METAS_CACHE:
+            if "topic" in meta:
+                meta["topic"] = TOPIC_ALIASES.get(meta["topic"], meta["topic"])
         
         # Count topics for debugging (only once)
         topic_counts = {}
@@ -495,7 +515,6 @@ def detect_topic_via_rag(query, k=5):
 
 
 # ================== MAIN ENTRY POINT ==================
-# ================== MAIN ENTRY POINT FOR CHATBOT ==================
 def technical_interview_query(user_query):
     """
     Enhanced chatbot query with topic detection and filtering
@@ -510,8 +529,16 @@ def technical_interview_query(user_query):
     kb_lookup = build_kb_lookup()
     embedder = get_embedder()
 
-    # STEP 1: Detect the primary topic from the query
-    detected_topic, detected_subtopic = get_topic_and_subtopic_from_query(user_query, topic_rules)
+    # STEP 1: First check for explicit domain mentions
+    explicit_topic = detect_explicit_domain(user_query)
+    
+    if explicit_topic:
+        detected_topic = explicit_topic
+        detected_subtopic = None
+        print(f"\n🔍 Explicit domain detected: {explicit_topic}")
+    else:
+        # STEP 2: If no explicit domain, use keyword rules
+        detected_topic, detected_subtopic = get_topic_and_subtopic_from_query(user_query, topic_rules)
     
     # Normalize detected topic
     if detected_topic:
@@ -526,90 +553,22 @@ def technical_interview_query(user_query):
         print(f"❌ Query rejected: {detected_topic} is not allowed")
         return OUT_OF_DOMAIN_MESSAGE, []
     
-    if detected_topic:
-        print(f"\n🔍 Detected topic: {detected_topic} (subtopic: {detected_subtopic})")
-    else:
-        print(f"\n⚠️ No specific topic detected, will use pure semantic search")
+    print(f"\n🔍 Final topic: {detected_topic} (subtopic: {detected_subtopic})")
     
-    # STEP 2: Get embeddings and search
+    # STEP 3: Get embeddings for retrieval
     query_embedding = embedder.encode([user_query], normalize_embeddings=True)
     
-    # Secondary protection via RAG voting
-    rag_topic, confidence = detect_topic_via_rag(user_query)
+    # STEP 4: Use get_relevant_chunks_strict for topic-filtered retrieval
+    retrieved = get_relevant_chunks_strict(
+        query=user_query,
+        index=index,
+        metas=metas,
+        model=embedder,
+        topic=detected_topic,
+        k=5
+    )
     
-    if rag_topic:
-        # Ensure rag_topic is normalized (should be already, but safe check)
-        rag_topic_norm = TOPIC_ALIASES.get(rag_topic, rag_topic)
-        
-        if rag_topic_norm not in ALLOWED_TOPICS:
-            print(f"⚠️ RAG voting returned non-allowed topic: {rag_topic_norm} (raw: {rag_topic}) - ignoring RAG vote")
-            # Don't reject - just continue with detected_topic
-        else:
-            print(f"✅ RAG voting confirmed topic: {rag_topic_norm}")
-    
-    # Search with higher k to allow for filtering
-    search_k = 15  # Search more, then filter down
-    scores, I = index.search(query_embedding, search_k)
-    
-    # STEP 3: Filter results by topic if detected
-    retrieved = []
-    seen_ids = set()
-    
-    for idx, score in zip(I[0], scores[0]):
-        if idx < 0 or idx >= len(metas):
-            continue
-            
-        meta = metas[idx]
-        
-        # STRICT domain filter
-        if meta.get("topic") not in ALLOWED_TOPICS:
-            continue
-        
-        # Skip if we've seen this ID
-        if meta["id"] in seen_ids:
-            continue
-        
-        # If topic was detected, prioritize chunks from that topic
-        if detected_topic and meta.get("topic") != detected_topic:
-            # Still allow but with lower priority - we'll collect them separately
-            continue
-            
-        seen_ids.add(meta["id"])
-        meta_copy = meta.copy()
-        meta_copy["_score"] = float(score)
-        retrieved.append(meta_copy)
-        
-        # Stop if we have enough from the detected topic
-        if len(retrieved) >= 5:
-            break
-    
-    # STEP 4: If we don't have enough from detected topic, add best matches from other allowed topics
-    if len(retrieved) < 5:
-        print(f"   Only found {len(retrieved)} chunks from {detected_topic}, adding best from other allowed topics...")
-        for idx, score in zip(I[0], scores[0]):
-            if idx < 0 or idx >= len(metas):
-                continue
-                
-            meta = metas[idx]
-            
-            # STRICT domain filter
-            if meta.get("topic") not in ALLOWED_TOPICS:
-                continue
-            
-            # Skip if already seen
-            if meta["id"] in seen_ids:
-                continue
-            
-            # Add this chunk
-            seen_ids.add(meta["id"])
-            meta_copy = meta.copy()
-            meta_copy["_score"] = float(score)
-            retrieved.append(meta_copy)
-            
-            if len(retrieved) >= 5:
-                break
-    
-    print(f"\n🔍 Retrieved {len(retrieved)} relevant chunks:")
+    print(f"\n🔍 Retrieved {len(retrieved)} relevant chunks from topic {detected_topic}:")
     for i, r in enumerate(retrieved):
         print(f"   {i+1}. [{r.get('topic')}/{r.get('subtopic')}] score={r['_score']:.3f}")
 
@@ -630,13 +589,12 @@ def technical_interview_query(user_query):
     answer = generate_technical_explanation(
         user_query, 
         context_text,
-        topic=detected_topic  # Pass the detected topic for better prompting
+        topic=detected_topic
     )
     
     print("="*80 + "\n")
     
     return answer, retrieved
-
 
 # ================== AGENTIC INTERVIEW (NOW USING MISTRAL) ==================
 def agentic_expected_answer(user_query, sampled_concepts=None, expected_topic=None):

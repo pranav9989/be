@@ -23,43 +23,57 @@ class SubtopicTracker:
         - new: <3 attempts
     """
     
-    # Atomic subtopics
     SUBTOPICS_BY_TOPIC = {
         "DBMS": [
+            "DBMS basics",
+            "ER Modeling",
+            "DBMS Architecture",
+            "Entities & Keys",
             "Normalization",
-            "Keys",
-            "ACID",
-            "Transactions",
-            "Concurrency Control",
-            "Isolation Levels",
-            "Indexing",
             "Joins",
-            "SQL Aggregation",
-            "Locking",
-            "Deadlocks"
+            "DDL DML DCL TCL",
+            "Aggregations",
+            "Indexing",
+            "ACID",
+            "Isolation Levels",
+            "Locks",
+            "Deadlocks DBMS",
+            "Logging & Recovery",
+            "Query Optimization",
+            "Distributed Databases",
+            "NoSQL"
         ],
         "OOPS": [
             "Classes",
             "Objects",
+            "Constructors",
             "Encapsulation",
-            "Abstraction",
             "Inheritance",
             "Polymorphism",
-            "Constructors",
-            "Access Modifiers",
-            "SOLID Principles"
+            "Abstraction",
+            "Interfaces",
+            "Virtual Functions",
+            "Object Relationships",
+            "Design Patterns",
+            "Memory Management in OOP"
         ],
         "OS": [
+            "OS basics",
             "Processes",
             "Threads",
-            "Context Switching",
             "CPU Scheduling",
-            "Synchronization",
-            "Deadlocks",
+            "Process Synchronization",
+            "Deadlocks OS",
             "Memory Management",
             "Virtual Memory",
-            "Page Replacement",
-            "System Calls"
+            "Paging",
+            "File Systems",
+            "Disk Scheduling",
+            "I/O Management",
+            "System Calls",
+            "Interprocess Communication",
+            "Networking",
+            "Security"
         ]
     }
     
@@ -144,25 +158,39 @@ class SubtopicTracker:
             if m.topic not in self.subtopics:
                 self.subtopics[m.topic] = {}
             
+            # 🔥 CRITICAL: Initialize scores list properly
+            # We don't have individual scores in DB, so we create a synthetic list
+            # This ensures running average calculations work correctly
+            scores = []
+            if m.attempts > 0:
+                # Create a list of attempts count with the current mastery level
+                # This is an approximation but better than empty list
+                scores = [m.mastery_level] * m.attempts
+                print(f"   📊 Loaded {m.topic}/{normalized}: {m.attempts} attempts, mastery={m.mastery_level:.3f}")
+            
+            # Calculate total_score for backward compatibility
+            total_score = m.mastery_level * m.attempts if m.attempts > 0 else 0.0
+            
             # Store with normalized name - INCLUDE ALL FIELDS
             self.subtopics[m.topic][normalized] = {
                 'name': normalized,
                 'topic': m.topic,
                 'mastery_level': m.mastery_level,
                 'attempts': m.attempts,
-                'total_score': m.mastery_level * m.attempts if m.attempts > 0 else 0.0,
-                'scores': [],  # 🔥 CRITICAL: Initialize empty scores list
+                'total_score': total_score,
+                'scores': scores,  # 🔥 CRITICAL: Initialize with synthetic scores
                 'last_asked': m.last_asked,
                 'original_name': m.subtopic,
-                'subtopic_status': self._calculate_subtopic_status(
-                    attempts=m.attempts,
-                    mastery=m.mastery_level
-                )
+                'subtopic_status': m.subtopic_status  # Already set from DB
             }
+            
+            # Debug log for verification
+            if m.attempts > 0:
+                print(f"      → Initialized scores list with {len(scores)} entries")
     
     def _save_subtopic(self, topic: str, subtopic: str, 
-                       mastery_level: float = 0.0, 
-                       attempts: int = 0):
+                   mastery_level: float = 0.0, 
+                   attempts: int = 0):
         """Save or update a subtopic mastery in database"""
         db_subtopic = subtopic
         
@@ -180,24 +208,33 @@ class SubtopicTracker:
             )
             db.session.add(db_mastery)
         
-        db_mastery.mastery_level = mastery_level
-        db_mastery.attempts = attempts
+        # 🔥 CRITICAL: Set mastery_level and attempts correctly
+        db_mastery.mastery_level = mastery_level  # Running average
+        db_mastery.attempts = attempts  # Should be 1,2,3 (not always 1)
         db_mastery.last_asked = datetime.utcnow()
         
-        # 🔥 FIXED: Set subtopic status correctly
+        # 🔥 Set subtopic status correctly
         db_mastery.subtopic_status = self._calculate_subtopic_status(attempts, mastery_level)
         
         db.session.commit()
         
-        # Update in-memory cache
+        # Update in-memory cache with ALL fields preserved
         if topic not in self.subtopics:
             self.subtopics[topic] = {}
+        
+        # Get existing scores if they exist, otherwise initialize empty list
+        existing_scores = []
+        if topic in self.subtopics and subtopic in self.subtopics[topic]:
+            existing_scores = self.subtopics[topic][subtopic].get('scores', [])
         
         self.subtopics[topic][subtopic] = {
             'mastery_level': mastery_level,
             'attempts': attempts,
+            'scores': existing_scores,  # 🔥 CRITICAL: Preserve scores list
             'last_asked': db_mastery.last_asked,
-            'subtopic_status': db_mastery.subtopic_status
+            'subtopic_status': db_mastery.subtopic_status,
+            'topic': topic,  # Add for completeness
+            'name': subtopic  # Add for completeness
         }
     
     # ================== FIXED: update_subtopic_performance with proper initialization ==================
@@ -270,7 +307,7 @@ class SubtopicTracker:
     def get_next_subtopic(self, topic: str, weak_concepts: Optional[list] = None, covered_subtopics: Optional[list] = None) -> str:
         """
         STRICT PRIORITY ORDER PER RULES:
-
+        
         1. Weak subtopics (subtopics containing weak concepts) → ALWAYS FIRST
         2. Explore pool (ongoing + not_started) → 80% probability
         3. Mastered subtopics → 20% probability
@@ -337,29 +374,30 @@ class SubtopicTracker:
             return chosen
         
         # PRIORITY 2 vs 3: 80% explore, 20% mastered
-        if explore_pool and mastered_subtopics:
-            if random.random() < 0.8:
-                chosen = random.choice(explore_pool)
-                source = "ONGOING" if chosen in attempted else "NOT_STARTED"
-                print(f"   ✅ SELECTED ({source} - Priority 2, 80% explore): {chosen}")
-                return chosen
-            else:
-                chosen = random.choice(mastered_subtopics)
-                print(f"   ✅ SELECTED (MASTERED - Priority 3, 20% reinforcement): {chosen}")
-                return chosen
+        import random
+        r = random.random()
         
+        # 80% explore
+        if r < 0.8 and explore_pool:
+            chosen = random.choice(explore_pool)
+            source = "ONGOING" if chosen in attempted else "NOT_STARTED"
+            print(f"   ✅ SELECTED ({source} - Priority 2, 80% explore): {chosen}")
+            return chosen
+        
+        # 20% reinforcement
+        if mastered_subtopics:
+            chosen = random.choice(mastered_subtopics)
+            print(f"   ✅ SELECTED (MASTERED - Priority 3, 20% reinforcement): {chosen}")
+            return chosen
+        
+        # Fallback to explore pool if no mastered available
         if explore_pool:
             chosen = random.choice(explore_pool)
             source = "ONGOING" if chosen in attempted else "NOT_STARTED"
-            print(f"   ✅ SELECTED ({source} - Priority 2): {chosen}")
+            print(f"   ⚠️ Fallback to explore (no mastered): {chosen}")
             return chosen
         
-        if mastered_subtopics:
-            chosen = random.choice(mastered_subtopics)
-            print(f"   ✅ SELECTED (MASTERED - Priority 3): {chosen}")
-            return chosen
-        
-        # Fallback
+        # Ultimate fallback
         fallback = random.choice(all_subtopics)
         print(f"   ⚠️ Fallback: {fallback}")
         return fallback
@@ -379,41 +417,197 @@ class SubtopicTracker:
         except (ImportError, AttributeError) as e:
             # Fallback to hardcoded mapping if question bank not available
             concept_map = {
+
                 "DBMS": {
-                    "Normalization": ["1NF", "2NF", "3NF", "BCNF", "functional dependency", "anomalies"],
-                    "Keys": ["Primary Key", "Foreign Key", "Candidate Key", "Composite Key", "Super Key"],
-                    "ACID": ["Atomicity", "Consistency", "Isolation", "Durability"],
-                    "Transactions": ["commit", "rollback", "transaction states", "savepoint"],
-                    "Concurrency Control": ["2PL", "timestamp ordering", "optimistic locking", "pessimistic locking"],
-                    "Isolation Levels": ["Read Uncommitted", "Read Committed", "Repeatable Read", "Serializable"],
-                    "Indexing": ["B+ Tree", "Hash Index", "clustered index", "non-clustered index"],
-                    "Joins": ["Inner Join", "Left Join", "Right Join", "Full Join"],
-                    "SQL Aggregation": ["GROUP BY", "HAVING", "Subqueries", "COUNT", "SUM"],
-                    "Locking": ["Shared Lock", "Exclusive Lock", "Lock Granularity"],
-                    "Deadlocks": ["Wait for graph", "detection", "prevention", "avoidance"]
+
+                "DBMS basics": [
+                "database","dbms","rdbms","schema","instance","data independence"
+                ],
+
+                "ER Modeling": [
+                "entity","attribute","relationship","cardinality","weak entity"
+                ],
+
+                "DBMS Architecture": [
+                "three schema architecture","physical level","logical level","view level"
+                ],
+
+                "Entities & Keys": [
+                "primary key","foreign key","candidate key","composite key","referential integrity"
+                ],
+
+                "Normalization": [
+                "1NF","2NF","3NF","BCNF","functional dependency","transitive dependency"
+                ],
+
+                "Joins": [
+                "inner join","left join","right join","full join","self join"
+                ],
+
+                "DDL DML DCL TCL": [
+                "create","alter","drop","select","insert","update","delete","grant","revoke","commit","rollback"
+                ],
+
+                "Aggregations": [
+                "group by","having","count","sum","avg","min","max"
+                ],
+
+                "Indexing": [
+                "B+ tree","hash index","clustered index","non-clustered index"
+                ],
+
+                "ACID": [
+                "atomicity","consistency","isolation","durability"
+                ],
+
+                "Isolation Levels": [
+                "read committed","repeatable read","serializable","dirty read","phantom read"
+                ],
+
+                "Locks": [
+                "shared lock","exclusive lock","two phase locking","intention lock"
+                ],
+
+                "Deadlocks DBMS": [
+                "wait for graph","deadlock detection","deadlock prevention","deadlock avoidance"
+                ],
+
+                "Logging & Recovery": [
+                "write ahead logging","checkpoint","undo","redo"
+                ],
+
+                "Query Optimization": [
+                "query plan","execution plan","cost based optimization"
+                ],
+
+                "Distributed Databases": [
+                "replication","sharding","two phase commit","CAP theorem"
+                ],
+
+                "NoSQL": [
+                "document store","key value store","column family","graph database"
+                ]
+
                 },
+
                 "OOPS": {
-                    "Classes": ["class", "object", "constructor", "attributes", "methods"],
-                    "Objects": ["instantiation", "state", "behavior", "identity"],
-                    "Encapsulation": ["data hiding", "getters setters", "access control"],
-                    "Abstraction": ["abstract classes", "interfaces", "implementation hiding"],
-                    "Inheritance": ["single inheritance", "multiple inheritance", "diamond problem"],
-                    "Polymorphism": ["method overloading", "method overriding", "dynamic dispatch"],
-                    "Constructors": ["default constructor", "parameterized constructor", "copy constructor"],
-                    "Access Modifiers": ["public", "private", "protected"],
-                    "SOLID Principles": ["Single Responsibility", "Open Closed", "Liskov Substitution"]
+
+                "Classes": [
+                "class","attributes","methods","static","instance"
+                ],
+
+                "Objects": [
+                "instantiation","state","behavior","identity"
+                ],
+
+                "Constructors": [
+                "default constructor","parameterized constructor","copy constructor","destructor"
+                ],
+
+                "Encapsulation": [
+                "data hiding","private","public","protected"
+                ],
+
+                "Inheritance": [
+                "single inheritance","multiple inheritance","diamond problem"
+                ],
+
+                "Polymorphism": [
+                "overloading","overriding","runtime polymorphism"
+                ],
+
+                "Abstraction": [
+                "abstract class","interface","implementation hiding"
+                ],
+
+                "Interfaces": [
+                "interface","implements","contract"
+                ],
+
+                "Virtual Functions": [
+                "virtual function","vtable","dynamic binding"
+                ],
+
+                "Object Relationships": [
+                "association","aggregation","composition"
+                ],
+
+                "Design Patterns": [
+                "singleton","factory","observer","strategy"
+                ],
+
+                "Memory Management in OOP": [
+                "garbage collection","memory leak","smart pointer","RAII"
+                ]
+
                 },
+
                 "OS": {
-                    "Processes": ["process states", "PCB", "process creation", "zombie process"],
-                    "Threads": ["user threads", "kernel threads", "multithreading"],
-                    "Context Switching": ["CPU state saving", "overhead", "dispatch latency"],
-                    "CPU Scheduling": ["FCFS", "SJF", "Round Robin", "Priority"],
-                    "Synchronization": ["mutex", "semaphore", "monitor", "critical section"],
-                    "Deadlocks": ["mutual exclusion", "hold and wait", "circular wait"],
-                    "Memory Management": ["paging", "segmentation", "fragmentation"],
-                    "Virtual Memory": ["demand paging", "page faults", "thrashing"],
-                    "Page Replacement": ["LRU", "FIFO", "Optimal", "clock algorithm"],
-                    "System Calls": ["fork", "exec", "wait", "open", "read", "write"]
+
+                "OS basics": [
+                "kernel","user mode","system software","resource management"
+                ],
+
+                "Processes": [
+                "process state","PCB","zombie process","orphan process"
+                ],
+
+                "Threads": [
+                "user thread","kernel thread","multithreading"
+                ],
+
+                "CPU Scheduling": [
+                "FCFS","SJF","round robin","priority scheduling"
+                ],
+
+                "Process Synchronization": [
+                "mutex","semaphore","critical section","monitor"
+                ],
+
+                "Deadlocks OS": [
+                "mutual exclusion","hold and wait","circular wait","banker's algorithm"
+                ],
+
+                "Memory Management": [
+                "segmentation","fragmentation","contiguous allocation"
+                ],
+
+                "Virtual Memory": [
+                "page fault","thrashing","working set"
+                ],
+
+                "Paging": [
+                "page","frame","TLB"
+                ],
+
+                "File Systems": [
+                "inode","directory structure","file allocation"
+                ],
+
+                "Disk Scheduling": [
+                "SSTF","SCAN","C-SCAN","LOOK"
+                ],
+
+                "I/O Management": [
+                "interrupt","DMA","device driver"
+                ],
+
+                "System Calls": [
+                "fork","exec","wait","syscall"
+                ],
+
+                "Interprocess Communication": [
+                "pipe","shared memory","message queue","socket"
+                ],
+
+                "Networking": [
+                "TCP","UDP","socket programming"
+                ],
+
+                "Security": [
+                "authentication","authorization","access control"
+                ]
+
                 }
             }
             # Return lowercase concepts for better matching

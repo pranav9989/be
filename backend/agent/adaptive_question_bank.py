@@ -121,136 +121,153 @@ class AdaptiveQuestionBank:
                 {
                     "name": "DBMS",
                     "subtopics": [
-                        {
-                            "name": "Normalization",
-                            "concepts": ["1NF", "2NF", "3NF", "BCNF", "functional dependency", "anomalies"]
-                        },
-                        {
-                            "name": "Keys",
-                            "concepts": ["Primary Key", "Foreign Key", "Candidate Key", "Composite Key", "Super Key"]
-                        },
-                        {
-                            "name": "ACID",
-                            "concepts": ["Atomicity", "Consistency", "Isolation", "Durability"]
-                        },
-                        {
-                            "name": "Transactions",
-                            "concepts": ["commit", "rollback", "transaction states", "savepoint"]
-                        },
-                        {
-                            "name": "Concurrency Control",
-                            "concepts": ["2PL", "timestamp ordering", "optimistic locking", "pessimistic locking"]
-                        },
-                        {
-                            "name": "Isolation Levels",
-                            "concepts": ["Read Uncommitted", "Read Committed", "Repeatable Read", "Serializable", "dirty read", "non-repeatable read", "phantom read"]
-                        },
-                        {
-                            "name": "Indexing",
-                            "concepts": ["B+ Tree", "Hash Index", "clustered index", "non-clustered index", "composite index"]
-                        },
-                        {
-                            "name": "Joins",
-                            "concepts": ["Inner Join", "Left Join", "Right Join", "Full Join", "Self Join", "Natural Join", "Equi Join", "cross join"]
-                        },
-                        {
-                            "name": "SQL Aggregation",
-                            "concepts": ["GROUP BY", "HAVING", "Subqueries", "COUNT", "SUM", "AVG", "MIN", "MAX", "correlated subquery"]
-                        },
-                        {
-                            "name": "Locking",
-                            "concepts": ["Shared Lock", "Exclusive Lock", "Lock Granularity", "row lock", "table lock", "deadlock"]
-                        },
-                        {
-                            "name": "Deadlocks",
-                            "concepts": ["Wait for graph", "detection", "prevention", "avoidance", "banker's algorithm"]
-                        }
+
+                        {"name": "DBMS basics",
+                        "concepts": ["database", "dbms", "rdbms", "schema", "instance", "data independence"]},
+
+                        {"name": "ER Modeling",
+                        "concepts": ["entity", "attribute", "relationship", "cardinality", "weak entity"]},
+
+                        {"name": "DBMS Architecture",
+                        "concepts": ["three schema architecture", "physical level", "logical level", "view level"]},
+
+                        {"name": "Entities & Keys",
+                        "concepts": ["primary key", "foreign key", "candidate key", "composite key", "referential integrity"]},
+
+                        {"name": "Normalization",
+                        "concepts": ["1NF", "2NF", "3NF", "BCNF", "functional dependency"]},
+
+                        {"name": "Joins",
+                        "concepts": ["inner join", "left join", "right join", "full join", "self join"]},
+
+                        {"name": "DDL DML DCL TCL",
+                        "concepts": ["create", "alter", "drop", "select", "insert", "update", "delete", "grant", "revoke", "commit", "rollback"]},
+
+                        {"name": "Aggregations",
+                        "concepts": ["group by", "having", "count", "sum", "avg", "min", "max"]},
+
+                        {"name": "Indexing",
+                        "concepts": ["B+ tree", "hash index", "clustered index", "non-clustered index"]},
+
+                        {"name": "ACID",
+                        "concepts": ["atomicity", "consistency", "isolation", "durability"]},
+
+                        {"name": "Isolation Levels",
+                        "concepts": ["read committed", "repeatable read", "serializable", "dirty read", "phantom read"]},
+
+                        {"name": "Locks",
+                        "concepts": ["shared lock", "exclusive lock", "two phase locking", "intention lock"]},
+
+                        {"name": "Deadlocks DBMS",
+                        "concepts": ["wait for graph", "deadlock detection", "deadlock prevention", "deadlock avoidance", "transaction deadlock"]},
+
+                        {"name": "Logging & Recovery",
+                        "concepts": ["write ahead logging", "checkpoint", "undo", "redo"]},
+
+                        {"name": "Query Optimization",
+                        "concepts": ["query plan", "execution plan", "cost based optimization"]},
+
+                        {"name": "Distributed Databases",
+                        "concepts": ["replication", "sharding", "two phase commit", "CAP theorem"]},
+
+                        {"name": "NoSQL",
+                        "concepts": ["document store", "key value store", "column family", "graph database"]}
                     ]
                 },
+
                 {
                     "name": "OOPS",
                     "subtopics": [
-                        {
-                            "name": "Classes",
-                            "concepts": ["class structure", "attributes", "methods", "static members", "instance members"]
-                        },
-                        {
-                            "name": "Objects",
-                            "concepts": ["instantiation", "state", "behavior", "identity", "object lifecycle"]
-                        },
-                        {
-                            "name": "Encapsulation",
-                            "concepts": ["data hiding", "getters setters", "access control", "information hiding"]
-                        },
-                        {
-                            "name": "Abstraction",
-                            "concepts": ["abstract classes", "interfaces", "implementation hiding", "contract"]
-                        },
-                        {
-                            "name": "Inheritance",
-                            "concepts": ["single inheritance", "multiple inheritance", "multilevel inheritance", "diamond problem", "base class", "derived class"]
-                        },
-                        {
-                            "name": "Polymorphism",
-                            "concepts": ["method overloading", "method overriding", "runtime binding", "compile-time binding", "dynamic dispatch", "duck typing", "virtual functions"]
-                        },
-                        {
-                            "name": "Constructors",
-                            "concepts": ["default constructor", "parameterized constructor", "copy constructor", "constructor overloading", "destructor"]
-                        },
-                        {
-                            "name": "Access Modifiers",
-                            "concepts": ["public", "private", "protected", "default", "package-private"]
-                        },
-                        {
-                            "name": "SOLID Principles",
-                            "concepts": ["Single Responsibility", "Open Closed", "Liskov Substitution", "Interface Segregation", "Dependency Inversion"]
-                        }
+
+                        {"name": "Classes",
+                        "concepts": ["class", "attributes", "methods", "static", "instance"]},
+
+                        {"name": "Objects",
+                        "concepts": ["instantiation", "state", "behavior", "identity"]},
+
+                        {"name": "Constructors",
+                        "concepts": ["default constructor", "parameterized constructor", "copy constructor", "destructor"]},
+
+                        {"name": "Encapsulation",
+                        "concepts": ["data hiding", "private", "public", "protected"]},
+
+                        {"name": "Inheritance",
+                        "concepts": ["single inheritance", "multiple inheritance", "diamond problem"]},
+
+                        {"name": "Polymorphism",
+                        "concepts": ["overloading", "overriding", "runtime polymorphism"]},
+
+                        {"name": "Abstraction",
+                        "concepts": ["abstract class", "interface", "implementation hiding"]},
+
+                        {"name": "Interfaces",
+                        "concepts": ["interface", "implements", "contract"]},
+
+                        {"name": "Virtual Functions",
+                        "concepts": ["virtual function", "vtable", "dynamic binding"]},
+
+                        {"name": "Object Relationships",
+                        "concepts": ["association", "aggregation", "composition"]},
+
+                        {"name": "Design Patterns",
+                        "concepts": ["singleton", "factory", "observer", "strategy"]},
+
+                        {"name": "Memory Management in OOP",
+                        "concepts": ["garbage collection", "memory leak", "smart pointer", "RAII"]}
                     ]
                 },
+
                 {
                     "name": "OS",
                     "subtopics": [
-                        {
-                            "name": "Processes",
-                            "concepts": ["process states", "PCB", "process creation", "process termination", "zombie process", "orphan process"]
-                        },
-                        {
-                            "name": "Threads",
-                            "concepts": ["user threads", "kernel threads", "multithreading", "thread pool", "green threads"]
-                        },
-                        {
-                            "name": "Context Switching",
-                            "concepts": ["CPU state saving", "overhead", "mode switch", "dispatch latency"]
-                        },
-                        {
-                            "name": "CPU Scheduling",
-                            "concepts": ["FCFS", "SJF", "Round Robin", "Priority", "preemptive", "non-preemptive", "multilevel queue", "multilevel feedback queue"]
-                        },
-                        {
-                            "name": "Synchronization",
-                            "concepts": ["mutex", "semaphore", "monitor", "critical section", "race condition", "spinlock"]
-                        },
-                        {
-                            "name": "Deadlocks",
-                            "concepts": ["mutual exclusion", "hold and wait", "no preemption", "circular wait", "prevention", "avoidance", "detection", "recovery"]
-                        },
-                        {
-                            "name": "Memory Management",
-                            "concepts": ["paging", "segmentation", "internal fragmentation", "external fragmentation", "memory allocation"]
-                        },
-                        {
-                            "name": "Virtual Memory",
-                            "concepts": ["demand paging", "page faults", "page replacement", "thrashing", "working set"]
-                        },
-                        {
-                            "name": "Page Replacement",
-                            "concepts": ["LRU", "FIFO", "Optimal", "clock algorithm", "second chance"]
-                        },
-                        {
-                            "name": "System Calls",
-                            "concepts": ["fork", "exec", "wait", "open", "read", "write", "close", "pipe", "kill"]
-                        }
+
+                        {"name": "OS basics",
+                        "concepts": ["kernel", "user mode", "system software", "resource management"]},
+
+                        {"name": "Processes",
+                        "concepts": ["process state", "PCB", "zombie process", "orphan process"]},
+
+                        {"name": "Threads",
+                        "concepts": ["user thread", "kernel thread", "multithreading"]},
+
+                        {"name": "CPU Scheduling",
+                        "concepts": ["FCFS", "SJF", "round robin", "priority scheduling"]},
+
+                        {"name": "Process Synchronization",
+                        "concepts": ["mutex", "semaphore", "critical section", "monitor"]},
+
+                        {"name": "Deadlocks OS",
+                        "concepts": ["mutual exclusion", "hold and wait", "no preemption", "circular wait", "banker's algorithm", "resource allocation graph"]},
+
+                        {"name": "Memory Management",
+                        "concepts": ["segmentation", "fragmentation", "contiguous allocation"]},
+
+                        {"name": "Virtual Memory",
+                        "concepts": ["page fault", "thrashing", "working set"]},
+
+                        {"name": "Paging",
+                        "concepts": ["page", "frame", "TLB"]},
+
+                        {"name": "File Systems",
+                        "concepts": ["inode", "directory structure", "file allocation"]},
+
+                        {"name": "Disk Scheduling",
+                        "concepts": ["SSTF", "SCAN", "C-SCAN", "LOOK"]},
+
+                        {"name": "I/O Management",
+                        "concepts": ["interrupt", "DMA", "device driver"]},
+
+                        {"name": "System Calls",
+                        "concepts": ["fork", "exec", "wait", "syscall"]},
+
+                        {"name": "Interprocess Communication",
+                        "concepts": ["pipe", "shared memory", "message queue", "socket"]},
+
+                        {"name": "Networking",
+                        "concepts": ["TCP", "UDP", "socket programming"]},
+
+                        {"name": "Security",
+                        "concepts": ["authentication", "authorization", "access control"]}
                     ]
                 }
             ]
@@ -350,14 +367,48 @@ class AdaptiveQuestionBank:
     
     def _select_intent_by_difficulty(self, difficulty: str, used_intents: List[str]) -> str:
         """
-        Select intent based on difficulty level
-        Easy → easy pool, Medium → medium pool, Hard → hard pool
+        🔥 FIX 2: Select intent based on difficulty level
+        Easy → definitions/terminology pool
+        Medium → mechanisms/flows pool
+        Hard → reasoning/analysis pool
+        
+        This matches the rule:
+        - EASY: definitions, terminology, identification
+        - MEDIUM: mechanism_flow, cause_effect, comparison
+        - HARD: optimization_reasoning, system_design, abstraction
         """
-        pool = self.INTENT_POOLS.get(difficulty, self.INTENT_POOLS["medium"])
+        # INTENT POOLS BY DIFFICULTY - ALIGNED WITH RULES
+        INTENT_POOLS = {
+            "easy": [
+                "core_definition",      # Definitions
+                "identification",        # Identification/listing
+                "listing",               # Listing components
+                "real_world_scenario"    # Simple scenarios
+            ],
+            "medium": [
+                "mechanism_flow",        # How things work
+                "conceptual_difference", # Compare/contrast
+                "cause_effect",          # Cause and effect relationships
+                "application",           # Apply concepts
+                "component_relationship" # How components relate
+            ],
+            "hard": [
+                "optimization_reasoning", # Performance optimization
+                "tradeoff_analysis",      # Tradeoffs between approaches
+                "debugging_case",         # Debug complex scenarios
+                "system_design",          # Design decisions
+                "abstraction",            # Abstract reasoning
+                "prediction"              # Predict behavior
+            ]
+        }
+        
+        # Get the pool for the requested difficulty
+        pool = INTENT_POOLS.get(difficulty, INTENT_POOLS["medium"])
         
         # Filter out already used intents if possible
         available = [i for i in pool if i not in used_intents]
         
+        # If all intents in this pool have been used, allow repeats
         if not available:
             available = pool
             
