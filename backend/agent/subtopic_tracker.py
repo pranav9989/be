@@ -374,7 +374,6 @@ class SubtopicTracker:
             return chosen
         
         # PRIORITY 2 vs 3: 80% explore, 20% mastered
-        import random
         r = random.random()
         
         # 80% explore
