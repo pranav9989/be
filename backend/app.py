@@ -50,7 +50,6 @@ from interview_analyzer import (
     RunningStatistics,
     analyze_audio_chunk_fast,   # 🔥 ADD THIS
     calculate_semantic_similarity,
-    compute_research_metrics,
     finalize_interview
 )
 
@@ -1105,11 +1104,21 @@ def stop_interview(data, sid=None):
         print(f"   Speaking ratio:         {metrics.get('speaking_ratio', 0):.3f}")
         print(f"   Total words:            {metrics.get('total_words', 0)}")
         print(f"   WPM:                    {metrics.get('wpm', 0):.1f}")
+        print(f"   Avg pause duration:     {metrics.get('avg_pause_duration', 0):.2f}s")
+        print(f"   Pause count:            {metrics.get('pause_count', 0)}")
         print(f"   Long pauses (>5s):      {metrics.get('long_pause_count', 0)}")
+        print(f"   Hesitation rate:        {metrics.get('hesitation_rate', 0):.2f}/min")
+        print(f"   Articulation rate:      {metrics.get('articulation_rate', 0):.2f} words/s")
         print(f"   Avg response latency:   {metrics.get('avg_response_latency', 0):.2f}s")
         print(f"   Fluency score:          {metrics.get('fluency_score', 0):.3f}")
         print(f"   Questions answered:     {metrics.get('questions_answered', 0)}")
         print(f"   Avg semantic similarity: {metrics.get('avg_semantic_similarity', 0):.3f}")
+        print(f"   Avg keyword coverage:   {metrics.get('avg_keyword_coverage', 0):.3f}")
+        # 🔥 PITCH METRICS
+        print(f"   Pitch mean:             {metrics.get('pitch_mean', 0):.1f} Hz")
+        print(f"   Pitch std:              {metrics.get('pitch_std', 0):.2f} Hz")
+        print(f"   Pitch range:            {metrics.get('pitch_range', 0):.1f} Hz")
+        print(f"   Pitch stability:        {metrics.get('pitch_stability', 0):.2f}")
         print("="*80)
 
         # 5️⃣ Prepare final results
@@ -1632,11 +1641,40 @@ def receive_audio(data):
         if energy_val > 0.05:
             session["last_voice_time"] = time.time()
         
-        # ---- 5️⃣ Optional: Pitch analysis (non-critical) ----
+        # ---- 5️⃣ Pitch analysis (non-critical) ----
         try:
             from interview_analyzer import analyze_audio_chunk_fast
-            analyze_audio_chunk_fast(pcm, 16000, stats, time.time())
-        except Exception:
+            
+            # Get the last overlap from session (if any)
+            last_overlap = session.get("last_overlap")
+            
+            # Pass the overlap, NOT timestamp! This is the critical fix
+            overlap = analyze_audio_chunk_fast(pcm, 16000, stats, last_overlap)
+            
+            # Store overlap for next chunk
+            if overlap is not None:
+                session["last_overlap"] = overlap
+            
+            # 🔥 Emit real-time pitch updates every 20 chunks
+            if hasattr(stats, 'pitch_count') and stats.pitch_count > 0 and stats.pitch_count % 20 == 0:
+                current_stability = stats.get_pitch_stability()
+                current_mean = stats.pitch_mean
+                current_range = stats.pitch_max - stats.pitch_min if stats.pitch_min != float('inf') else 0
+                
+                # Only emit if we have actual pitch data (mean > 0)
+                if current_mean > 0:
+                    socketio.emit('pitch_update', {
+                        'current_pitch': round(current_mean, 1),
+                        'stability': round(current_stability, 1),
+                        'range': round(current_range, 1),
+                        'timestamp': time.time()
+                    }, room=session.get("room"))
+                    
+                    # Optional: Print to terminal for debugging (uncomment if needed)
+                    # print(f"🎤 LIVE PITCH: mean={current_mean:.1f}Hz, stability={current_stability:.1f}%, range={current_range:.1f}Hz")
+                
+        except Exception as e:
+            # Silent fail - don't let pitch analysis break the interview
             pass
         
         # ---- 6️⃣ Track chunk timing for debugging ----

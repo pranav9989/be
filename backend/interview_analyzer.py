@@ -98,6 +98,71 @@ class RunningStatistics:
     # =====================================
     # SPEECH EVENT HANDLERS (THREAD-SAFE)
     # =====================================
+    def update_pitch(self, audio_chunk, sr=16000):
+        """
+        YIN pitch extraction + Welford streaming variance.
+        This implements the DSP section described in the research paper.
+        """
+        try:
+            # Convert raw audio to numpy float
+            audio = np.frombuffer(audio_chunk, dtype=np.int16).astype(np.float32)
+            if len(audio) < 512:
+                return
+
+            # Normalize
+            audio = audio / 32768.0
+
+            # YIN pitch estimation
+            f0 = librosa.yin(
+                audio,
+                fmin=80,
+                fmax=400,
+                sr=sr
+            )
+
+            # Remove invalid pitch values
+            f0 = f0[f0 > 0]
+
+            if len(f0) == 0:
+                return
+
+            for pitch in f0:
+
+                self.pitch_count += 1
+
+                # Welford streaming mean + variance
+                delta = pitch - self.pitch_mean
+                self.pitch_mean += delta / self.pitch_count
+                delta2 = pitch - self.pitch_mean
+                self.pitch_m2 += delta * delta2
+
+                # Track range
+                self.pitch_min = min(self.pitch_min, pitch)
+                self.pitch_max = max(self.pitch_max, pitch)
+
+        except Exception as e:
+            print(f"Pitch analysis error: {e}")
+
+    def get_pitch_stability(self):
+        """
+        Calculate pitch stability using coefficient of variation.
+        Matches the equation described in the research paper.
+        """
+        if self.pitch_count < 2:
+            return 0
+
+        variance = self.pitch_m2 / (self.pitch_count - 1)
+        std = np.sqrt(variance)
+
+        if self.pitch_mean == 0:
+            return 0
+
+        cv = std / self.pitch_mean
+
+        # Convert to score (0-100)
+        score = max(0, 100 - (cv * 100))
+
+        return score
     
     def record_question_end(self, ts=None):
         """Called when interviewer finishes asking question"""
@@ -282,22 +347,6 @@ class RunningStatistics:
             avg_semantic = self.total_semantic_score / self.question_count if self.question_count > 0 else 0.0
             avg_keyword = self.total_keyword_score / self.question_count if self.question_count > 0 else 0.0
             
-            print("\n" + "="*60)
-            print("📊 RESEARCH METRICS (MATHEMATICALLY VALID)")
-            print("="*60)
-            print(f"   Session duration:       {self.total_session_duration:.1f}s")
-            print(f"   Forced silence removed: {self.forced_silence_time:.1f}s")
-            print(f"   Effective duration:     {self.effective_duration:.1f}s")
-            print(f"   Speaking time:          {self.total_speaking_time:.1f}s")
-            print(f"   Silence time:           {silence_time:.1f}s")
-            print(f"   Speaking ratio:         {self.speaking_ratio:.3f}")
-            print(f"   Total words:            {self.total_words}")
-            print(f"   WPM:                    {wpm:.1f}")
-            print(f"   Long pauses (>5s):      {self.long_pause_count}")
-            print(f"   Avg response latency:   {avg_response_latency:.2f}s")
-            print(f"   Fluency score:          {fluency_score:.3f}")
-            print("="*60)
-            
             return {
                 "session_duration": round(self.total_session_duration, 1),
                 "effective_duration": round(self.effective_duration, 1),
@@ -307,6 +356,8 @@ class RunningStatistics:
                 "speaking_ratio": round(self.speaking_ratio, 3),
                 "wpm": round(wpm, 1),
                 "total_words": self.total_words,
+                
+                # ✅ FIXED: These variables ARE defined in this function
                 "avg_pause_duration": round(avg_pause, 2),
                 "pause_count": len(self.pause_durations),
                 "long_pause_count": self.long_pause_count,
@@ -317,7 +368,13 @@ class RunningStatistics:
                 "avg_semantic_similarity": round(avg_semantic, 3),
                 "avg_keyword_coverage": round(avg_keyword, 3),
                 "questions_answered": self.question_count,
-                "event_log": self.event_log[-20:]  # Last 20 events for debugging
+                "event_log": self.event_log[-20:],
+                
+                # ✅ ADD THESE - they ARE available from self
+                "pitch_mean": round(self.pitch_mean, 2),
+                "pitch_std": round(np.sqrt(self.pitch_m2 / (self.pitch_count - 1)) if self.pitch_count > 1 else 0, 2),
+                "pitch_range": round(self.pitch_max - self.pitch_min if self.pitch_min != float('inf') else 0, 2),
+                "pitch_stability": round(self.get_pitch_stability(), 2)
             }
     
     def _log_event(self, event_type, *args):
@@ -449,62 +506,46 @@ class VoiceActivityDetector:
 # EXISTING FUNCTIONS (KEEP AS-IS)
 # =====================================
 
-def analyze_audio_chunk_fast(pcm_chunk, sample_rate, stats: RunningStatistics, chunk_start_time=None):
-    """
-    Analyze audio chunk for pitch and voice quality ONLY.
-    Timing is handled by event-driven methods (record_speech_start/end).
-    This function NEVER updates timing statistics - only research-grade voice analysis.
-    """
-    # Safety check
-    if stats is None:
+def analyze_audio_chunk_fast(pcm_chunk, sample_rate, stats: RunningStatistics, prev_overlap=None):
+    if stats is None or len(pcm_chunk) < 512:
         return
         
-    # Convert int16 PCM → float32 for librosa
+    # Convert int16 PCM → float32
     audio = pcm_chunk.astype(np.float32) / 32768.0
     
+    # If we have previous overlap, prepend it for continuity
+    if prev_overlap is not None and len(prev_overlap) > 0:
+        audio = np.concatenate([prev_overlap, audio])
+    
     try:
-        import librosa
-        
-        # ============================================
-        # PITCH ANALYSIS ONLY - NO TIMING CODE
-        # ============================================
-        
-        # Use YIN for pitch detection (fast and reliable)
+        # YIN pitch estimation
         f0 = librosa.yin(
             audio, 
             sr=sample_rate,
-            fmin=65,    # Male speech range
-            fmax=300,   # Female speech range
-            frame_length=1024,  # Balanced for speed/accuracy
-            hop_length=256
+            fmin=65,
+            fmax=400,
+            frame_length=1024,
+            hop_length=512
         )
         
-        # Update pitch statistics (filter finite values)
         voiced_f0 = f0[np.isfinite(f0)]
         if len(voiced_f0) > 0:
             stats.update_pitch_stats(voiced_f0)
-        
-        # Voice quality analysis (if enough voiced samples)
-        if len(voiced_f0) > 10:
-            # Jitter approximation (pitch perturbation)
+            
+            # Voice Quality (Jitter/Shimmer)
             jitter = np.std(voiced_f0) / np.mean(voiced_f0) if np.mean(voiced_f0) > 0 else 0
+            rms = np.sqrt(np.mean(audio**2))
+            shimmer = np.std(audio) / (rms + 1e-6)
             
-            # Shimmer approximation using RMS (amplitude perturbation)
-            rms = librosa.feature.rms(y=audio, frame_length=512, hop_length=256)[0]
-            shimmer = np.std(rms) / np.mean(rms) if np.mean(rms) > 0 else 0
-            
-            # Simple HNR approximation
-            if len(audio) > 2048:  # Need enough samples
-                hnr = 10.0
-            else:
-                hnr = 0.0
-            
-            stats.update_voice_quality(jitter, shimmer, hnr)
+            stats.update_voice_quality(jitter, shimmer, 10.0)
         
-    except ImportError:
-        pass
-    except Exception:
-        pass
+        # Return last 100ms of audio for next chunk's overlap
+        overlap_samples = int(sample_rate * 0.1)  # 100ms overlap
+        return audio[-overlap_samples:] if len(audio) > overlap_samples else audio
+        
+    except Exception as e:
+        print(f"DSP Error: {e}")
+        return None
 
 
 def detect_fillers_repetitions(text):
@@ -1179,92 +1220,9 @@ def analyze_interview_response(audio_file_path, ideal_answer_text, ideal_keyword
     return results
 
 
-def compute_research_metrics(stats: RunningStatistics) -> dict:
-    """Computes FINAL interview metrics with proper validation"""
-    final_stats = stats.get_current_stats()
-    
-    total_words = final_stats["total_words"]
-    speaking_time = final_stats["speaking_time"]
-    total_duration = final_stats["total_duration"]
-    
-    if total_duration <= 0:
-        return {
-            "wpm": 0,
-            "speaking_time_ratio": 0,
-            "pause_ratio": 1.0,
-            "long_pause_count": 0,
-            "pause_frequency": 0,
-            "type_token_ratio": 0,
-            "filler_frequency_per_min": 0,
-            "avg_semantic_similarity": 0,
-            "avg_keyword_coverage": 0,
-            "overall_relevance": 0,
-            "data_quality": "INVALID_DURATION"
-        }
-    
-    if speaking_time > 1.0:
-        wpm = (total_words / speaking_time) * 60
-    else:
-        wpm = 0
-    
-    speaking_time_ratio = speaking_time / total_duration
-    speaking_time_ratio = max(0.0, min(1.0, speaking_time_ratio))
-    pause_ratio = 1.0 - speaking_time_ratio
-    long_pause_count = stats.long_pause_count
-    pause_frequency = final_stats.get('pause_frequency', 0)
-    ttr = final_stats.get('type_token_ratio', 0)
-    
-    avg_semantic = final_stats.get('avg_semantic_similarity', 0)
-    avg_keyword = final_stats.get('avg_keyword_coverage', 0)
-    question_count = final_stats.get('question_count', 0)
-    overall_relevance = (avg_semantic * 0.7) + (avg_keyword * 0.3)
-    
-    total_fillers = sum(stats.filler_counts.values())
-    if speaking_time > 1.0:
-        filler_frequency_per_min = total_fillers / (speaking_time / 60)
-    else:
-        filler_frequency_per_min = 0
-    
-    print(f"\n📊 FINAL INTERVIEW METRICS:")
-    print(f"   Questions answered: {question_count}")
-    print(f"   Avg Semantic Similarity: {avg_semantic:.3f}")
-    print(f"   Avg Keyword Coverage: {avg_keyword:.3f}")
-    print(f"   Overall Relevance: {overall_relevance:.3f}")
-    print(f"   Total Duration: {total_duration:.1f}s")
-    print(f"   Speaking Time: {speaking_time:.1f}s")
-    print(f"   Speaking Ratio: {speaking_time_ratio:.3f}")
-    print(f"   Pause Ratio: {pause_ratio:.3f}")
-    print(f"   Long Pauses: {long_pause_count}")
-    print(f"   Pause Frequency: {pause_frequency:.2f}/min")
-    print(f"   Type-Token Ratio: {ttr:.3f}")
-    print(f"   WPM: {wpm:.1f}")
-    
-    if speaking_time > total_duration * 1.05:
-        data_quality = "QUESTIONABLE_HIGH_SPEECH"
-    elif total_duration < 10:
-        data_quality = "INSUFFICIENT_DURATION"
-    else:
-        data_quality = "VALID"
-    
-    return {
-        "wpm": round(wpm, 2),
-        "speaking_time_ratio": round(speaking_time_ratio, 3),
-        "pause_ratio": round(pause_ratio, 3),
-        "long_pause_count": long_pause_count,
-        "pause_frequency": round(pause_frequency, 2),
-        "type_token_ratio": round(ttr, 3),
-        "filler_frequency_per_min": round(filler_frequency_per_min, 2),
-        "avg_semantic_similarity": round(avg_semantic, 3),
-        "avg_keyword_coverage": round(avg_keyword, 3),
-        "overall_relevance": round(overall_relevance, 3),
-        "questions_answered": question_count,
-        "data_quality": data_quality
-    }
-
-
 def finalize_interview(stats: RunningStatistics, user_answer: str, expected_answer: str) -> dict:
     """FINAL research-safe output"""
-    metrics = compute_research_metrics(stats)
+    metrics = stats.compute_research_metrics()  # ← Calls CLASS method now!
     
     analysis_valid = True
     if stats.total_speaking_time < 3 or stats.total_words < 5:

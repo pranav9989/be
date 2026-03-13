@@ -20,6 +20,9 @@ export const useInterviewStreaming = (userId) => {
     const [currentTurn, setCurrentTurn] = useState('INTERVIEWER');
     const [metrics, setMetrics] = useState(null);
     const [sessionPlan, setSessionPlan] = useState(null);
+    const [livePitch, setLivePitch] = useState({ mean: 0, stability: 0, range: 0 });
+    const [pitchHistory, setPitchHistory] = useState([]); // Store last 30 values for graph
+    const [pitchTimestamps, setPitchTimestamps] = useState([]); // Timestamps for graph
 
     const socketRef = useRef(null);
     const audioContextRef = useRef(null);
@@ -378,6 +381,31 @@ export const useInterviewStreaming = (userId) => {
             console.log('✅ Switched to USER turn');
         });
 
+        // 🔥 NEW: Real-time pitch updates from backend
+        socketRef.current.on('pitch_update', (data) => {
+            setLivePitch({
+                mean: data.current_pitch,
+                stability: data.stability,
+                range: data.range
+            });
+
+            // Add to history for graph (keep last 30 points)
+            setPitchHistory(prev => {
+                const newHistory = [...prev, data.current_pitch];
+                if (newHistory.length > 30) newHistory.shift();
+                return newHistory;
+            });
+
+            setPitchTimestamps(prev => {
+                const newTimes = [...prev, new Date().toLocaleTimeString()];
+                if (newTimes.length > 30) newTimes.shift();
+                return newTimes;
+            });
+
+            // Optional: Log for debugging (remove in production)
+            console.log('🎤 Pitch update:', data);
+        });
+
         // Next question from agent
         socketRef.current.on("agent_next_question", async (data) => {
             if (hardStopRef.current || interviewDone) {
@@ -549,7 +577,7 @@ export const useInterviewStreaming = (userId) => {
             await cleanupAudio();
 
             // Start the interview
-            socketRef.current.emit('start_interview', { 
+            socketRef.current.emit('start_interview', {
                 user_id: userId,
                 stress_test: stressTest
             });
@@ -601,6 +629,9 @@ export const useInterviewStreaming = (userId) => {
         interviewDone,
         liveWpm: wpm,
         finalAnalysis: analysis,
-        isInterviewerSpeaking: currentTurn === 'INTERVIEWER' || audioPlayingRef.current
+        isInterviewerSpeaking: currentTurn === 'INTERVIEWER' || audioPlayingRef.current,
+        livePitch,
+        pitchHistory,
+        pitchTimestamps
     };
 };

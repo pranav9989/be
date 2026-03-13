@@ -3,6 +3,7 @@ import Header from '../Layout/Header';
 import { useInterviewStreaming } from '../../hooks/useInterviewStreaming';
 import AvatarViewer from './AvatarViewer';
 import { getPersona } from './interviewerPersonas';
+import PitchGraph from './PitchGraph'; // 🔥 NEW: Import PitchGraph component
 import './AgenticInterview.css';
 
 // Session counter persisted to localStorage so it increments across page reloads
@@ -30,7 +31,11 @@ const AgenticInterview = ({ user, onLogout }) => {
         analysis,
         finalTranscript,
         metrics,
-        sessionPlan
+        sessionPlan,
+        // 🔥 NEW: Add these from your hook
+        livePitch,
+        pitchHistory,
+        pitchTimestamps
     } = useInterviewStreaming(user.id);
 
     const [started, setStarted] = useState(false);
@@ -138,6 +143,12 @@ const AgenticInterview = ({ user, onLogout }) => {
         const avgSemantic = getValue('avg_semantic_similarity') || 0;
         const avgKeyword = getValue('avg_keyword_coverage') || 0;
         const totalDuration = getValue('session_duration') || getValue('total_duration');
+
+        // 🔥 PITCH METRICS for post-interview display
+        const pitchMean = getValue('pitch_mean');
+        const pitchStd = getValue('pitch_std');
+        const pitchRange = getValue('pitch_range');
+        const pitchStability = getValue('pitch_stability');
 
         // Calculate overall relevance
         let overallRelevance = getValue('overall_relevance');
@@ -302,6 +313,52 @@ const AgenticInterview = ({ user, onLogout }) => {
                             </div>
                         </div>
                     </div>
+
+                    {/* 🔥 NEW: PITCH METRICS SECTION */}
+                    {(pitchMean !== 'N/A' || pitchStability !== 'N/A') && (
+                        <div className="metric-section">
+                            <h4>🎤 Voice Analysis</h4>
+                            <div className="metrics-list">
+                                {pitchMean !== 'N/A' && (
+                                    <div className="metric-item">
+                                        <span className="metric-label">Average Pitch:</span>
+                                        <span className="metric-value">
+                                            {typeof pitchMean === 'number' ? pitchMean.toFixed(1) : pitchMean} Hz
+                                        </span>
+                                    </div>
+                                )}
+                                {pitchRange !== 'N/A' && (
+                                    <div className="metric-item">
+                                        <span className="metric-label">Pitch Range:</span>
+                                        <span className="metric-value">
+                                            {typeof pitchRange === 'number' ? pitchRange.toFixed(1) : pitchRange} Hz
+                                        </span>
+                                    </div>
+                                )}
+                                {pitchStability !== 'N/A' && (
+                                    <div className="metric-item">
+                                        <span className="metric-label">Stability:</span>
+                                        <span className="metric-value">
+                                            <span className={`stability-badge ${pitchStability > 80 ? 'excellent' :
+                                                    pitchStability > 60 ? 'good' :
+                                                        pitchStability > 40 ? 'warning' : 'poor'
+                                                }`}>
+                                                {typeof pitchStability === 'number' ? pitchStability.toFixed(1) : pitchStability}%
+                                            </span>
+                                        </span>
+                                    </div>
+                                )}
+                                {pitchStd !== 'N/A' && (
+                                    <div className="metric-item">
+                                        <span className="metric-label">Variation (σ):</span>
+                                        <span className="metric-value">
+                                            {typeof pitchStd === 'number' ? pitchStd.toFixed(1) : pitchStd} Hz
+                                        </span>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    )}
 
                     {/* Q&A Details (Optional - Keep if you want) */}
                     {qaPairs.length > 0 && (
@@ -483,6 +540,17 @@ const AgenticInterview = ({ user, onLogout }) => {
                         <div className="timer">⏱️ {timeRemaining}</div>
                     </div>
 
+                    {/* 🔥 NEW: Pitch Analysis Graph */}
+                    {livePitch && livePitch.mean > 0 && (
+                        <div className="pitch-section">
+                            <PitchGraph
+                                pitchHistory={pitchHistory || []}
+                                pitchTimestamps={pitchTimestamps || []}
+                                livePitch={livePitch}
+                            />
+                        </div>
+                    )}
+
                     {/* Session strategy */}
                     {sessionPlan && (
                         <div className="strategic-plan">
@@ -542,6 +610,13 @@ const AgenticInterview = ({ user, onLogout }) => {
                             <div>Messages: {messages.length}</div>
                             <div>Turn: {currentTurn}</div>
                             <div>Speaking: {isInterviewerSpeaking ? 'YES' : 'no'}</div>
+                            {/* 🔥 Debug pitch data */}
+                            {livePitch && (
+                                <>
+                                    <div>Pitch: {livePitch.mean.toFixed(1)} Hz</div>
+                                    <div>Stability: {livePitch.stability.toFixed(1)}%</div>
+                                </>
+                            )}
                         </div>
                     )}
 
