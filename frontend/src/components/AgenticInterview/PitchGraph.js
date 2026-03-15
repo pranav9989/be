@@ -24,7 +24,7 @@ ChartJS.register(
     Filler
 );
 
-const PitchGraph = ({ pitchHistory, pitchTimestamps, livePitch }) => {
+const PitchGraph = ({ pitchHistory, stabilityHistory, pitchTimestamps, livePitch }) => {
     // Calculate dynamic Y-axis range for pitch based on actual values
     const getPitchYAxisRange = () => {
         if (pitchHistory.length === 0) {
@@ -58,16 +58,16 @@ const PitchGraph = ({ pitchHistory, pitchTimestamps, livePitch }) => {
                 pointHoverRadius: 5,
                 yAxisID: 'y-pitch', // Associate with left y-axis
             },
-            // Stability as a percentage line
+            // 🔥 FIXED: Stability history (not constant)
             {
                 label: 'Stability (%)',
-                data: pitchHistory.map(() => livePitch.stability), // Constant line for current stability
+                data: stabilityHistory,
                 borderColor: 'rgb(255, 159, 64)',
                 backgroundColor: 'rgba(255, 159, 64, 0.1)',
-                borderDash: [5, 5],
-                tension: 0,
+                tension: 0.2,
                 fill: false,
-                pointRadius: 0,
+                pointRadius: 2,
+                pointHoverRadius: 4,
                 yAxisID: 'y-stability', // Associate with right y-axis
             },
             // Reference line for typical male range

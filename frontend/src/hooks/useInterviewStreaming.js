@@ -23,6 +23,7 @@ export const useInterviewStreaming = (userId) => {
     const [livePitch, setLivePitch] = useState({ mean: 0, stability: 0, range: 0 });
     const [pitchHistory, setPitchHistory] = useState([]); // Store last 30 values for graph
     const [pitchTimestamps, setPitchTimestamps] = useState([]); // Timestamps for graph
+    const [stabilityHistory, setStabilityHistory] = useState([]); // Store last 30 stability values
 
     const socketRef = useRef(null);
     const audioContextRef = useRef(null);
@@ -396,6 +397,13 @@ export const useInterviewStreaming = (userId) => {
                 return newHistory;
             });
 
+            // 🔥 NEW: Track stability history separately
+            setStabilityHistory(prev => {
+                const newHistory = [...prev, data.stability];
+                if (newHistory.length > 30) newHistory.shift();
+                return newHistory;
+            });
+
             setPitchTimestamps(prev => {
                 const newTimes = [...prev, new Date().toLocaleTimeString()];
                 if (newTimes.length > 30) newTimes.shift();
@@ -632,6 +640,7 @@ export const useInterviewStreaming = (userId) => {
         isInterviewerSpeaking: currentTurn === 'INTERVIEWER' || audioPlayingRef.current,
         livePitch,
         pitchHistory,
-        pitchTimestamps
+        pitchTimestamps,
+        stabilityHistory
     };
 };

@@ -3,7 +3,6 @@ import numpy as np
 import torch
 from sentence_transformers import SentenceTransformer
 import spacy
-from faster_whisper import WhisperModel
 import re
 import time
 import threading
@@ -53,6 +52,9 @@ class RunningStatistics:
         # =====================================
         # CORRECT AGGREGATES
         # =====================================
+        # 🔥 NEW: User turn tracking
+        self.total_user_turn_time = 0.0      # Total time user had the floor
+        self.current_user_turn_start = None  # When current user turn started
         self.total_speaking_time = 0.0      # Actual voice activity
         self.total_silence_time = 0.0        # Pauses BETWEEN speech segments
         self.forced_silence_time = 0.0       # 15s waits AFTER answer complete
@@ -94,6 +96,24 @@ class RunningStatistics:
         
         # Diagnostics
         self.event_log = []  # Keep last 20 events for debugging
+
+    def start_user_turn(self, ts=None):
+        """Called when user turn starts"""
+        with self.lock:
+            self.current_user_turn_start = now_ts() if ts is None else ts
+            print(f"⏱️ USER TURN START at {self.current_user_turn_start:.1f}s")
+            self._log_event("user_turn_start", self.current_user_turn_start)
+
+    def end_user_turn(self, ts=None):
+        """Called when user turn ends"""
+        with self.lock:
+            if self.current_user_turn_start is not None:
+                ts = now_ts() if ts is None else ts
+                turn_duration = ts - self.current_user_turn_start
+                self.total_user_turn_time += turn_duration
+                self.current_user_turn_start = None
+                print(f"⏱️ USER TURN END: +{turn_duration:.1f}s (total user turn: {self.total_user_turn_time:.1f}s)")
+                self._log_event("user_turn_end", turn_duration, ts)
     
     # =====================================
     # SPEECH EVENT HANDLERS (THREAD-SAFE)
@@ -184,19 +204,15 @@ class RunningStatistics:
             if self.last_speech_end is not None:
                 pause_duration = ts - self.last_speech_end
                 if pause_duration > self.pause_threshold:
-                    # Only count reasonable pauses (< ignore_long_pause_over)
-                    if pause_duration < self.ignore_long_pause_over:
-                        self.pause_durations.append(pause_duration)
-                        self.total_silence_time += pause_duration
-                        self._log_event("pause", pause_duration, ts)
-                        print(f"⏸️ Silence segment: +{pause_duration:.2f}s (total silence: {self.total_silence_time:.1f}s)")
-                        
-                        if pause_duration > self.long_pause_threshold:
-                            self.long_pause_count += 1
-                            print(f"   → Long pause detected ({pause_duration:.1f}s)")
-                    else:
-                        self._log_event("ignored_pause", pause_duration, ts)
-                        print(f"⏸️ Ignoring pause >{self.ignore_long_pause_over:.0f}s: {pause_duration:.1f}s (likely system wait)")
+                    # 🔥 FIX: Count ALL pauses during user turn
+                    self.pause_durations.append(pause_duration)
+                    self.total_silence_time += pause_duration
+                    self._log_event("pause", pause_duration, ts)
+                    print(f"⏸️ Silence segment: +{pause_duration:.2f}s (total silence: {self.total_silence_time:.1f}s)")
+                    
+                    if pause_duration > self.long_pause_threshold:
+                        self.long_pause_count += 1
+                        print(f"   → Long pause detected ({pause_duration:.1f}s)")
             
             # Start new speech segment if not already started
             if self.current_speech_start is None:
@@ -223,11 +239,8 @@ class RunningStatistics:
             # Calculate speech duration for this segment
             speech_duration = ts - self.current_speech_start
             
-            # 🔥 SANITY CHECK: If speaking time is too long for word count, cap it
-            expected_speaking_time = self.total_words * 0.3  # 300ms per word estimate
-            if expected_speaking_time > 0 and speech_duration > expected_speaking_time * 2:
-                print(f"⚠️ Unusual speaking time: {speech_duration:.1f}s for {self.total_words} words")
-                speech_duration = min(speech_duration, expected_speaking_time * 1.5)
+            # 🔥 REMOVE the sanity check - it's causing issues
+            # Let the actual measurement stand
             
             self.total_speaking_time += speech_duration
             self.last_speech_end = ts
@@ -331,12 +344,25 @@ class RunningStatistics:
             # Articulation rate (words per second of actual speaking)
             articulation_rate = self.total_words / max(0.1, self.total_speaking_time)
             
-            # 🔥 CORRECT: Calculate silence_time = effective_duration - speaking_time
-            silence_time = max(0.0, self.effective_duration - self.total_speaking_time)
+            # 🔥 CORRECT: Calculate silence during user turn
+            # silence_during_turn = user_turn_time - speaking_time - forced_silence
+            if self.total_user_turn_time > 0:
+                silence_during_turn = max(0, self.total_user_turn_time - self.total_speaking_time - self.forced_silence_time)
+                # Speaking ratio based on user turn time only
+                speaking_ratio_during_turn = self.total_speaking_time / self.total_user_turn_time
+            else:
+                silence_during_turn = 0.0
+                speaking_ratio_during_turn = 0.0
             
-            # Fluency score (0-1, higher is more fluent)
-            if self.effective_duration > 0:
-                fluency_score = self.total_speaking_time / self.effective_duration
+            # Legacy silence calculation (for backward compatibility)
+            if self.total_speaking_time > self.effective_duration:
+                silence_time = 0.0
+            else:
+                silence_time = self.effective_duration - self.total_speaking_time
+            
+            # Fluency score (using user turn time as denominator)
+            if self.total_user_turn_time > 0:
+                fluency_score = self.total_speaking_time / self.total_user_turn_time
             else:
                 fluency_score = 0.0
             
@@ -347,20 +373,44 @@ class RunningStatistics:
             avg_semantic = self.total_semantic_score / self.question_count if self.question_count > 0 else 0.0
             avg_keyword = self.total_keyword_score / self.question_count if self.question_count > 0 else 0.0
             
+            # Calculate pause frequency
+            if speaking_minutes > 0:
+                pause_frequency = len(self.pause_durations) / speaking_minutes
+            else:
+                pause_frequency = 0.0
+            
+            print("\n" + "="*60)
+            print("📊 RESEARCH METRICS (CORRECTED - USER TURN ONLY)")
+            print("="*60)
+            print(f"   Session duration:       {self.total_session_duration:.1f}s")
+            print(f"   Total user turn time:   {self.total_user_turn_time:.1f}s")  # 🔥 NEW
+            print(f"   Forced silence removed: {self.forced_silence_time:.1f}s")
+            print(f"   Speaking time:          {self.total_speaking_time:.1f}s")
+            print(f"   Silence during turn:    {silence_during_turn:.1f}s")  # 🔥 NEW
+            print(f"   Speaking ratio (turn):  {speaking_ratio_during_turn:.3f}")  # 🔥 NEW
+            print(f"   Pause count:            {len(self.pause_durations)}")
+            print(f"   Avg pause:              {avg_pause:.2f}s")
+            print(f"   Total words:            {self.total_words}")
+            print(f"   WPM:                    {wpm:.1f}")
+            print(f"   Articulation rate:      {articulation_rate:.2f} words/s")
+            print("="*60)
+            
             return {
                 "session_duration": round(self.total_session_duration, 1),
+                "total_user_turn_time": round(self.total_user_turn_time, 1),  # 🔥 NEW
                 "effective_duration": round(self.effective_duration, 1),
                 "speaking_time": round(self.total_speaking_time, 1),
-                "silence_time": round(silence_time, 1),
+                "silence_time": round(silence_time, 1),  # Legacy
+                "silence_during_turn": round(silence_during_turn, 1),  # 🔥 NEW
                 "forced_silence_time": round(self.forced_silence_time, 1),
-                "speaking_ratio": round(self.speaking_ratio, 3),
+                "speaking_ratio": round(self.speaking_ratio, 3),  # Legacy
+                "speaking_ratio_during_turn": round(speaking_ratio_during_turn, 3),  # 🔥 NEW
                 "wpm": round(wpm, 1),
                 "total_words": self.total_words,
-                
-                # ✅ FIXED: These variables ARE defined in this function
                 "avg_pause_duration": round(avg_pause, 2),
                 "pause_count": len(self.pause_durations),
                 "long_pause_count": self.long_pause_count,
+                "pause_frequency": round(pause_frequency, 2),
                 "hesitation_rate": round(hesitation_rate, 2),
                 "articulation_rate": round(articulation_rate, 2),
                 "fluency_score": round(fluency_score, 3),
@@ -368,9 +418,6 @@ class RunningStatistics:
                 "avg_semantic_similarity": round(avg_semantic, 3),
                 "avg_keyword_coverage": round(avg_keyword, 3),
                 "questions_answered": self.question_count,
-                "event_log": self.event_log[-20:],
-                
-                # ✅ ADD THESE - they ARE available from self
                 "pitch_mean": round(self.pitch_mean, 2),
                 "pitch_std": round(np.sqrt(self.pitch_m2 / (self.pitch_count - 1)) if self.pitch_count > 1 else 0, 2),
                 "pitch_range": round(self.pitch_max - self.pitch_min if self.pitch_min != float('inf') else 0, 2),
@@ -453,6 +500,17 @@ class VoiceActivityDetector:
     def process_frame(self, frame, timestamp=None):
         """
         Process one frame (numpy array, float32). Provide a timestamp if available.
+
+        VAD State Machine (FIXED):
+        - Voice frame + NOT in speech → accumulate _since_speech_start.
+          Once min_speech_ms of continuous voice seen → fire on_voice_start,
+          enter speech state, reset hangover to its maximum.
+        - Voice frame + IN speech → RESET hangover to maximum (NOT add).
+          This ensures the countdown always starts fresh from the full
+          hangover window once the user stops speaking.
+        - Silent frame + IN speech → decrement hangover.
+          When hangover reaches 0 → fire on_voice_end, leave speech state.
+        - Silent frame + NOT in speech → accumulate _since_speech_end.
         """
         ts = now_ts() if timestamp is None else timestamp
         
@@ -466,31 +524,39 @@ class VoiceActivityDetector:
         is_voice = (rms >= self.energy_threshold)
         
         if is_voice:
-            self._since_speech_start += frame_duration
             self._since_speech_end = 0.0
-            
-            # Enter speech state if not already and minimum speech seen
-            if not self._speech_state:
-                if self._since_speech_start * 1000.0 >= self.min_speech_ms:
-                    self._speech_state = True
+            # Only reset hangover if energy is significantly above threshold (real speech)
+            if rms > self.energy_threshold * 1.5:   # 50% above threshold = real speech
+                if not self._speech_state:
+                    self._since_speech_start += frame_duration
+                    if self._since_speech_start * 1000.0 >= self.min_speech_ms:
+                        self._speech_state = True
+                        self._since_speech_start = 0.0
+                        self._hangover_remaining = self.hangover_ms / 1000.0
+                        if callable(self.on_voice_start):
+                            self.on_voice_start(ts)
+                            print(f"🔊 VAD STATE CHANGE: START at {ts:.2f}s")
+                else:
+                    # Reset hangover only for genuine speech
                     self._hangover_remaining = self.hangover_ms / 1000.0
-                    if callable(self.on_voice_start):
-                        self.on_voice_start(ts)
             else:
-                # Already speaking; refresh hangover
-                self._hangover_remaining = self.hangover_ms / 1000.0
+                # Low-energy frame – treat as silence for hangover purposes
+                # (do not reset hangover, let it decrement)
+                pass
         else:
-            # Silent frame
+            # Silent frame — reset consecutive voice counter
             self._since_speech_start = 0.0
             
             if self._speech_state:
-                # Decrement hangover
+                # Count down the hangover window
                 self._hangover_remaining -= frame_duration
                 if self._hangover_remaining <= 0:
-                    # Commit speech end
+                    # Hangover expired: speech segment has ended
                     self._speech_state = False
+                    self._hangover_remaining = 0.0
                     if callable(self.on_voice_end):
                         self.on_voice_end(ts)
+                        print(f"🔇 VAD STATE CHANGE: END at {ts:.2f}s")
             else:
                 self._since_speech_end += frame_duration
     

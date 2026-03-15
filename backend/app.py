@@ -292,6 +292,18 @@ def finalize_user_answer(session_key):
     session["finalized"] = True
     session["turn"] = "INTERVIEWER" 
 
+    # 🔥 NEW: Record USER TURN end time and duration
+    stats = session.get("stats")
+    if "user_turn_start" in session:
+        user_turn_end = time.time()
+        user_turn_duration = user_turn_end - session["user_turn_start"]
+        session["user_turn_total_time"] = user_turn_duration
+        print(f"⏱️ USER TURN duration: {user_turn_duration:.1f}s")
+        
+        # Also notify stats that user turn is ending
+        if stats:
+            stats.end_user_turn(now_ts())
+
     # 1. Merge all buffered text (Clock A results)
     final_answer = " ".join(session.get("final_text", [])).strip()
     
@@ -1274,27 +1286,33 @@ def start_interview(data):
     # Create stats and VAD
     from interview_analyzer import RunningStatistics, VoiceActivityDetector
     
-    # Create stats with proper settings
+        # Create stats with proper settings
     interview_stats = RunningStatistics(
         pause_threshold=0.3,
         long_pause_threshold=5.0,
         ignore_long_pause_over=20.0
     )
     
-    # Create VAD with callbacks
+    # Create VAD with callbacks - FIXED PARAMETERS
     vad = VoiceActivityDetector(
         sample_rate=16000,
         frame_ms=30,
-        energy_threshold=0.001,
-        hangover_ms=200,
-        min_speech_ms=120
+        energy_threshold=0.05,  # 🔥 CHANGED from 0.001 to 0.005 (more sensitive)
+        hangover_ms=300,          # 🔥 CHANGED from 200 to 300ms (prevents choppiness)
+        min_speech_ms=150         # 🔥 CHANGED from 120 to 150ms
     )
     
-    # Define VAD callbacks
+    # Define VAD callbacks - FIXED VERSION with debug prints
     def on_vad_start(ts=None):
+        if ts is None:
+            ts = now_ts()
+        print(f"🔊 VAD START at {ts:.2f}s")  # 🔥 ADDED debug log
         interview_stats.record_speech_start(ts)
     
     def on_vad_end(ts=None):
+        if ts is None:
+            ts = now_ts()
+        print(f"🔇 VAD END at {ts:.2f}s")    # 🔥 ADDED debug log
         interview_stats.record_speech_end(ts)
     
     vad.on_voice_start = on_vad_start
@@ -1502,10 +1520,10 @@ def interviewer_done(data):
     if not session:
         return
     
-    # ✅ CRITICAL: Record question end for latency tracking (DO THIS FIRST)
+    # ✅ CRITICAL: Record question end for latency tracking
     stats = session.get("stats")
     if stats:
-        stats.record_question_end(now_ts())  # Use monotonic timestamp
+        stats.record_question_end(now_ts())
     
     # Prevent if already stopped
     if session.get("turn") == "DONE":
@@ -1517,6 +1535,14 @@ def interviewer_done(data):
     session["turn"] = "USER"
     session["finalized"] = False
     session["final_text"] = []
+    
+    # 🔥 NEW: Record when USER TURN starts
+    session["user_turn_start"] = time.time()
+    session["user_turn_total_time"] = 0  # Will accumulate
+    
+    # Also notify the stats object that user turn is starting
+    if stats:
+        stats.start_user_turn(now_ts())
     
     # 2. Start Clock B (Silence Timer)
     session["last_voice_time"] = time.time() 
@@ -1618,15 +1644,27 @@ def receive_audio(data):
         # Convert for analysis
         audio_float = pcm.astype(np.float32) / 32768.0
         
-        # Feed to VAD in frames
+        # Feed to VAD in frames - FIXED VERSION
         if vad:
             frame_samples = vad.frame_samples
             i = 0
             n = len(audio_float)
             while i + frame_samples <= n:
                 frame = audio_float[i:i+frame_samples]
-                vad.process_frame(frame)
+                
+                # 🔥 ADDED energy check for debugging
+                energy = np.sqrt(np.mean(frame**2))
+                #if energy > 0.01 and i % 10 == 0:  # Log every 10th high-energy frame
+                #    print(f"🔊 High energy frame: {energy:.4f}")
+                    
+                vad.process_frame(frame, now_ts())  # 🔥 CHANGED: Pass timestamp!
                 i += frame_samples
+            
+            # Periodic VAD state diagnostic (every ~100 pitch frames)
+            if hasattr(vad, '_speech_state') and stats.pitch_count % 100 == 0:
+                hangover_ms = vad._hangover_remaining * 1000
+                state_desc = "SPEAKING" if vad._speech_state else "SILENT"
+                print(f"📊 VAD State: {state_desc}, hangover_remaining={hangover_ms:.0f}ms")
         
         # ---- 3️⃣ Fallback speech start detection (if VAD not available) ----
         if not vad and not session.get("first_voice_recorded"):
