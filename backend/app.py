@@ -1078,95 +1078,149 @@ def stop_interview(data, sid=None):
         full_transcript = " ".join(session_data.get('final_text', []))
         print(f"📝 Final transcript length: {len(full_transcript)} chars")
         
-        # 4️⃣ Get research-grade metrics from new RunningStatistics
+        # 4️⃣ Get research-grade metrics from RunningStatistics
         stats = session_data.get('stats')
         if stats:
             print("\n🔍 Computing research-grade metrics...")
-            # Compute final metrics (this already handles forced silence correctly)
             metrics = stats.compute_research_metrics()
             
-            # 🔥 FIX: Extract the corrected user-turn metrics
+            # Extract all metrics for display
+            session_duration = metrics.get('session_duration', 0)
             total_user_turn_time = metrics.get('total_user_turn_time', 0)
+            available_speaking_time = metrics.get('available_speaking_time', 0)
             speaking_time = metrics.get('speaking_time', 0)
             silence_during_turn = metrics.get('silence_during_turn', 0)
-            speaking_ratio_during_turn = metrics.get('speaking_ratio_during_turn', 0)
+            forced_silence_time = metrics.get('forced_silence_time', 0)
+            speaking_ratio = metrics.get('speaking_ratio_during_turn', 0)
+            wpm = metrics.get('wpm', 0)
+            articulation_rate = metrics.get('articulation_rate', 0)
+            avg_response_latency = metrics.get('avg_response_latency', 0)
+            avg_semantic = metrics.get('avg_semantic_similarity', 0)
+            avg_keyword = metrics.get('avg_keyword_coverage', 0)
+            total_words = metrics.get('total_words', 0)
+            avg_pause_duration = metrics.get('avg_pause_duration', 0)
+            pause_count = metrics.get('pause_count', 0)
+            long_pause_count = metrics.get('long_pause_count', 0)
+            hesitation_rate = metrics.get('hesitation_rate', 0)
+            questions_answered = metrics.get('questions_answered', 0)
+            
+            # Pitch metrics
+            pitch_mean = metrics.get('pitch_mean', 0)
+            pitch_std = metrics.get('pitch_std', 0)
+            pitch_range = metrics.get('pitch_range', 0)
+            pitch_stability = metrics.get('pitch_stability', 0)
         else:
             print("⚠️ No stats object found, creating empty metrics")
             metrics = {
                 "session_duration": 0,
                 "total_user_turn_time": 0,
-                "effective_duration": 0,
+                "available_speaking_time": 0,
                 "speaking_time": 0,
-                "silence_time": 0,
                 "silence_during_turn": 0,
                 "forced_silence_time": 0,
-                "speaking_ratio": 0,
                 "speaking_ratio_during_turn": 0,
                 "wpm": 0,
+                "articulation_rate": 0,
+                "avg_response_latency": 0,
+                "avg_semantic_similarity": 0,
+                "avg_keyword_coverage": 0,
                 "total_words": 0,
                 "avg_pause_duration": 0,
                 "pause_count": 0,
                 "long_pause_count": 0,
                 "hesitation_rate": 0,
-                "articulation_rate": 0,
-                "fluency_score": 0,
-                "avg_response_latency": 0,
-                "avg_semantic_similarity": 0,
-                "avg_keyword_coverage": 0,
-                "questions_answered": 0
+                "questions_answered": 0,
+                "pitch_mean": 0,
+                "pitch_std": 0,
+                "pitch_range": 0,
+                "pitch_stability": 0
             }
-            total_user_turn_time = 0
-            speaking_time = 0
-            silence_during_turn = 0
-            speaking_ratio_during_turn = 0
+            session_duration = total_user_turn_time = available_speaking_time = speaking_time = silence_during_turn = forced_silence_time = speaking_ratio = wpm = articulation_rate = avg_response_latency = avg_semantic = avg_keyword = total_words = avg_pause_duration = pause_count = long_pause_count = hesitation_rate = questions_answered = pitch_mean = pitch_std = pitch_range = pitch_stability = 0
+
+        # Calculate overall relevance (80% semantic + 20% keyword) as per paper
+        overall_relevance = (avg_semantic * 0.8) + (avg_keyword * 0.2)
 
         print("\n" + "="*80)
-        print("📊 FINAL INTERVIEW METRICS (RESEARCH-GRADE)")
+        print("📊 RESEARCH-GRADE INTERVIEW METRICS")
         print("="*80)
-        print(f"   Session duration:       {metrics.get('session_duration', 0):.1f}s")
-        print(f"   Total user turn time:   {total_user_turn_time:.1f}s")
-        print(f"   Forced silence removed: {metrics.get('forced_silence_time', 0):.1f}s")
-        print(f"   Speaking time:          {speaking_time:.1f}s")
-        print(f"   Silence during turn:    {silence_during_turn:.1f}s")
-        print(f"   Speaking ratio (turn):  {speaking_ratio_during_turn:.3f}")
-        print(f"   Total words:            {metrics.get('total_words', 0)}")
-        print(f"   WPM:                    {metrics.get('wpm', 0):.1f}")
-        print(f"   Avg pause duration:     {metrics.get('avg_pause_duration', 0):.2f}s")
-        print(f"   Pause count:            {metrics.get('pause_count', 0)}")
-        print(f"   Long pauses (>5s):      {metrics.get('long_pause_count', 0)}")
-        print(f"   Hesitation rate:        {metrics.get('hesitation_rate', 0):.2f}/min")
-        print(f"   Articulation rate:      {metrics.get('articulation_rate', 0):.2f} words/s")
-        print(f"   Avg response latency:   {metrics.get('avg_response_latency', 0):.2f}s")
-        print(f"   Fluency score:          {metrics.get('fluency_score', 0):.3f}")
-        print(f"   Questions answered:     {metrics.get('questions_answered', 0)}")
-        print(f"   Avg semantic similarity: {metrics.get('avg_semantic_similarity', 0):.3f}")
-        print(f"   Avg keyword coverage:   {metrics.get('avg_keyword_coverage', 0):.3f}")
-        # 🔥 PITCH METRICS
-        print(f"   Pitch mean:             {metrics.get('pitch_mean', 0):.1f} Hz")
-        print(f"   Pitch std:              {metrics.get('pitch_std', 0):.2f} Hz")
-        print(f"   Pitch range:            {metrics.get('pitch_range', 0):.1f} Hz")
-        print(f"   Pitch stability:        {metrics.get('pitch_stability', 0):.2f}")
+        print("\n🎤 SPEAKING METRICS:")
+        print(f"   Speaking Time:              {speaking_time:.1f}s")
+        print(f"   Total User Turn Time:        {total_user_turn_time:.1f}s")
+        print(f"   Forced Silence (System Wait): {forced_silence_time:.1f}s")
+        print(f"   Available Speaking Time:     {available_speaking_time:.1f}s")
+        print(f"   Silence During Turn:         {silence_during_turn:.1f}s")
+        print(f"   Speaking Ratio:              {speaking_ratio*100:.1f}%")
+        print(f"   Session Duration:            {session_duration:.1f}s")
+        
+        print("\n⚡ FLUENCY METRICS:")
+        print(f"   Words Per Minute (WPM):      {wpm:.1f} wpm")
+        print(f"   Articulation Rate:           {articulation_rate:.2f} words/s")
+        print(f"   Avg Response Latency:        {avg_response_latency:.2f}s")
+        print(f"   Avg Pause Duration:          {avg_pause_duration:.2f}s")
+        print(f"   Pause Count:                 {pause_count}")
+        print(f"   Long Pauses (>5s):           {long_pause_count}")
+        print(f"   Hesitation Rate:             {hesitation_rate:.2f}/min")
+        
+        print("\n📋 CONTENT QUALITY:")
+        print(f"   Semantic Similarity:         {avg_semantic*100:.1f}% (raw cosine)")
+        print(f"   Keyword Coverage:             {avg_keyword*100:.1f}% (stop words filtered)")
+        print(f"   Overall Relevance:            {overall_relevance*100:.1f}% (80/20 weighted)")
+        print(f"   Questions Answered:           {questions_answered}")
+        print(f"   Total Words:                  {total_words}")
+        
+        print("\n🎤 VOICE ANALYSIS:")
+        print(f"   Average Pitch:               {pitch_mean:.1f} Hz")
+        print(f"   Pitch Range:                 {pitch_range:.1f} Hz")
+        print(f"   Pitch Stability:              {pitch_stability:.1f}%")
+        print(f"   Pitch Variation (σ):          {pitch_std:.1f} Hz")
         print("="*80)
 
-        # 5️⃣ Prepare final results - USE CORRECT METRICS
+        # 5️⃣ Prepare final results with unified metrics
         analysis_results = {
             'success': True,
             'processing_method': 'research_grade_event_driven',
             'transcript': full_transcript,
             'conversation': "\n\n".join(session_data.get('full_transcript', [])) if stats and hasattr(stats, 'full_transcript') else full_transcript,
-            'metrics': metrics,
-            'semantic_similarity': metrics.get('avg_semantic_similarity', 0),
-            'analysis_valid': metrics.get('questions_answered', 0) > 0,
-            'total_duration': metrics.get('session_duration', 0),
-            'total_user_turn_time': total_user_turn_time,
-            'speaking_time': speaking_time,
-            'silence_during_turn': silence_during_turn,
-            'speaking_ratio_during_turn': speaking_ratio_during_turn,
-            'total_words': metrics.get('total_words', 0),
+            
+            # Unified metrics as per research paper
+            'metrics': {
+                # Speaking Metrics
+                'speaking_time': round(speaking_time, 1),
+                'total_user_turn_time': round(total_user_turn_time, 1),
+                'forced_silence_time': round(forced_silence_time, 1),
+                'available_speaking_time': round(available_speaking_time, 1),
+                'silence_during_turn': round(silence_during_turn, 1),
+                'speaking_ratio': round(speaking_ratio, 3),
+                'session_duration': round(session_duration, 1),
+                
+                # Fluency Metrics
+                'wpm': round(wpm, 1),
+                'articulation_rate': round(articulation_rate, 2),
+                'avg_response_latency': round(avg_response_latency, 2),
+                'avg_pause_duration': round(avg_pause_duration, 2),
+                'pause_count': pause_count,
+                'long_pause_count': long_pause_count,
+                'hesitation_rate': round(hesitation_rate, 2),
+                
+                # Content Quality
+                'semantic_similarity': round(avg_semantic, 3),
+                'keyword_coverage': round(avg_keyword, 3),
+                'overall_relevance': round(overall_relevance, 3),
+                'questions_answered': questions_answered,
+                'total_words': total_words,
+                
+                # Voice Analysis
+                'pitch_mean': round(pitch_mean, 1),
+                'pitch_std': round(pitch_std, 1),
+                'pitch_range': round(pitch_range, 1),
+                'pitch_stability': round(pitch_stability, 1)
+            },
+            'semantic_similarity': avg_semantic,
+            'analysis_valid': questions_answered > 0,
             'qa_pairs': stats.question_scores if stats and hasattr(stats, 'question_scores') else []
         }
 
-        # 6️⃣ SAVE TO DATABASE
+        # 6️⃣ SAVE TO DATABASE - Store the unified metrics
         with app.app_context():
             try:
                 from models import db, InterviewSession
@@ -1209,16 +1263,16 @@ def stop_interview(data, sid=None):
                 else:
                     print("   ⚠️ No Q&A pairs to save")
 
-                # Create database record
+                # Create database record with unified metrics
                 session_record = InterviewSession(
                     user_id=user_id,
                     session_type='agentic',
                     questions=json.dumps({'questions': questions, 'answers': formatted_answers}),
                     created_at=datetime.utcnow(),
                     completed_at=datetime.utcnow(),
-                    score=metrics.get('avg_semantic_similarity', 0) * 100,
-                    duration=int(metrics.get('session_duration', 0)),
-                    speech_metrics=json.dumps(metrics)  # Store research metrics
+                    score=avg_semantic * 100,  # Store semantic score as percentage
+                    duration=int(session_duration),
+                    speech_metrics=json.dumps(analysis_results['metrics'])  # Store unified metrics
                 )
                 db.session.add(session_record)
                 db.session.commit()
@@ -1230,7 +1284,7 @@ def stop_interview(data, sid=None):
                 import traceback
                 traceback.print_exc()
 
-        # 7️⃣ Emit final results to frontend
+        # 7️⃣ Emit unified results to frontend
         print(f"\n📡 Emitting interview_complete to room: {room}")
         socketio.emit('interview_complete', analysis_results, room=room)
         print(f"✅ Interview stopped for user {user_id} — FINAL metrics delivered")

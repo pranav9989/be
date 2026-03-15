@@ -396,22 +396,7 @@ class RunningStatistics:
             else:
                 pause_frequency = 0.0
             
-            print("\n" + "="*60)
-            print("📊 RESEARCH METRICS (CORRECTED - AVAILABLE SPEAKING TIME)")
-            print("="*60)
-            print(f"   Session duration:           {self.total_session_duration:.1f}s")
-            print(f"   Total user turn time:       {self.total_user_turn_time:.1f}s")
-            print(f"   Forced silence removed:     {self.forced_silence_time:.1f}s")
-            print(f"   Available speaking time:    {available_speaking_time:.1f}s")  # 🔥 NEW
-            print(f"   Speaking time:              {self.total_speaking_time:.1f}s")
-            print(f"   Silence during turn:        {silence_during_turn:.1f}s")
-            print(f"   Speaking ratio (available): {speaking_ratio_during_turn:.3f}")  # 🔥 FIXED
-            print(f"   Pause count:                {len(self.pause_durations)}")
-            print(f"   Avg pause:                  {avg_pause:.2f}s")
-            print(f"   Total words:                {self.total_words}")
-            print(f"   WPM:                        {wpm:.1f}")
-            print(f"   Articulation rate:          {articulation_rate:.2f} words/s")
-            print("="*60)
+            # 🔥 PRINT BLOCK HATAYA - duplicate tha
             
             return {
                 "session_duration": round(self.total_session_duration, 1),
