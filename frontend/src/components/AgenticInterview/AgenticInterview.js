@@ -131,12 +131,14 @@ const AgenticInterview = ({ user, onLogout }) => {
             return defaultValue;
         };
 
-        // Get speaking ratio
-        const speakingRatio = getValue('speaking_ratio') || getValue('speaking_time_ratio');
-
-        // ✅ REQUESTED METRICS ONLY
+        // ✅ FIXED: Get the correct metrics
         const speakingTime = getValue('speaking_time');
-        const silenceTime = getValue('silence_time');
+        const silenceTime = getValue('silence_during_turn');  // Changed from 'silence_time'
+        const speakingRatio = getValue('speaking_ratio_during_turn') || getValue('speaking_ratio');
+        const availableSpeakingTime = getValue('available_speaking_time');
+        const totalUserTurnTime = getValue('total_user_turn_time');
+        const forcedSilenceTime = getValue('forced_silence_time');
+
         const wpm = getValue('wpm');
         const articulationRate = getValue('articulation_rate');
         const avgResponseLatency = getValue('avg_response_latency');
@@ -212,23 +214,47 @@ const AgenticInterview = ({ user, onLogout }) => {
                                     {speakingTime !== 'N/A' ? `${typeof speakingTime === 'number' ? speakingTime.toFixed(1) : speakingTime}s` : 'N/A'}
                                 </span>
                             </div>
+                            {totalUserTurnTime !== 'N/A' && (
+                                <div className="metric-item">
+                                    <span className="metric-label">Total User Turn Time:</span>
+                                    <span className="metric-value">
+                                        {typeof totalUserTurnTime === 'number' ? totalUserTurnTime.toFixed(1) : totalUserTurnTime}s
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* ✅ SILENCE TIME (Thinking Time) */}
+                    {/* ✅ SILENCE DURING TURN (Fixed) */}
                     <div className="metric-section">
                         <h4>⏸️ Silence (Thinking Time)</h4>
                         <div className="metrics-list">
                             <div className="metric-item">
-                                <span className="metric-label">Silence Time:</span>
+                                <span className="metric-label">Silence During Turn:</span>
                                 <span className="metric-value">
                                     {silenceTime !== 'N/A' ? `${typeof silenceTime === 'number' ? silenceTime.toFixed(1) : silenceTime}s` : 'N/A'}
                                 </span>
                             </div>
+                            {forcedSilenceTime !== 'N/A' && (
+                                <div className="metric-item">
+                                    <span className="metric-label">Forced Silence (System Wait):</span>
+                                    <span className="metric-value">
+                                        {typeof forcedSilenceTime === 'number' ? forcedSilenceTime.toFixed(1) : forcedSilenceTime}s
+                                    </span>
+                                </div>
+                            )}
+                            {availableSpeakingTime !== 'N/A' && (
+                                <div className="metric-item highlight">
+                                    <span className="metric-label">Available Speaking Time:</span>
+                                    <span className="metric-value">
+                                        {typeof availableSpeakingTime === 'number' ? availableSpeakingTime.toFixed(1) : availableSpeakingTime}s
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* ✅ SPEAKING RATIO */}
+                    {/* ✅ SPEAKING RATIO (Fixed) */}
                     <div className="metric-section">
                         <h4>📊 Speaking Ratio</h4>
                         <div className="metrics-list">
@@ -314,7 +340,7 @@ const AgenticInterview = ({ user, onLogout }) => {
                         </div>
                     </div>
 
-                    {/* 🔥 NEW: PITCH METRICS SECTION */}
+                    {/* 🔥 PITCH METRICS SECTION */}
                     {(pitchMean !== 'N/A' || pitchStability !== 'N/A') && (
                         <div className="metric-section">
                             <h4>🎤 Voice Analysis</h4>
@@ -340,8 +366,8 @@ const AgenticInterview = ({ user, onLogout }) => {
                                         <span className="metric-label">Stability:</span>
                                         <span className="metric-value">
                                             <span className={`stability-badge ${pitchStability > 80 ? 'excellent' :
-                                                    pitchStability > 60 ? 'good' :
-                                                        pitchStability > 40 ? 'warning' : 'poor'
+                                                pitchStability > 60 ? 'good' :
+                                                    pitchStability > 40 ? 'warning' : 'poor'
                                                 }`}>
                                                 {typeof pitchStability === 'number' ? pitchStability.toFixed(1) : pitchStability}%
                                             </span>
@@ -360,7 +386,7 @@ const AgenticInterview = ({ user, onLogout }) => {
                         </div>
                     )}
 
-                    {/* Q&A Details (Optional - Keep if you want) */}
+                    {/* Q&A Details */}
                     {qaPairs.length > 0 && (
                         <div className="metric-section full-width">
                             <h4>📋 Question & Answer Details</h4>
@@ -387,13 +413,17 @@ const AgenticInterview = ({ user, onLogout }) => {
                         </div>
                     )}
 
-                    {/* Processing Details (Minimal) */}
+                    {/* Processing Details */}
                     <div className="metric-section">
                         <h4>⚙️ Processing</h4>
                         <div className="metrics-list">
                             <div className="metric-item">
                                 <span className="metric-label">Analysis Valid:</span>
                                 <span className="metric-value">{data.analysis_valid ? '✅ Yes' : '❌ No'}</span>
+                            </div>
+                            <div className="metric-item">
+                                <span className="metric-label">Questions Answered:</span>
+                                <span className="metric-value">{getValue('questions_answered', 0)}</span>
                             </div>
                         </div>
                     </div>
@@ -445,8 +475,6 @@ const AgenticInterview = ({ user, onLogout }) => {
                             <div className="pre-tip"><i className="fas fa-clock"></i> 30 minutes max per session</div>
                             <div className="pre-tip"><i className="fas fa-robot"></i> AI adapts to your skill level</div>
                         </div>
-
-                        {/* Stress Test Mode checkbox removed */}
 
                         <div className="pre-connection">
                             <div className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`} />

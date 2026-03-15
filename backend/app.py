@@ -292,7 +292,7 @@ def finalize_user_answer(session_key):
     session["finalized"] = True
     session["turn"] = "INTERVIEWER" 
 
-    # 🔥 NEW: Record USER TURN end time and duration
+    # 🔥 NEW: Record USER TURN end time and duration and CLEAR THE FLAG
     stats = session.get("stats")
     if "user_turn_start" in session:
         user_turn_end = time.time()
@@ -302,7 +302,9 @@ def finalize_user_answer(session_key):
         
         # Also notify stats that user turn is ending
         if stats:
+            # 🔥 CRITICAL FIX: Clear the in_user_turn flag
             stats.end_user_turn(now_ts())
+            stats._in_user_turn = False
 
     # 1. Merge all buffered text (Clock A results)
     final_answer = " ".join(session.get("final_text", [])).strip()
@@ -1082,15 +1084,24 @@ def stop_interview(data, sid=None):
             print("\n🔍 Computing research-grade metrics...")
             # Compute final metrics (this already handles forced silence correctly)
             metrics = stats.compute_research_metrics()
+            
+            # 🔥 FIX: Extract the corrected user-turn metrics
+            total_user_turn_time = metrics.get('total_user_turn_time', 0)
+            speaking_time = metrics.get('speaking_time', 0)
+            silence_during_turn = metrics.get('silence_during_turn', 0)
+            speaking_ratio_during_turn = metrics.get('speaking_ratio_during_turn', 0)
         else:
             print("⚠️ No stats object found, creating empty metrics")
             metrics = {
                 "session_duration": 0,
+                "total_user_turn_time": 0,
                 "effective_duration": 0,
                 "speaking_time": 0,
                 "silence_time": 0,
+                "silence_during_turn": 0,
                 "forced_silence_time": 0,
                 "speaking_ratio": 0,
+                "speaking_ratio_during_turn": 0,
                 "wpm": 0,
                 "total_words": 0,
                 "avg_pause_duration": 0,
@@ -1104,16 +1115,20 @@ def stop_interview(data, sid=None):
                 "avg_keyword_coverage": 0,
                 "questions_answered": 0
             }
+            total_user_turn_time = 0
+            speaking_time = 0
+            silence_during_turn = 0
+            speaking_ratio_during_turn = 0
 
         print("\n" + "="*80)
         print("📊 FINAL INTERVIEW METRICS (RESEARCH-GRADE)")
         print("="*80)
         print(f"   Session duration:       {metrics.get('session_duration', 0):.1f}s")
+        print(f"   Total user turn time:   {total_user_turn_time:.1f}s")
         print(f"   Forced silence removed: {metrics.get('forced_silence_time', 0):.1f}s")
-        print(f"   Effective duration:     {metrics.get('effective_duration', 0):.1f}s")
-        print(f"   Speaking time:          {metrics.get('speaking_time', 0):.1f}s")
-        print(f"   Silence time:           {metrics.get('silence_time', 0):.1f}s")
-        print(f"   Speaking ratio:         {metrics.get('speaking_ratio', 0):.3f}")
+        print(f"   Speaking time:          {speaking_time:.1f}s")
+        print(f"   Silence during turn:    {silence_during_turn:.1f}s")
+        print(f"   Speaking ratio (turn):  {speaking_ratio_during_turn:.3f}")
         print(f"   Total words:            {metrics.get('total_words', 0)}")
         print(f"   WPM:                    {metrics.get('wpm', 0):.1f}")
         print(f"   Avg pause duration:     {metrics.get('avg_pause_duration', 0):.2f}s")
@@ -1133,7 +1148,7 @@ def stop_interview(data, sid=None):
         print(f"   Pitch stability:        {metrics.get('pitch_stability', 0):.2f}")
         print("="*80)
 
-        # 5️⃣ Prepare final results
+        # 5️⃣ Prepare final results - USE CORRECT METRICS
         analysis_results = {
             'success': True,
             'processing_method': 'research_grade_event_driven',
@@ -1143,7 +1158,10 @@ def stop_interview(data, sid=None):
             'semantic_similarity': metrics.get('avg_semantic_similarity', 0),
             'analysis_valid': metrics.get('questions_answered', 0) > 0,
             'total_duration': metrics.get('session_duration', 0),
-            'speaking_time': metrics.get('speaking_time', 0),
+            'total_user_turn_time': total_user_turn_time,
+            'speaking_time': speaking_time,
+            'silence_during_turn': silence_during_turn,
+            'speaking_ratio_during_turn': speaking_ratio_during_turn,
             'total_words': metrics.get('total_words', 0),
             'qa_pairs': stats.question_scores if stats and hasattr(stats, 'question_scores') else []
         }
@@ -1542,6 +1560,8 @@ def interviewer_done(data):
     
     # Also notify the stats object that user turn is starting
     if stats:
+        # 🔥 CRITICAL: Set the flag BEFORE calling start_user_turn
+        stats._in_user_turn = True
         stats.start_user_turn(now_ts())
     
     # 2. Start Clock B (Silence Timer)

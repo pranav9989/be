@@ -1,15 +1,11 @@
 import librosa
 import numpy as np
-import torch
 from sentence_transformers import SentenceTransformer
 import spacy
 import re
 import time
 import threading
 from sklearn.metrics.pairwise import cosine_similarity
-from pydub import AudioSegment
-import concurrent.futures
-from functools import partial
 
 # Load models
 try:
@@ -96,13 +92,17 @@ class RunningStatistics:
         
         # Diagnostics
         self.event_log = []  # Keep last 20 events for debugging
+        self._in_user_turn = False
 
     def start_user_turn(self, ts=None):
         """Called when user turn starts"""
         with self.lock:
+            # 🔥 CRITICAL: Set the flag BEFORE any other operations
+            self._in_user_turn = True
             self.current_user_turn_start = now_ts() if ts is None else ts
             print(f"⏱️ USER TURN START at {self.current_user_turn_start:.1f}s")
             self._log_event("user_turn_start", self.current_user_turn_start)
+
 
     def end_user_turn(self, ts=None):
         """Called when user turn ends"""
@@ -114,6 +114,9 @@ class RunningStatistics:
                 self.current_user_turn_start = None
                 print(f"⏱️ USER TURN END: +{turn_duration:.1f}s (total user turn: {self.total_user_turn_time:.1f}s)")
                 self._log_event("user_turn_end", turn_duration, ts)
+            
+            # 🔥 CRITICAL: Clear the flag AFTER all calculations
+            self._in_user_turn = False
     
     # =====================================
     # SPEECH EVENT HANDLERS (THREAD-SAFE)
@@ -198,13 +201,18 @@ class RunningStatistics:
         Detects pause BEFORE starting new speech (thinking time)
         """
         with self.lock:
+            # 🔥 CRITICAL FIX: Only record speech during user turns
+            if not getattr(self, '_in_user_turn', False):
+                # Silent ignore - don't even print to avoid spam
+                return
+                
             ts = now_ts() if ts is None else ts
             
             # Detect pause before starting new speech
             if self.last_speech_end is not None:
                 pause_duration = ts - self.last_speech_end
                 if pause_duration > self.pause_threshold:
-                    # 🔥 FIX: Count ALL pauses during user turn
+                    # Count ALL pauses during user turn
                     self.pause_durations.append(pause_duration)
                     self.total_silence_time += pause_duration
                     self._log_event("pause", pause_duration, ts)
@@ -227,10 +235,16 @@ class RunningStatistics:
                     self.first_voice_recorded = True
                     self._log_event("response_latency", latency, ts)
                     print(f"⏱️ Response latency: {latency:.2f}s")
-    
+
+
     def record_speech_end(self, ts=None):
         """Called when user stops speaking"""
         with self.lock:
+            # 🔥 CRITICAL FIX: Only record speech during user turns
+            if not getattr(self, '_in_user_turn', False):
+                # Silent ignore - don't even print to avoid spam
+                return
+                
             ts = now_ts() if ts is None else ts
             
             if self.current_speech_start is None:
@@ -239,9 +253,7 @@ class RunningStatistics:
             # Calculate speech duration for this segment
             speech_duration = ts - self.current_speech_start
             
-            # 🔥 REMOVE the sanity check - it's causing issues
-            # Let the actual measurement stand
-            
+            # Let the actual measurement stand (no artificial limits)
             self.total_speaking_time += speech_duration
             self.last_speech_end = ts
             self.current_speech_start = None
@@ -344,12 +356,17 @@ class RunningStatistics:
             # Articulation rate (words per second of actual speaking)
             articulation_rate = self.total_words / max(0.1, self.total_speaking_time)
             
-            # 🔥 CORRECT: Calculate silence during user turn
-            # silence_during_turn = user_turn_time - speaking_time - forced_silence
+            # 🔥 CORRECT: Calculate available speaking time (user turn time minus forced silence)
+            available_speaking_time = max(0, self.total_user_turn_time - self.forced_silence_time)
+            
+            # 🔥 CORRECT: Calculate silence during turn
             if self.total_user_turn_time > 0:
                 silence_during_turn = max(0, self.total_user_turn_time - self.total_speaking_time - self.forced_silence_time)
-                # Speaking ratio based on user turn time only
-                speaking_ratio_during_turn = self.total_speaking_time / self.total_user_turn_time
+                # 🔥 FIXED: Speaking ratio based on AVAILABLE speaking time, not total user turn time
+                if available_speaking_time > 0:
+                    speaking_ratio_during_turn = self.total_speaking_time / available_speaking_time
+                else:
+                    speaking_ratio_during_turn = 0.0
             else:
                 silence_during_turn = 0.0
                 speaking_ratio_during_turn = 0.0
@@ -360,9 +377,9 @@ class RunningStatistics:
             else:
                 silence_time = self.effective_duration - self.total_speaking_time
             
-            # Fluency score (using user turn time as denominator)
-            if self.total_user_turn_time > 0:
-                fluency_score = self.total_speaking_time / self.total_user_turn_time
+            # 🔥 FIXED: Fluency score based on available speaking time
+            if available_speaking_time > 0:
+                fluency_score = self.total_speaking_time / available_speaking_time
             else:
                 fluency_score = 0.0
             
@@ -380,31 +397,33 @@ class RunningStatistics:
                 pause_frequency = 0.0
             
             print("\n" + "="*60)
-            print("📊 RESEARCH METRICS (CORRECTED - USER TURN ONLY)")
+            print("📊 RESEARCH METRICS (CORRECTED - AVAILABLE SPEAKING TIME)")
             print("="*60)
-            print(f"   Session duration:       {self.total_session_duration:.1f}s")
-            print(f"   Total user turn time:   {self.total_user_turn_time:.1f}s")  # 🔥 NEW
-            print(f"   Forced silence removed: {self.forced_silence_time:.1f}s")
-            print(f"   Speaking time:          {self.total_speaking_time:.1f}s")
-            print(f"   Silence during turn:    {silence_during_turn:.1f}s")  # 🔥 NEW
-            print(f"   Speaking ratio (turn):  {speaking_ratio_during_turn:.3f}")  # 🔥 NEW
-            print(f"   Pause count:            {len(self.pause_durations)}")
-            print(f"   Avg pause:              {avg_pause:.2f}s")
-            print(f"   Total words:            {self.total_words}")
-            print(f"   WPM:                    {wpm:.1f}")
-            print(f"   Articulation rate:      {articulation_rate:.2f} words/s")
+            print(f"   Session duration:           {self.total_session_duration:.1f}s")
+            print(f"   Total user turn time:       {self.total_user_turn_time:.1f}s")
+            print(f"   Forced silence removed:     {self.forced_silence_time:.1f}s")
+            print(f"   Available speaking time:    {available_speaking_time:.1f}s")  # 🔥 NEW
+            print(f"   Speaking time:              {self.total_speaking_time:.1f}s")
+            print(f"   Silence during turn:        {silence_during_turn:.1f}s")
+            print(f"   Speaking ratio (available): {speaking_ratio_during_turn:.3f}")  # 🔥 FIXED
+            print(f"   Pause count:                {len(self.pause_durations)}")
+            print(f"   Avg pause:                  {avg_pause:.2f}s")
+            print(f"   Total words:                {self.total_words}")
+            print(f"   WPM:                        {wpm:.1f}")
+            print(f"   Articulation rate:          {articulation_rate:.2f} words/s")
             print("="*60)
             
             return {
                 "session_duration": round(self.total_session_duration, 1),
-                "total_user_turn_time": round(self.total_user_turn_time, 1),  # 🔥 NEW
+                "total_user_turn_time": round(self.total_user_turn_time, 1),
+                "available_speaking_time": round(available_speaking_time, 1),  # 🔥 NEW
                 "effective_duration": round(self.effective_duration, 1),
                 "speaking_time": round(self.total_speaking_time, 1),
                 "silence_time": round(silence_time, 1),  # Legacy
-                "silence_during_turn": round(silence_during_turn, 1),  # 🔥 NEW
+                "silence_during_turn": round(silence_during_turn, 1),
                 "forced_silence_time": round(self.forced_silence_time, 1),
                 "speaking_ratio": round(self.speaking_ratio, 3),  # Legacy
-                "speaking_ratio_during_turn": round(speaking_ratio_during_turn, 3),  # 🔥 NEW
+                "speaking_ratio_during_turn": round(speaking_ratio_during_turn, 3),  # 🔥 FIXED
                 "wpm": round(wpm, 1),
                 "total_words": self.total_words,
                 "avg_pause_duration": round(avg_pause, 2),
