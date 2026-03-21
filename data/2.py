@@ -275,75 +275,84 @@ def notify_backend_ready(user_id, sid):
 
 def finalize_user_answer(session_key):
     """
-    Single source of truth for ending a user turn.
-    Triggered ONLY by silence.
+    The Single Source of Truth for ending a turn.
+    Triggered ONLY by silence (Clock B).
+    
+    RESEARCH-GRADE LOGIC:
+    - VAD already handled speech start/end events (Clock A)
+    - Silence watcher already recorded forced_silence (Clock B)
+    - This function ONLY processes the answer and gets next question
+    - NO MANUAL SPEECH END CALLS - that would double-count
     """
-
     session = streaming_sessions.get(session_key)
     if not session:
         print(f"⚠️ finalize_user_answer: Session {session_key} not found")
         return
 
-    # 🔒 HARD LOCK (prevent double execution)
+    # 🔒 ATOMIC LOCK: Prevent double-firing
     if session.get("finalized"):
-        print(f"⚠️ Already finalized, skipping")
+        print(f"⚠️ finalize_user_answer: Already finalized, ignoring")
         return
-
+    
+    # 🛑 IMMEDIATE STATE CHANGE (Clock C)
     session["finalized"] = True
-    session["turn"] = "INTERVIEWER"
+    session["turn"] = "INTERVIEWER" 
 
-    room = session.get("room")
-
-    # 🔥 CRITICAL: STOP FRONTEND AUDIO HERE (ONLY HERE)
-    if room:
-        socketio.emit(
-            "force_stop_speaking",
-            {"status": "stop"},
-            room=room
-        )
-
-    # ===== USER TURN TIMING =====
+    # 🔥 NEW: Record USER TURN end time and duration and CLEAR THE FLAG
     stats = session.get("stats")
     if "user_turn_start" in session:
         user_turn_end = time.time()
-        duration = user_turn_end - session["user_turn_start"]
-        session["user_turn_total_time"] = duration
-
-        print(f"⏱️ USER TURN duration: {duration:.1f}s")
-
+        user_turn_duration = user_turn_end - session["user_turn_start"]
+        session["user_turn_total_time"] = user_turn_duration
+        print(f"⏱️ USER TURN duration: {user_turn_duration:.1f}s")
+        
+        # Also notify stats that user turn is ending
         if stats:
+            # 🔥 CRITICAL FIX: Clear the in_user_turn flag
             stats.end_user_turn(now_ts())
             stats._in_user_turn = False
 
-    # ===== FINAL ANSWER =====
+    # 1. Merge all buffered text (Clock A results)
     final_answer = session.get("last_final_transcript", "").strip()
-
+    
+    # 2. If user said nothing but silence timed out, handle gracefully
     if not final_answer:
         final_answer = "[User remained silent]"
 
     print(f"✅ FINAL USER ANSWER: {final_answer}")
 
-    # 🔥 SAFETY: freeze transcript after finalize
-    session["last_voice_time"] = float("inf")
+    # ========== 🚫 REMOVED: NO SPEECH END CALL HERE ==========
+    # The VAD system already recorded speech end events correctly
+    # Calling record_speech_end() here would:
+    #   1. Double-count silence time
+    #   2. Inflate speaking time artificially
+    #   3. Corrupt pause detection
+    # ========================================================
 
+    # 3. Call the AI Agent (USE ADAPTIVE CONTROLLER)
     try:
+        room = session["room"]
         question = session.get("current_question")
         adaptive_session_id = session.get("adaptive_session_id")
-
+        stats = session.get("stats")
+        
         if not adaptive_session_id:
-            print("❌ Missing adaptive_session_id")
+            print(f"❌ No adaptive_session_id found for session {session_key}")
             return
-
-        # ===== EXPECTED ANSWER =====
-        expected_answer = ""
+        
+        # Get expected answer for this question from RAG
+        expected_answer = None
         try:
             from rag import agentic_expected_answer
-            sampled = session.get("current_sampled_concepts", [])
-            expected_answer, _ = agentic_expected_answer(question, sampled)
-        except Exception as e:
-            print(f"⚠️ Expected answer error: {e}")
+            sampled_concepts = session.get("current_sampled_concepts", [])
+            expected_answer, _ = agentic_expected_answer(question, sampled_concepts)
+            print(f"📝 Generated expected answer: {expected_answer[:100]}...")
 
-        # ===== AGENT CALL =====
+        except Exception as e:
+            print(f"⚠️ Could not get expected answer: {e}")
+            expected_answer = ""  # Fallback to prevent scoring against the question itself
+        
+        # Call handle_answer with the expected_answer parameter
         with app.app_context():
             agent_response = adaptive_controller.handle_answer(
                 session_id=adaptive_session_id,
@@ -352,15 +361,17 @@ def finalize_user_answer(session_key):
                 stress_test=session.get("stress_test", False)
             )
 
+        # Check if we got an error
         if "error" in agent_response:
             print(f"❌ Agent error: {agent_response['error']}")
             return
 
+        # Get next question from response
         next_question = None
         if agent_response.get("action") in ["FOLLOW_UP", "SIMPLIFY", "DEEPEN", "MOVE_TOPIC"]:
             next_question = agent_response.get("question")
-
-        # ===== FRONTEND UPDATE =====
+        
+        # 4. Update Frontend
         socketio.emit(
             "user_answer_complete",
             {
@@ -371,66 +382,73 @@ def finalize_user_answer(session_key):
             room=room
         )
 
-        # ===== SCORING =====
+        # 5. Calculate and store Q&A scores WITH expected answer
         if stats:
             from interview_analyzer import calculate_semantic_similarity, calculate_keyword_coverage
-
+            
+            # Check for silent answer
             is_silent = (final_answer == "[User remained silent]" or len(final_answer.strip()) < 5)
-
             if is_silent:
                 semantic_score = 0.0
                 keyword_score = 0.0
+                print(f"📊 Silent answer detected, setting scores to 0")
             else:
+                # Calculate scores (compare with expected answer)
                 semantic_score = calculate_semantic_similarity(final_answer, expected_answer)
                 keyword_score = calculate_keyword_coverage(final_answer, question)
+            
+            # Record in stats with expected answer
+            stats.record_qa_pair(question, final_answer, expected_answer, semantic_score, keyword_score)
+            
+            # Update legacy speech_metrics for backward compatibility
+            metrics = session.get("speech_metrics")
+            if metrics and hasattr(metrics, 'questions_answered'):
+                # Don't double-count - silence_watcher already incremented
+                pass
 
-            stats.record_qa_pair(
-                question,
-                final_answer,
-                expected_answer,
-                semantic_score,
-                keyword_score
-            )
-
-            print(f"📊 Scores → Semantic: {semantic_score:.3f}, Keyword: {keyword_score:.3f}")
-
-        # ===== NEXT QUESTION =====
+            print(f"📊 Q&A Scores - Semantic: {semantic_score:.3f}, Keyword: {keyword_score:.3f}")
+            
+            # ===== DEBUG: Print current timing stats for verification =====
+            print(f"   📊 Current speaking time: {stats.total_speaking_time:.1f}s")
+            print(f"   📊 Current silence time: {stats.total_silence_time:.1f}s")
+            print(f"   📊 Current forced silence: {stats.forced_silence_time:.1f}s")
+            
         if next_question:
             if session.get("terminated") or session.get("destroyed"):
+                print("🚫 Session terminated — skipping agent_next_question emit")
                 return
 
-            session.update({
-                "current_question": next_question,
-                "answer_finalized": False,
-                "last_final_transcript": "",
-                "final_text": [],
-                "first_voice_recorded": False,
-                "current_topic": agent_response.get("topic", session.get("current_topic")),
-                "current_subtopic": agent_response.get("subtopic", session.get("current_subtopic")),
-                "difficulty": agent_response.get("difficulty", session.get("difficulty")),
-                "current_sampled_concepts": agent_response.get("sampled_concepts", [])
-            })
-
+            # Update session with next question
+            session["current_question"] = next_question
+            session["current_topic"] = agent_response.get("topic", session.get("current_topic"))
+            session["current_subtopic"] = agent_response.get("subtopic", session.get("current_subtopic"))
+            session["difficulty"] = agent_response.get("difficulty", session.get("difficulty"))
+            session["current_sampled_concepts"] = agent_response.get("sampled_concepts", [])
+            
+            # Record the next question for stats
             if stats:
                 stats.record_question(next_question)
-                stats.record_question_end()
-
+                stats.record_question_end()  # Set question_end_time for next turn
+                session["first_voice_recorded"] = False
+            
             socketio.emit(
                 "agent_next_question",
                 {"question": next_question},
                 room=room
             )
-
+            
         elif agent_response.get("action") == "FINALIZE":
-            print("🎉 Interview complete")
+            # Interview is complete
+            print("🎉 Interview complete - finalizing...")
+            # Let the stop_interview handler take over
             stop_interview({"user_id": session_key[0]}, sid=session_key[1])
-
+            
     except Exception as e:
-        print(f"❌ Error in finalize_user_answer: {e}")
+        print(f"❌ Error in agent loop: {e}")
         import traceback
         traceback.print_exc()
 
-    # ===== CLEANUP =====
+    # 6. Clean up thread flags
     session["silence_thread_started"] = False
 
 def silence_watcher(session_key, timeout=15):
@@ -1402,42 +1420,46 @@ def start_interview(data):
             session["last_voice_time"] = time.time()
 
     # --------------------------------
-    # FINAL TRANSCRIPTS (AGENT LOOP) - CORRECT VERSION
+    # FINAL TRANSCRIPTS (AGENT LOOP) - FIXED VERSION
     # --------------------------------
     def on_final(text):
         session = streaming_sessions.get(session_key)
         
-        if not session or session.get("destroyed"):
+        if not session or session.get("destroyed"): 
+            print(f"⚠️ Session destroyed, ignoring transcription: {text}")
             return
-
-        # Only process during USER turn
+        
+        # Only accept transcription during USER turn or if we're finalizing
         if session.get("turn") != "USER" and not session.get("finalizing"):
+            print(f"⚠️ Not USER turn ({session.get('turn')}), ignoring: {text}")
             return
 
         text = text.strip()
-        if not text:
+        if not text: 
             return
 
         print(f"📝 Final transcript received: {text}")
-
-        # ===== STATS =====
+        
+        # Get stats object
         stats = session.get("stats")
         if not stats:
+            print("⚠️ No stats object found, creating new one")
             from interview_analyzer import RunningStatistics
             stats = RunningStatistics()
             session["stats"] = stats
-
+        
         now_ts_val = now_ts()
-
-        # Record speech start if first time
+        
+        # ===== RECORD SPEECH START (if not already recorded) =====
+        # This will automatically detect and record any silence since last speech
         if not session.get("first_voice_recorded"):
             stats.record_speech_start(now_ts_val)
             session["first_voice_recorded"] = True
-
-        # Update transcript stats
+        
+        # Update transcript (word count only)
         stats.update_transcript(text)
-
-        # ===== METRICS =====
+        
+        # Keep SpeechMetrics for backward compatibility
         metrics = session.get("speech_metrics")
         if metrics:
             if metrics.last_audio_timestamp is None:
@@ -1445,50 +1467,35 @@ def start_interview(data):
                 metrics.last_speech_end_time = now_ts_val
             else:
                 delta = now_ts_val - metrics.last_audio_timestamp
-
-                # Detect pauses (but DO NOT finalize)
-                if delta >= 2.0:
+                if delta < 2.0:
+                    pass
+                else:
                     silence_segment = delta
                     long_pauses = int(silence_segment // 5)
                     if long_pauses > 0:
                         metrics.long_pause_count += long_pauses
-
                 metrics.last_audio_timestamp = now_ts_val
                 metrics.last_speech_end_time = now_ts_val
-
-        # ===== TRANSCRIPT FIX (CRITICAL) =====
-        last = session.get("last_final_transcript", "")
-
-        # Ignore exact duplicates
-        if text == last:
-            return
-
-        # Initialize if needed
+        
+        # Append to final_text list
         if "final_text" not in session:
             session["final_text"] = []
-
+        
         last = session.get("last_final_transcript", "")
 
-        # Ignore exact duplicates
+        # Ignore duplicates
         if text.strip() == last.strip():
             return
 
-        # 🔥 APPEND instead of overwrite
-        session["final_text"].append(text)
-
-        # 🔥 Maintain full transcript
-        session["last_final_transcript"] = " ".join(session["final_text"])
-
-        # ===== RESET SILENCE TIMER =====
-        # This is what allows user to PAUSE and continue speaking
+        # Only keep latest full transcript
+        if len(text) >= len(last):
+            session["last_final_transcript"] = text
+            session["final_text"] = [text]  # overwrite
+        
+        # Reset silence timer for the watcher
         session["last_voice_time"] = time.time()
-
-        print(f"✅ Transcript updated | speaking_time={stats.total_speaking_time:.2f}s")
-
-        # 🚫 DO NOT:
-        # - stop audio
-        # - finalize answer
-        # - set answer_finalized
+        
+        print(f"✅ Processed transcript, total speaking time: {stats.total_speaking_time:.1f}s")
 
     streaming_sessions[session_key]["on_final"] = on_final
 

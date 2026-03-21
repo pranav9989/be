@@ -121,57 +121,8 @@ class RunningStatistics:
     # =====================================
     # SPEECH EVENT HANDLERS (THREAD-SAFE)
     # =====================================
-    def update_pitch(self, audio_chunk, sr=16000):
-        """
-        YIN pitch extraction + Welford streaming variance.
-        This implements the DSP section described in the research paper.
-        """
-        try:
-            # Convert raw audio to numpy float
-            audio = np.frombuffer(audio_chunk, dtype=np.int16).astype(np.float32)
-            if len(audio) < 512:
-                return
-
-            # Normalize
-            audio = audio / 32768.0
-
-            # YIN pitch estimation
-            f0 = librosa.yin(
-                audio,
-                fmin=80,
-                fmax=400,
-                sr=sr
-            )
-
-            # Remove invalid pitch values
-            f0 = f0[f0 > 0]
-
-            if len(f0) == 0:
-                return
-
-            for pitch in f0:
-
-                self.pitch_count += 1
-
-                # Welford streaming mean + variance
-                delta = pitch - self.pitch_mean
-                self.pitch_mean += delta / self.pitch_count
-                delta2 = pitch - self.pitch_mean
-                self.pitch_m2 += delta * delta2
-
-                # Track range
-                self.pitch_min = min(self.pitch_min, pitch)
-                self.pitch_max = max(self.pitch_max, pitch)
-
-        except Exception as e:
-            print(f"Pitch analysis error: {e}")
-
     def get_pitch_stability(self):
-        """
-        Calculate pitch stability using coefficient of variation.
-        Matches the equation described in the research paper.
-        """
-        if self.pitch_count < 2:
+        if self.pitch_count < 10:
             return 0
 
         variance = self.pitch_m2 / (self.pitch_count - 1)
@@ -182,10 +133,11 @@ class RunningStatistics:
 
         cv = std / self.pitch_mean
 
-        # Convert to score (0-100)
-        score = max(0, 100 - (cv * 100))
+        # ✅ Research-grade mapping
+        k = 3.0
+        score = 100 * np.exp(-k * cv)
 
-        return score
+        return max(0, min(100, score))
     
     def record_question_end(self, ts=None):
         """Called when interviewer finishes asking question"""
@@ -376,12 +328,7 @@ class RunningStatistics:
                 silence_time = 0.0
             else:
                 silence_time = self.effective_duration - self.total_speaking_time
-            
-            # 🔥 FIXED: Fluency score based on available speaking time
-            if available_speaking_time > 0:
-                fluency_score = self.total_speaking_time / available_speaking_time
-            else:
-                fluency_score = 0.0
+
             
             # Average response latency
             avg_response_latency = float(np.mean(self.response_latencies)) if self.response_latencies else 0.0
@@ -417,7 +364,6 @@ class RunningStatistics:
                 "pause_frequency": round(pause_frequency, 2),
                 "hesitation_rate": round(hesitation_rate, 2),
                 "articulation_rate": round(articulation_rate, 2),
-                "fluency_score": round(fluency_score, 3),
                 "avg_response_latency": round(avg_response_latency, 2),
                 "avg_semantic_similarity": round(avg_semantic, 3),
                 "avg_keyword_coverage": round(avg_keyword, 3),
@@ -434,16 +380,6 @@ class RunningStatistics:
         if len(self.event_log) > 100:
             self.event_log = self.event_log[-100:]
     
-    # =====================================
-    # LEGACY METHODS (KEEP FOR COMPATIBILITY)
-    # =====================================
-    
-    def get_avg_response_latency(self):
-        return float(np.mean(self.response_latencies)) if self.response_latencies else 0.0
-    
-    def get_current_stats(self):
-        return self.compute_research_metrics()
-    
     def update_pitch_stats(self, pitch_values):
         for pitch in pitch_values:
             if np.isfinite(pitch):
@@ -454,10 +390,6 @@ class RunningStatistics:
                 self.pitch_m2 += delta * delta2
                 self.pitch_min = min(self.pitch_min, pitch)
                 self.pitch_max = max(self.pitch_max, pitch)
-    
-    def update_filler_stats(self, filler_counts):
-        for filler, count in filler_counts.items():
-            self.filler_counts[filler] = self.filler_counts.get(filler, 0) + count
     
     def update_voice_quality(self, jitter, shimmer, hnr):
         if np.isfinite(jitter):
@@ -618,21 +550,6 @@ def analyze_audio_chunk_fast(pcm_chunk, sample_rate, stats: RunningStatistics, p
         return None
 
 
-def detect_fillers_repetitions(text):
-    fillers = ["um", "uh", "like", "you know", "i mean"]
-    filler_count = 0
-    repetitions = 0
-    words = text.lower().split()
-    
-    for i, word in enumerate(words):
-        if word in fillers:
-            filler_count += 1
-        if i > 0 and words[i] == words[i-1]:
-            repetitions += 1
-            
-    return filler_count, repetitions
-
-
 def calculate_semantic_similarity(answer, expected_answer):
     """
     Calculate TRUE semantic similarity between answer and expected answer.
@@ -725,574 +642,14 @@ def calculate_keyword_coverage(answer, question):
     return coverage
 
 
-def analyze_pitch_comprehensive(audio_path):
-    """Comprehensive pitch analysis"""
-    y, sr = librosa.load(audio_path)
-    f0 = librosa.yin(y, sr=sr, fmin=65, fmax=300, frame_length=512, hop_length=128)
-    f0_voiced = f0[np.isfinite(f0)]
-    
-    if len(f0_voiced) < 10:
-        return {
-            "pitch_mean": 0, "pitch_std": 0, "pitch_min": 0, "pitch_max": 0,
-            "pitch_range": 0, "pitch_stability": 0, "pitch_score": 0,
-            "pitch_feedback": "Insufficient voiced audio for pitch analysis"
-        }
-    
-    pitch_mean = np.mean(f0_voiced)
-    pitch_std = np.std(f0_voiced)
-    pitch_min = np.min(f0_voiced)
-    pitch_max = np.max(f0_voiced)
-    pitch_range = pitch_max - pitch_min
-    pitch_stability = pitch_std / pitch_mean if pitch_mean > 0 else 1.0
-    
-    stability_score = max(0, min(100, 100 * (1 - pitch_stability / 0.5)))
-    
-    if 50 < pitch_range < 300:
-        range_score = 100
-    elif 20 < pitch_range < 400:
-        range_score = 70
-    else:
-        range_score = 30
-    
-    if 100 < pitch_mean < 250:
-        mean_score = 100
-    elif 80 < pitch_mean < 300:
-        mean_score = 80
-    else:
-        mean_score = 40
-    
-    pitch_score = (stability_score * 0.5 + range_score * 0.3 + mean_score * 0.2)
-    
-    feedback_parts = []
-    if pitch_stability > 0.4:
-        feedback_parts.append("pitch varies too much")
-    elif pitch_stability < 0.2:
-        feedback_parts.append("pitch is very stable")
-    
-    pitch_feedback = "Pitch analysis: " + "; ".join(feedback_parts) if feedback_parts else "Pitch is well-modulated"
-    
-    return {
-        "pitch_mean": float(pitch_mean),
-        "pitch_std": float(pitch_std),
-        "pitch_min": float(pitch_min),
-        "pitch_max": float(pitch_max),
-        "pitch_range": float(pitch_range),
-        "pitch_stability": float(pitch_stability),
-        "pitch_score": float(pitch_score),
-        "pitch_feedback": pitch_feedback
-    }
-
-
-def analyze_voice_quality(audio_path):
-    """Analyze voice quality metrics"""
-    y, sr = librosa.load(audio_path)
-    f0 = librosa.yin(y, sr=sr, fmin=65, fmax=300, frame_length=512, hop_length=128)
-    f0_voiced = f0[np.isfinite(f0)]
-    
-    if len(f0_voiced) < 20:
-        return {
-            "jitter": 0, "shimmer": 0, "hnr": 0,
-            "voice_quality_score": 0,
-            "voice_quality_feedback": "Insufficient voiced audio for voice quality analysis"
-        }
-    
-    if len(f0_voiced) > 1:
-        f0_diffs = np.abs(np.diff(f0_voiced))
-        jitter = np.mean(f0_diffs) / np.mean(f0_voiced) if np.mean(f0_voiced) > 0 else 0
-    else:
-        jitter = 0
-    
-    frame_length = int(sr * 0.02)
-    hop_length = int(sr * 0.01)
-    rms = librosa.feature.rms(y=y, frame_length=frame_length, hop_length=hop_length)[0]
-    
-    if len(rms) > 1:
-        rms_diffs = np.abs(np.diff(rms))
-        shimmer = np.mean(rms_diffs) / np.mean(rms) if np.mean(rms) > 0 else 0
-    else:
-        shimmer = 0
-    
-    def calculate_hnr(signal):
-        if len(signal) < 100:
-            return 0
-        signal = signal - np.mean(signal)
-        autocorr = np.correlate(signal, signal, mode='full')
-        autocorr = autocorr[len(autocorr)//2:]
-        peak_idx = np.argmax(autocorr[:len(autocorr)//4])
-        if peak_idx < len(autocorr) - 10:
-            search_start = peak_idx + 5
-            search_end = min(search_start + 50, len(autocorr))
-            noise_floor = np.min(autocorr[search_start:search_end])
-            hnr = 10 * np.log10(autocorr[peak_idx] / noise_floor) if noise_floor > 0 else 0
-        else:
-            hnr = 0
-        return max(0, hnr)
-    
-    hnr_values = []
-    segment_length = int(sr * 0.1)
-    for i in range(0, len(y) - segment_length, segment_length // 2):
-        segment = y[i:i + segment_length]
-        hnr_val = calculate_hnr(segment)
-        if hnr_val > 0:
-            hnr_values.append(hnr_val)
-    
-    hnr = np.mean(hnr_values) if hnr_values else 0
-    
-    jitter_score = max(0, min(100, 100 * (1 - jitter / 0.02)))
-    shimmer_score = max(0, min(100, 100 * (1 - shimmer / 0.1)))
-    hnr_score = max(0, min(100, hnr * 6.67))
-    voice_quality_score = (jitter_score * 0.3 + shimmer_score * 0.3 + hnr_score * 0.4)
-    
-    feedback_parts = []
-    if jitter > 0.015:
-        feedback_parts.append("pitch perturbations detected")
-    if shimmer > 0.08:
-        feedback_parts.append("amplitude variations detected")
-    if hnr < 10:
-        feedback_parts.append("signal has significant background noise")
-    
-    voice_quality_feedback = "Voice quality: " + "; ".join(feedback_parts) if feedback_parts else "Voice quality is clear and stable"
-    
-    return {
-        "jitter": float(jitter),
-        "shimmer": float(shimmer),
-        "hnr": float(hnr),
-        "jitter_score": float(jitter_score),
-        "shimmer_score": float(shimmer_score),
-        "hnr_score": float(hnr_score),
-        "voice_quality_score": float(voice_quality_score),
-        "voice_quality_feedback": voice_quality_feedback
-    }
-
-
-def get_voiced_segments(audio_path, chunk_duration=5.0, overlap=0.5):
-    """Extract voiced segments from audio"""
-    y, sr = librosa.load(audio_path, sr=8000)
-    intervals = librosa.effects.split(y, top_db=20)
-    voiced_segments = []
-    for start_sample, end_sample in intervals:
-        start_time = start_sample / sr
-        end_time = end_sample / sr
-        duration = end_time - start_time
-        if duration >= 0.5:
-            voiced_segments.append((start_time, end_time))
-    return voiced_segments
-
-
-def transcribe_voiced_segments(audio_path, model_name="medium.en"):
-    """Transcribe only the voiced segments"""
-    try:
-        y_full, sr_full = librosa.load(audio_path, sr=16000)
-        voiced_segments = get_voiced_segments(audio_path)
-        if not voiced_segments:
-            return "", []
-        full_transcript = ""
-        segment_details = []
-        model = model_manager.get_model(model_name)
-        for start_time, end_time in voiced_segments:
-            start_sample = int(start_time * sr_full)
-            end_sample = int(end_time * sr_full)
-            segment_audio = y_full[start_sample:end_sample]
-            if len(segment_audio) < sr_full:
-                continue
-            segments, info = model.transcribe(segment_audio, language="en", beam_size=3, vad_filter=False)
-            segment_text = " ".join([seg.text for seg in segments]).strip()
-            if segment_text:
-                full_transcript += segment_text + " "
-                segment_details.append({
-                    'start': start_time,
-                    'end': end_time,
-                    'text': segment_text,
-                    'duration': end_time - start_time
-                })
-        return full_transcript.strip(), segment_details
-    except Exception as e:
-        print(f"Error in voiced segment transcription: {e}")
-        return speech_to_text(audio_path, model_name), []
-
-
-def parallel_analyze_segment(segment_data, model_name="medium.en"):
-    """Analyze a single segment in parallel"""
-    start_time, end_time, segment_audio, sr_full = segment_data
-    results = {
-        'start_time': start_time,
-        'end_time': end_time,
-        'duration': end_time - start_time,
-        'transcript': '',
-        'word_count': 0,
-        'filler_count': 0
-    }
-    try:
-        model = model_manager.get_model(model_name)
-        segments, _ = model.transcribe(segment_audio, language="en", beam_size=3, vad_filter=False)
-        transcript = " ".join([seg.text for seg in segments]).strip()
-        results['transcript'] = transcript
-        results['word_count'] = len(transcript.split()) if transcript else 0
-        if transcript:
-            fillers = ["um", "uh", "like", "you know", "i mean"]
-            filler_count = sum(transcript.lower().count(filler) for filler in fillers)
-            results['filler_count'] = filler_count
-    except Exception as e:
-        print(f"Error analyzing segment {start_time}-{end_time}: {e}")
-    return results
-
-
-def parallel_pitch_analysis(audio_path):
-    """Parallel pitch analysis function"""
-    try:
-        return analyze_pitch_comprehensive(audio_path)
-    except Exception as e:
-        print(f"Parallel pitch analysis failed: {e}")
-        return {
-            "pitch_mean": 0, "pitch_std": 0, "pitch_min": 0, "pitch_max": 0,
-            "pitch_range": 0, "pitch_stability": 0, "pitch_score": 0,
-            "pitch_feedback": "Analysis failed"
-        }
-
-
-def parallel_voice_quality_analysis(audio_path):
-    """Parallel voice quality analysis function"""
-    try:
-        return analyze_voice_quality(audio_path)
-    except Exception as e:
-        print(f"Parallel voice quality analysis failed: {e}")
-        return {
-            "jitter": 0, "shimmer": 0, "hnr": 0,
-            "voice_quality_score": 0,
-            "voice_quality_feedback": "Analysis failed"
-        }
-
-
-def analyze_audio_chunk(audio_chunk, sample_rate, stats):
-    """Analyze a single audio chunk"""
-    chunk_duration = len(audio_chunk) / sample_rate
-    intervals = librosa.effects.split(audio_chunk, top_db=20)
-    speaking_time = sum((end - start) / sample_rate for start, end in intervals)
-    
-    pause_durations = []
-    if len(intervals) > 1:
-        for i in range(len(intervals) - 1):
-            current_end = intervals[i][1] / sample_rate
-            next_start = intervals[i + 1][0] / sample_rate
-            pause_duration = next_start - current_end
-            if pause_duration > 0.1:
-                pause_durations.append(pause_duration)
-    
-    if sample_rate != 8000:
-        chunk_8k = librosa.resample(audio_chunk, orig_sr=sample_rate, target_sr=8000)
-        sr_8k = 8000
-    else:
-        chunk_8k = audio_chunk
-        sr_8k = sample_rate
-    
-    try:
-        f0 = librosa.yin(chunk_8k, sr=sr_8k, fmin=65, fmax=300, frame_length=512, hop_length=128)
-        voiced_f0 = f0[np.isfinite(f0)]
-        if len(voiced_f0) > 0:
-            stats.update_pitch_stats(voiced_f0)
-    except Exception as e:
-        print(f"Pitch analysis failed for chunk: {e}")
-    
-    try:
-        if len(voiced_f0) > 10:
-            jitter = np.std(voiced_f0) / np.mean(voiced_f0) if np.mean(voiced_f0) > 0 else 0
-            rms = librosa.feature.rms(y=chunk_8k, frame_length=256, hop_length=128)[0]
-            shimmer = np.std(rms) / np.mean(rms) if np.mean(rms) > 0 else 0
-            hnr = 10
-            stats.update_voice_quality(jitter, shimmer, hnr)
-    except Exception as e:
-        print(f"Voice quality analysis failed for chunk: {e}")
-    
-    return {
-        'chunk_duration': chunk_duration,
-        'speaking_time': speaking_time,
-        'pause_count': len(pause_durations)
-    }
-
-
-def analyze_interview_response_optimized(audio_path, ideal_answer_text="", ideal_keywords=None, use_large_model=False):
-    """Optimized interview response analysis"""
-    if ideal_keywords is None:
-        ideal_keywords = []
-    
-    model_name = "large-v3" if use_large_model else "medium.en"
-    stats = RunningStatistics()
-    
-    y_full, sr_full = librosa.load(audio_path, sr=16000)
-    voiced_segments = get_voiced_segments(audio_path)
-    
-    if not voiced_segments:
-        return {
-            "transcribed_text": "",
-            "wpm": 0,
-            "pause_ratio": 1.0,
-            "filler_count": 0,
-            "semantic_similarity": 0,
-            "keyword_coverage": 0,
-            "pitch_std": 0,
-            "fluency_score": 0,
-            "clarity_score": 0,
-            "overall_score": 0,
-            "performance_level": "No Speech Detected",
-            "improvement_suggestions": ["Please speak louder and closer to the microphone"]
-        }
-    
-    for start_time, end_time in voiced_segments:
-        start_sample = int(start_time * sr_full)
-        end_sample = int(end_time * sr_full)
-        segment_audio = y_full[start_sample:end_sample]
-        chunk_results = analyze_audio_chunk(segment_audio, sr_full, stats)
-        
-        if len(segment_audio) >= sr_full:
-            try:
-                model = model_manager.get_model(model_name)
-                segments, _ = model.transcribe(segment_audio, language="en", beam_size=3, vad_filter=False)
-                segment_text = " ".join([seg.text for seg in segments]).strip()
-                if segment_text:
-                    stats.update_transcript(segment_text)
-                    filler_count, _ = detect_fillers_repetitions(segment_text)
-                    stats.update_filler_stats({"total": filler_count})
-            except Exception as e:
-                print(f"Transcription failed for segment {start_time}-{end_time}: {e}")
-    
-    final_stats = stats.get_current_stats()
-    transcript = final_stats['transcript']
-    semantic_similarity = calculate_semantic_similarity(transcript, ideal_answer_text) if transcript else 0
-    keyword_coverage = calculate_keyword_coverage(transcript, ideal_keywords) if transcript else 0
-    
-    fluency_results = {
-        'wpm': final_stats['wpm'],
-        'pause_ratio': final_stats['pause_ratio'],
-        'filler_count': sum(stats.filler_counts.values()),
-        'speaking_time': final_stats['speaking_time'],
-        'total_duration': final_stats['total_duration']
-    }
-    
-    pitch_results = {
-        'pitch_mean': final_stats['pitch_mean'],
-        'pitch_std': final_stats['pitch_std'],
-        'pitch_min': final_stats['pitch_min'],
-        'pitch_max': final_stats['pitch_max'],
-        'pitch_range': final_stats['pitch_range']
-    }
-    
-    voice_quality_results = {
-        'jitter': final_stats['avg_jitter'],
-        'shimmer': final_stats['avg_shimmer'],
-        'hnr': final_stats['avg_hnr']
-    }
-    
-    overall_score = compute_overall_score_independent({
-        "semantic_similarity": semantic_similarity,
-        "keyword_coverage": keyword_coverage,
-        "pitch_mean": final_stats["pitch_mean"],
-        "pitch_range": final_stats["pitch_range"],
-        "speaking_time": final_stats["speaking_time"],
-        "total_duration": final_stats["total_duration"]
-    })
-    
-    feedback_data = generate_comprehensive_feedback({
-        "overall_score": overall_score,
-        "semantic_similarity": semantic_similarity,
-        "keyword_coverage": keyword_coverage,
-        "pitch_mean": final_stats["pitch_mean"],
-        "pitch_range": final_stats["pitch_range"],
-        "speaking_time": final_stats["speaking_time"],
-        "total_duration": final_stats["total_duration"]
-    })
-    
-    return {
-        "transcribed_text": transcript,
-        "total_words": final_stats['total_words'],
-        "total_duration": final_stats['total_duration'],
-        "speaking_time": final_stats['speaking_time'],
-        "wpm": fluency_results['wpm'],
-        "pause_ratio": fluency_results['pause_ratio'],
-        "filler_count": fluency_results['filler_count'],
-        "long_pause_count": stats.long_pause_count,
-        "pitch_mean": final_stats['pitch_mean'],
-        "pitch_std": final_stats['pitch_std'],
-        "pitch_range": final_stats['pitch_range'],
-        "pitch_min": final_stats['pitch_min'],
-        "pitch_max": final_stats['pitch_max'],
-        "avg_jitter": final_stats['avg_jitter'],
-        "avg_shimmer": final_stats['avg_shimmer'],
-        "avg_hnr": final_stats['avg_hnr'],
-        "semantic_similarity": semantic_similarity,
-        "keyword_coverage": keyword_coverage,
-        **feedback_data,
-        "processing_method": "optimized_chunked",
-        "model_used": model_name,
-        "voiced_segments_count": len(voiced_segments)
-    }
-
-
 def speech_to_text(audio_path, model_name="medium.en", use_vad=True, min_speech_duration=1000):
-    """Placeholder - actual implementation not needed"""
+    """Placeholder - actual transcription handled by AssemblyAI streamer"""
     pass
-
-
-def fluency_score(results):
-    """Calculate fluency score"""
-    wpm_norm = min(1.0, results['wpm'] / 150)
-    fluency = 100 * (0.4 * wpm_norm + 
-                     0.3 * (1 - results['pause_ratio']) + 
-                     0.2 * (1 - min(1.0, results['filler_count'] / 50)) + 
-                     0.1 * 0.8)
-    return max(0, min(100, fluency))
-
-
-def clarity_score(results, ideal_answer, ideal_keywords):
-    """Calculate clarity score"""
-    clarity = 100 * (0.5 * results['semantic_similarity'] + 
-                     0.3 * results['keyword_coverage'] + 
-                     0.2 * 0.9)
-    return max(0, min(100, clarity))
-
-
-def compute_overall_score_independent(results):
-    """Research-safe overall score using ONLY independent metrics"""
-    semantic_similarity = results.get("semantic_similarity", 0.0)
-    keyword_coverage = results.get("keyword_coverage", 0.0)
-    
-    semantic_score = semantic_similarity * 100
-    keyword_score = keyword_coverage * 100
-    
-    pitch_mean = results.get("pitch_mean", 0.0)
-    pitch_range = results.get("pitch_range", 0.0)
-    
-    if pitch_mean > 0:
-        pitch_stability = 1.0 - min(pitch_range / pitch_mean, 1.0)
-    else:
-        pitch_stability = 0.0
-    
-    pitch_score = pitch_stability * 100
-    
-    speaking_time = results.get("speaking_time", 0.0)
-    total_duration = results.get("total_duration", 0.0)
-    
-    engagement = (speaking_time / total_duration) if total_duration > 0 else 0.0
-    engagement_score = engagement * 100
-    
-    overall_score = (0.40 * semantic_score + 0.30 * keyword_score + 0.15 * pitch_score + 0.15 * engagement_score)
-    
-    return round(overall_score, 2)
-
-
-def generate_comprehensive_feedback(results):
-    """Generate comprehensive qualitative feedback"""
-    overall_score = float(results.get("overall_score", 0.0))
-    
-    if overall_score >= 80:
-        performance_level = "Excellent"
-        performance_feedback = "Your response is clear, confident, and technically strong."
-    elif overall_score >= 70:
-        performance_level = "Good"
-        performance_feedback = "Your response is solid, with minor areas for improvement."
-    elif overall_score >= 60:
-        performance_level = "Fair"
-        performance_feedback = "Your response is understandable but needs refinement."
-    else:
-        performance_level = "Needs Improvement"
-        performance_feedback = "Your response needs clearer structure, content focus, and delivery."
-    
-    detailed_feedback = []
-    semantic_similarity = results.get("semantic_similarity", 0.0)
-    keyword_coverage = results.get("keyword_coverage", 0.0)
-    
-    if semantic_similarity < 0.3:
-        detailed_feedback.append("The answer does not closely address the question asked.")
-    elif semantic_similarity < 0.6:
-        detailed_feedback.append("The answer partially addresses the question but lacks depth.")
-    
-    if keyword_coverage < 0.4:
-        detailed_feedback.append("Many expected technical terms are missing.")
-    elif keyword_coverage < 0.7:
-        detailed_feedback.append("Some important technical terms could be added.")
-    
-    pitch_mean = results.get("pitch_mean", 0.0)
-    pitch_range = results.get("pitch_range", 0.0)
-    
-    if pitch_mean > 0:
-        pitch_variability_ratio = pitch_range / pitch_mean
-        if pitch_variability_ratio > 0.6:
-            detailed_feedback.append("Pitch varies significantly, which may reduce clarity.")
-        elif pitch_variability_ratio < 0.15:
-            detailed_feedback.append("Pitch is very flat; adding variation can improve engagement.")
-    
-    speaking_time = results.get("speaking_time", 0.0)
-    total_duration = results.get("total_duration", 0.0)
-    
-    if total_duration > 0:
-        engagement_ratio = speaking_time / total_duration
-        if engagement_ratio < 0.5:
-            detailed_feedback.append("There are long silent gaps; try to maintain a steadier response.")
-    
-    improvement_suggestions = []
-    
-    if semantic_similarity < 0.5:
-        improvement_suggestions.append("Focus more directly on answering the question.")
-    
-    if keyword_coverage < 0.6:
-        improvement_suggestions.append("Include more relevant technical keywords.")
-    
-    if pitch_mean > 0 and pitch_range / pitch_mean > 0.5:
-        improvement_suggestions.append("Work on maintaining a more consistent pitch.")
-    
-    if total_duration > 0 and speaking_time / total_duration < 0.6:
-        improvement_suggestions.append("Reduce long pauses to improve flow.")
-    
-    improvement_suggestions = improvement_suggestions[:5]
-    
-    return {
-        "overall_score": overall_score,
-        "performance_level": performance_level,
-        "performance_feedback": performance_feedback,
-        "detailed_feedback": detailed_feedback,
-        "improvement_suggestions": improvement_suggestions,
-        "summary": f"Overall Performance: {performance_level} ({overall_score:.1f}/100)"
-    }
-
-
-def analyze_interview_response(audio_file_path, ideal_answer_text, ideal_keywords):
-    """Comprehensive speech analysis"""
-    transcribed_text = speech_to_text(audio_file_path)
-    
-    fluency_results = analyze_fluency_comprehensive(audio_file_path, transcribed_text)
-    pitch_results = analyze_pitch_comprehensive(audio_file_path)
-    voice_quality_results = analyze_voice_quality(audio_file_path)
-    
-    filler_count, repetitions = detect_fillers_repetitions(transcribed_text)
-    semantic_similarity_score = calculate_semantic_similarity(transcribed_text, ideal_answer_text)
-    keyword_coverage_score = calculate_keyword_coverage(transcribed_text, ideal_keywords)
-    
-    results = {
-        "transcribed_text": transcribed_text,
-        **fluency_results,
-        **pitch_results,
-        **voice_quality_results,
-        "filler_count": filler_count,
-        "repetitions": repetitions,
-        "semantic_similarity": semantic_similarity_score,
-        "keyword_coverage": keyword_coverage_score,
-        "fluency_score": fluency_results.get('fluency_score', 0),
-        "clarity_score": clarity_score({
-            'semantic_similarity': semantic_similarity_score,
-            'keyword_coverage': keyword_coverage_score,
-            'filler_count': filler_count
-        }, ideal_answer_text, ideal_keywords)
-    }
-    
-    results["overall_score"] = compute_overall_score_independent(results)
-    feedback_results = generate_comprehensive_feedback(results)
-    results.update(feedback_results)
-    
-    return results
 
 
 def finalize_interview(stats: RunningStatistics, user_answer: str, expected_answer: str) -> dict:
     """FINAL research-safe output"""
-    metrics = stats.compute_research_metrics()  # ← Calls CLASS method now!
+    metrics = stats.compute_research_metrics()
     
     analysis_valid = True
     if stats.total_speaking_time < 3 or stats.total_words < 5:
@@ -1306,7 +663,6 @@ def finalize_interview(stats: RunningStatistics, user_answer: str, expected_answ
         "questions_answered": metrics.get('questions_answered', 0),
         "analysis_valid": analysis_valid
     }
-
 
 if __name__ == '__main__':
     print("Interview Analyzer module loaded and ready.")

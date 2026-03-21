@@ -1,0 +1,64 @@
+self.taxonomy = {
+            "topics": [
+                {
+                    "name": "DBMS",
+                    "subtopics": [
+                        {"name": "DBMS basics", "concepts": ["database", "dbms", "rdbms", "schema", "instance", "data independence"]},
+                        {"name": "ER Modeling", "concepts": ["entity", "attribute", "relationship", "cardinality", "weak entity"]},
+                        {"name": "DBMS Architecture", "concepts": ["three schema architecture", "physical level", "logical level", "view level"]},
+                        {"name": "Entities & Keys", "concepts": ["primary key", "foreign key", "candidate key", "composite key", "referential integrity"]},
+                        {"name": "Normalization", "concepts": ["1NF", "2NF", "3NF", "BCNF", "functional dependency"]},
+                        {"name": "Joins", "concepts": ["inner join", "left join", "right join", "full join", "self join"]},
+                        {"name": "DDL DML DCL TCL", "concepts": ["create", "alter", "drop", "select", "insert", "update", "delete", "grant", "revoke", "commit", "rollback"]},
+                        {"name": "Aggregations", "concepts": ["group by", "having", "count", "sum", "avg", "min", "max"]},
+                        {"name": "Indexing", "concepts": ["B+ tree", "hash index", "clustered index", "non-clustered index"]},
+                        {"name": "ACID", "concepts": ["atomicity", "consistency", "isolation", "durability"]},
+                        {"name": "Isolation Levels", "concepts": ["read committed", "repeatable read", "serializable", "dirty read", "phantom read"]},
+                        {"name": "Locks", "concepts": ["shared lock", "exclusive lock", "two phase locking", "intention lock"]},
+                        {"name": "Deadlocks DBMS", "concepts": ["wait for graph", "deadlock detection", "deadlock prevention", "deadlock avoidance", "transaction deadlock"]},
+                        {"name": "Logging & Recovery", "concepts": ["write ahead logging", "checkpoint", "undo", "redo"]},
+                        {"name": "Query Optimization", "concepts": ["query plan", "execution plan", "cost based optimization"]},
+                        {"name": "Distributed Databases", "concepts": ["replication", "sharding", "two phase commit", "CAP theorem"]},
+                        {"name": "NoSQL", "concepts": ["document store", "key value store", "column family", "graph database"]}
+                    ]
+                },
+                {
+                    "name": "OOPS",
+                    "subtopics": [
+                        {"name": "Classes", "concepts": ["class", "attributes", "methods", "static", "instance"]},
+                        {"name": "Objects", "concepts": ["instantiation", "state", "behavior", "identity"]},
+                        {"name": "Constructors", "concepts": ["default constructor", "parameterized constructor", "copy constructor", "destructor"]},
+                        {"name": "Encapsulation", "concepts": ["data hiding", "private", "public", "protected"]},
+                        {"name": "Inheritance", "concepts": ["single inheritance", "multiple inheritance", "diamond problem"]},
+                        {"name": "Polymorphism", "concepts": ["overloading", "overriding", "runtime polymorphism"]},
+                        {"name": "Abstraction", "concepts": ["abstract class", "interface", "implementation hiding"]},
+                        {"name": "Interfaces", "concepts": ["interface", "implements", "contract"]},
+                        {"name": "Virtual Functions", "concepts": ["virtual function", "vtable", "dynamic binding"]},
+                        {"name": "Object Relationships", "concepts": ["association", "aggregation", "composition"]},
+                        {"name": "Design Patterns", "concepts": ["singleton", "factory", "observer", "strategy"]},
+                        {"name": "Memory Management in OOP", "concepts": ["garbage collection", "memory leak", "smart pointer", "RAII"]}
+                    ]
+                },
+                {
+                    "name": "OS",
+                    "subtopics": [
+                        {"name": "OS basics", "concepts": ["kernel", "user mode", "system software", "resource management"]},
+                        {"name": "Processes", "concepts": ["process state", "PCB", "zombie process", "orphan process"]},
+                        {"name": "Threads", "concepts": ["user thread", "kernel thread", "multithreading"]},
+                        {"name": "CPU Scheduling", "concepts": ["FCFS", "SJF", "round robin", "priority scheduling"]},
+                        {"name": "Process Synchronization", "concepts": ["mutex", "semaphore", "critical section", "monitor"]},
+                        {"name": "Deadlocks OS", "concepts": ["mutual exclusion", "hold and wait", "no preemption", "circular wait", "banker's algorithm", "resource allocation graph"]},
+                        {"name": "Memory Management", "concepts": ["segmentation", "fragmentation", "contiguous allocation"]},
+                        {"name": "Virtual Memory", "concepts": ["page fault", "thrashing", "working set"]},
+                        {"name": "Paging", "concepts": ["page", "frame", "TLB"]},
+                        {"name": "File Systems", "concepts": ["inode", "directory structure", "file allocation"]},
+                        {"name": "Disk Scheduling", "concepts": ["SSTF", "SCAN", "C-SCAN", "LOOK"]},
+                        {"name": "I/O Management", "concepts": ["interrupt", "DMA", "device driver"]},
+                        {"name": "System Calls", "concepts": ["fork", "exec", "wait", "syscall"]},
+                        {"name": "Interprocess Communication", "concepts": ["pipe", "shared memory", "message queue", "socket"]},
+                        {"name": "Networking", "concepts": ["TCP", "UDP", "socket programming"]},
+                        {"name": "Security", "concepts": ["authentication", "authorization", "access control"]}
+                    ]
+                }
+            ]
+        }

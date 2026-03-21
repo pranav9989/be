@@ -38,6 +38,10 @@ export const useInterviewStreaming = (userId) => {
     const audioChunksSentRef = useRef(0);
     const hardStopRef = useRef(false); // 🔥 MASTER KILL SWITCH
 
+    // 🔧 FIX 1: Add refs for stale closure issue
+    const currentTurnRef = useRef(currentTurn);
+    const isFinalizingRef = useRef(isFinalizing);
+    const interviewDoneRef = useRef(interviewDone); // 🔥 ADD THIS REF
 
     // Helper function to clean up audio resources
     const cleanupAudio = useCallback(async () => {
@@ -87,7 +91,7 @@ export const useInterviewStreaming = (userId) => {
     }, []);
 
     const speakWithMurf = useCallback(async (text) => {
-        if (hardStopRef.current || interviewDone) {
+        if (hardStopRef.current || interviewDoneRef.current) {
             console.log('🚫 TTS blocked (interview ended)');
             return;
         }
@@ -197,6 +201,19 @@ export const useInterviewStreaming = (userId) => {
 
     }, [userId, cleanupAudio]);
 
+    // 🔧 FIX 1 (continued): Sync refs with state
+    useEffect(() => {
+        currentTurnRef.current = currentTurn;
+    }, [currentTurn]);
+
+    useEffect(() => {
+        isFinalizingRef.current = isFinalizing;
+    }, [isFinalizing]);
+
+    useEffect(() => {
+        interviewDoneRef.current = interviewDone;
+    }, [interviewDone]);
+
     // Initialize WebSocket connection
     useEffect(() => {
         socketRef.current = io(API_BASE_URL);
@@ -218,21 +235,25 @@ export const useInterviewStreaming = (userId) => {
             console.log('✅ BACKEND READY - Safe to send audio now!');
             backendReadyRef.current = true;
 
-            // Flush any buffered audio (but only if it's user's turn)
-            if (pendingAudioRef.current.length > 0) {
-                console.log(`📤 Flushing ${pendingAudioRef.current.length} buffered audio chunks...`);
-                pendingAudioRef.current.forEach(buffer => {
-                    socketRef.current.emit('audio_chunk', {
-                        user_id: userId,
-                        audio: buffer
-                    });
-                });
-                pendingAudioRef.current = [];
+            // 🔧 FIX: Use ref instead of state for currentTurn check
+            if (pendingAudioRef.current.length > 0 && currentTurnRef.current === 'USER') {
+                console.log("✅ Backend ready — waiting for audio pipeline to flush");
+            } else {
+                console.log("✅ Backend ready — waiting for audio pipeline to flush");
             }
 
             if (currentTurn === 'USER') {
                 setStatus('🎤 Speak now...');
             }
+        });
+
+        // 🔥 NEW: Force stop speaking handler
+        socketRef.current.on("force_stop_speaking", () => {
+            console.log("🛑 Force stop speaking received");
+
+            setIsFinalizing(true);     // 🔥 stops audio immediately
+            setCurrentTurn('INTERVIEWER');
+            setStatus('⏳ Processing your answer...');
         });
 
         // Listen for interview started
@@ -294,30 +315,68 @@ export const useInterviewStreaming = (userId) => {
 
                 audioChunksSentRef.current = 0;
 
+                // 🔧 FIX 2: Use refs in audio handler to avoid stale closure
                 processorRef.current.port.onmessage = (event) => {
                     const float32Samples = event.data;
                     const pcmBuffer = floatTo16BitPCM(float32Samples);
 
+                    // 🔴 HARD STOP (interview ended) - USING REF
+                    if (hardStopRef.current || interviewDoneRef.current) {
+                        return;
+                    }
 
-                    // 🔥 BUFFER audio until backend is ready
+                    // 🔴 Only allow audio during USER turn - USING REFS TO AVOID STALE CLOSURE
+                    if (currentTurnRef.current !== 'USER') {
+                        return;
+                    }
+
+                    // 🔴 Stop after finalization - USING REFS TO AVOID STALE CLOSURE
+                    if (isFinalizingRef.current) {
+                        return;
+                    }
+
+                    // 🔧 FIX 4: Debug log to verify audio flow
+                    console.log("🎤 audio tick", {
+                        turn: currentTurnRef.current,
+                        ready: backendReadyRef.current,
+                        finalizing: isFinalizingRef.current,
+                        bufferSize: pendingAudioRef.current.length
+                    });
+
+                    // 🔥 Buffer until backend ready
                     if (!backendReadyRef.current) {
                         if (pendingAudioRef.current.length < 200) {
                             pendingAudioRef.current.push(pcmBuffer);
                         }
+
                         if (pendingAudioRef.current.length === 1) {
                             console.log('📦 Buffering audio until backend is ready...');
                         }
-                        return; // STOP HERE! Do not send to backend until it signals ready
+
+                        return;
                     }
 
+                    // 🔥 Flush buffer ONCE
+                    if (pendingAudioRef.current.length > 0) {
+                        console.log(`🚀 Flushing ${pendingAudioRef.current.length} buffered chunks`);
+
+                        pendingAudioRef.current.forEach((bufferedChunk) => {
+                            socketRef.current.emit('audio_chunk', {
+                                user_id: userId,
+                                audio: bufferedChunk
+                            });
+                        });
+
+                        pendingAudioRef.current = [];
+                    }
+
+                    // 🔥 Send live audio
                     if (socketRef.current?.connected) {
                         socketRef.current.emit('audio_chunk', {
                             user_id: userId,
                             audio: pcmBuffer
                         });
                     }
-
-
                 };
 
                 // Connect audio nodes
@@ -352,7 +411,7 @@ export const useInterviewStreaming = (userId) => {
 
         // Intro question from agent
         socketRef.current.on("agent_intro_question", async (data) => {
-            if (hardStopRef.current || interviewDone) {
+            if (hardStopRef.current || interviewDoneRef.current) {
                 console.log('🚫 Ignoring agent event (interview ended)');
                 return;
             }
@@ -378,6 +437,7 @@ export const useInterviewStreaming = (userId) => {
 
             // Switch to user's turn
             setCurrentTurn('USER');
+            setIsFinalizing(false);   // 🔥 IMPORTANT RESET
             setStatus('🎤 Your turn - Answer the question...');
             console.log('✅ Switched to USER turn');
         });
@@ -416,7 +476,7 @@ export const useInterviewStreaming = (userId) => {
 
         // Next question from agent
         socketRef.current.on("agent_next_question", async (data) => {
-            if (hardStopRef.current || interviewDone) {
+            if (hardStopRef.current || interviewDoneRef.current) {
                 console.log('🚫 Ignoring agent event (interview ended)');
                 return;
             }
@@ -442,6 +502,7 @@ export const useInterviewStreaming = (userId) => {
 
             // Switch to user's turn
             setCurrentTurn('USER');
+            setIsFinalizing(false);   // 🔥 IMPORTANT RESET
             setStatus('🎤 Your turn - Answer the question...');
             console.log('✅ Switched to USER turn');
         });
@@ -538,7 +599,7 @@ export const useInterviewStreaming = (userId) => {
             cleanupAudio();
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userId]); // Note: We're disabling exhaustive-deps because we handle dependencies manually
+    }, [userId, cleanupAudio, floatTo16BitPCM, stopRecording, updateLiveWPM, speakWithMurf]);
 
     // Track current turn changes
     useEffect(() => {

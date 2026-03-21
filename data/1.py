@@ -255,17 +255,17 @@ class AssemblyAIWebSocketStreamer:
                 
             elif msg_type == "Turn":
                 transcript = data.get('transcript', '')
-                is_final = data.get("end_of_turn", False)
+                formatted = data.get('turn_is_formatted', False)
 
                 if not transcript.strip():
                     return
 
-                if is_final:
-                    print("✅ FINAL TURN:", transcript)
+                if formatted:
+                    # This is a final, formatted transcript
                     self.on_final(transcript)
                 else:
-                    if self.on_partial:
-                        self.on_partial(transcript)
+                    # This is a partial transcript
+                    self.on_partial(transcript)
                     
             elif msg_type == "Termination":
                 audio_duration = data.get('audio_duration_seconds', 0)
