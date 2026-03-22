@@ -1336,7 +1336,7 @@ def start_interview(data):
     vad = VoiceActivityDetector(
         sample_rate=16000,
         frame_ms=30,
-        energy_threshold=0.05,  # 🔥 CHANGED from 0.001 to 0.005 (more sensitive)
+        energy_threshold=0.1,  # 🔥 CHANGED from 0.001 to 0.005 (more sensitive)
         hangover_ms=300,          # 🔥 CHANGED from 200 to 300ms (prevents choppiness)
         min_speech_ms=150         # 🔥 CHANGED from 120 to 150ms
     )
@@ -2977,65 +2977,222 @@ def get_debugging_history():
 @app.route('/api/generate_action_plan', methods=['POST'])
 @jwt_required
 def generate_action_plan():
-    """Generate a personalized study plan based on user's weak concepts and time available."""
+    """Generate a personalized study plan based on comprehensive user data"""
     try:
-        from rag import mistral_generate as ollama_generate
-        
         data = request.get_json() or {}
         days = int(data.get('days', 7))
         selected_topics = data.get('topics', ['General Programming'])
 
-        # Fetch user's weak concepts for the selected topics
-        from rag import mistral_generate as ollama_generate
+        user_id = g.current_user.id
+        
+        # ============================================
+        # 1️⃣ FETCH ALL USER DATA
+        # ============================================
+        
+        # Topic-level mastery
+        masteries = UserMastery.query.filter_by(user_id=user_id).all()
+        
+        # Subtopic-level mastery
+        subtopic_masteries = SubtopicMastery.query.filter_by(user_id=user_id).all()
+        
+        # Recent question history (last 20)
+        recent_questions = QuestionHistory.query.filter_by(user_id=user_id)\
+            .order_by(QuestionHistory.timestamp.desc()).limit(20).all()
+        
+        # Recent interview sessions with metrics
+        recent_sessions = InterviewSession.query.filter_by(
+            user_id=user_id, 
+            session_type='agentic'
+        ).order_by(InterviewSession.created_at.desc()).limit(5).all()
+        
+        # ============================================
+        # 2️⃣ ANALYZE WEAK CONCEPTS
+        # ============================================
+        
         weak_concepts_by_topic = {}
-        masteries = UserMastery.query.filter_by(user_id=g.current_user.id).all()
+        concept_scores = {}
         
         for m in masteries:
             if m.topic in selected_topics:
                 weak_concepts = []
                 concept_data = m.get_concept_masteries()
+                
                 for concept_name, cd in concept_data.items():
-                    if cd.get('mastery_level', 1.0) < 0.6: # Threshold for 'weak'
-                        weak_concepts.append(concept_name)
+                    mastery = cd.get('mastery_level', 1.0)
+                    attempts = cd.get('attempts', 0)
+                    miss_count = cd.get('times_missed_when_sampled', 0)
+                    
+                    # 🔥 More nuanced weakness detection
+                    is_weak = (
+                        (mastery < 0.5) or  # Low mastery
+                        (attempts >= 3 and mastery < 0.6) or  # Struggling after multiple attempts
+                        (miss_count / max(attempts, 1) > 0.7)  # Missed >70% of the time
+                    )
+                    
+                    if is_weak:
+                        weak_concepts.append({
+                            'name': concept_name,
+                            'mastery': mastery,
+                            'attempts': attempts,
+                            'miss_rate': miss_count / max(attempts, 1)
+                        })
+                        concept_scores[concept_name] = mastery
                 
                 if weak_concepts:
                     weak_concepts_by_topic[m.topic] = weak_concepts
-
-        # Format weak concepts string for the prompt
-        weaknesses_str = ""
-        if weak_concepts_by_topic:
-            for topic, concepts in weak_concepts_by_topic.items():
-                weaknesses_str += f"- {topic}: {', '.join(concepts)}\n"
+        
+        # ============================================
+        # 3️⃣ ANALYZE RECENT SESSIONS
+        # ============================================
+        
+        session_metrics = []
+        for session in recent_sessions:
+            if session.speech_metrics:
+                try:
+                    metrics = json.loads(session.speech_metrics)
+                    session_metrics.append({
+                        'date': session.created_at.isoformat(),
+                        'semantic': metrics.get('avg_semantic_similarity', 0),
+                        'keyword': metrics.get('avg_keyword_coverage', 0),
+                        'wpm': metrics.get('wpm', 0),
+                        'speaking_ratio': metrics.get('speaking_ratio_during_turn', 0),
+                        'response_latency': metrics.get('avg_response_latency', 0),
+                        'questions': metrics.get('questions_answered', 0)
+                    })
+                except:
+                    pass
+        
+        # ============================================
+        # 4️⃣ ANALYZE RECENT QUESTIONS
+        # ============================================
+        
+        question_performance = []
+        for q in recent_questions:
+            if q.topic in selected_topics:
+                question_performance.append({
+                    'topic': q.topic,
+                    'subtopic': q.subtopic,
+                    'semantic': q.semantic_score,
+                    'keyword': q.keyword_score,
+                    'difficulty': q.difficulty,
+                    'timestamp': q.timestamp.isoformat()
+                })
+        
+        # ============================================
+        # 5️⃣ CALCULATE TRENDS
+        # ============================================
+        
+        # Calculate if user is improving
+        if len(question_performance) >= 3:
+            recent_scores = [q['semantic'] for q in question_performance[:5]]
+            trend = 'improving' if recent_scores[0] > recent_scores[-1] else 'struggling'
         else:
-            weaknesses_str = "No specific weak concepts identified yet. General review needed for selected topics."
+            trend = 'new_user'
+        
+        # Calculate weak subtopics
+        weak_subtopics = []
+        for st in subtopic_masteries:
+            if st.topic in selected_topics and st.mastery_level < 0.5:
+                weak_subtopics.append({
+                    'topic': st.topic,
+                    'subtopic': st.subtopic,
+                    'mastery': st.mastery_level,
+                    'attempts': st.attempts
+                })
+        
+        # ============================================
+        # 6️⃣ BUILD COMPREHENSIVE PROMPT
+        # ============================================
+        
+        # Format weak concepts nicely
+        weaknesses_str = ""
+        for topic, concepts in weak_concepts_by_topic.items():
+            weaknesses_str += f"\n### {topic}\n"
+            for c in concepts[:5]:  # Top 5 weak concepts
+                weaknesses_str += f"- **{c['name']}**: Mastery {c['mastery']*100:.0f}%, Miss Rate {c['miss_rate']*100:.0f}%\n"
+        
+        # Format session metrics
+        session_str = ""
+        if session_metrics:
+            avg_semantic = sum(s['semantic'] for s in session_metrics) / len(session_metrics)
+            avg_keyword = sum(s['keyword'] for s in session_metrics) / len(session_metrics)
+            avg_wpm = sum(s['wpm'] for s in session_metrics) / len(session_metrics)
+            session_str = f"""
+Recent Session Performance (Last {len(session_metrics)} sessions):
+- Average Semantic Score: {avg_semantic*100:.0f}%
+- Average Keyword Coverage: {avg_keyword*100:.0f}%
+- Average Speaking Rate: {avg_wpm:.0f} WPM
+- Learning Trend: {trend}
+"""
+        
+        # Format weak subtopics
+        subtopic_str = ""
+        if weak_subtopics:
+            subtopic_str = "\nWeak Subtopics to Focus On:\n"
+            for st in weak_subtopics[:5]:
+                subtopic_str += f"- {st['topic']} → {st['subtopic']}: Mastery {st['mastery']*100:.0f}% ({st['attempts']} attempts)\n"
+        
+        # ============================================
+        # 7️⃣ GENERATE PLAN WITH MISTRAL
+        # ============================================
+        
+        prompt = f"""You are an expert technical interviewer and career coach.
+Create a personalized {days}-day study plan for a software engineering candidate.
 
-        print(f"📅 Action Plan requested for {days} days on topics: {selected_topics}")
+**SELECTED TOPICS:**
+{', '.join(selected_topics)}
 
-        # Prompt Ollama to generate a markdown action plan
-        prompt = f"""
-        You are an expert technical interviewer and career coach.
-        Create a personalized {days}-day study plan for a software engineering candidate.
-        
-        The candidate has selected these core topics to study:
-        {', '.join(selected_topics)}
-        
-        Based on their previous interview performance, they have demonstrated weaknesses in these specific technical concepts:
-        {weaknesses_str}
-        
-        Provide a detailed, day-by-day markdown schedule.
-        - The schedule should heavily focus on improving their identified weaknesses.
-        - Include actionable tasks, resource suggestions (e.g., Leetcode, documentation), and conceptual review goals.
-        - Ensure the pace is realistic for {days} days.
-        
-        CRITICAL FORMATTING RULES:
-        1. Return ONLY valid markdown text.
-        2. Do NOT wrap the entire response in ```markdown or any backticks.
-        3. Do NOT use backticks for the title or headers.
-        4. Use standard Markdown headers: # for title, ## for Days, ### for Sessions.
-        5. Use standard bullet points (-) for tasks.
-        6. No introductory or concluding remarks outside the markdown schedule itself.
-        """
-        
+**IDENTIFIED WEAKNESSES FROM ACTUAL INTERVIEW DATA:**
+{weaknesses_str if weaknesses_str else "No specific weak concepts identified yet. General review recommended."}
+
+**RECENT INTERVIEW PERFORMANCE:**
+{session_str if session_str else "No recent session data available."}
+
+**WEAK SUBTOPICS:**
+{subtopic_str if subtopic_str else "No weak subtopics identified."}
+
+**LEARNING TREND:**
+The candidate is currently {trend}.
+
+**TASK:**
+Create a detailed, day-by-day markdown study plan that:
+
+1. **Focuses on the weak concepts listed above** - prioritize the concepts with lowest mastery
+2. **Includes specific resources** (LeetCode problems, documentation links, YouTube tutorials)
+3. **Has realistic daily goals** - not overwhelming, achievable within {days} days
+4. **Incorporates active learning** - practice problems, coding exercises, mock interviews
+5. **Tracks progress** - suggest how to measure improvement
+
+**FORMAT:**
+Return ONLY valid markdown with this structure:
+
+# 📚 {days}-Day Personalized Study Plan
+
+## 📊 Current Performance Summary
+[2-3 sentences summarizing strengths and weaknesses from the data above]
+
+## 🎯 Focus Areas
+- [List of specific concepts to work on]
+
+## 📅 Day-by-Day Schedule
+
+### Day 1: [Topic Name]
+- **Focus:** [Specific concepts]
+- **Activities:**
+  - [ ] Activity 1
+  - [ ] Activity 2
+  - [ ] Activity 3
+- **Resources:** [Links or references]
+
+### Day 2: [Topic Name]
+...
+
+## ✅ Success Metrics
+- How to know you're improving
+- Target scores to aim for
+
+No additional commentary, introductions, or conclusions outside the markdown structure."""
+
         from rag import mistral_generate
         response_text = mistral_generate(prompt, timeout=300)
         
@@ -3044,16 +3201,15 @@ def generate_action_plan():
 
         # Save to database
         try:
-            from models import StudyActionPlan
             plan_record = StudyActionPlan(
-                user_id=g.current_user.id,
+                user_id=user_id,
                 days=days,
-                topics=",".join(selected_topics), # Fixed variable name to selected_topics
+                topics=",".join(selected_topics),
                 plan_markdown=response_text
             )
             db.session.add(plan_record)
             db.session.commit()
-            print(f"✅ Saved Action Plan for user {g.current_user.id}")
+            print(f"✅ Saved Action Plan for user {user_id}")
         except Exception as db_err:
             print(f"[generate_action_plan] DB save non-critical: {db_err}")
 
@@ -3251,13 +3407,31 @@ def get_user_history():
         
         history = []
         for s in sessions:
+            # Parse questions data safely
+            questions_data = {}
+            if s.questions:
+                try:
+                    questions_data = json.loads(s.questions)
+                except (json.JSONDecodeError, TypeError):
+                    questions_data = {}
+            
+            # Parse speech metrics safely
+            speech_metrics = None
+            if s.speech_metrics:
+                try:
+                    speech_metrics = json.loads(s.speech_metrics)
+                except (json.JSONDecodeError, TypeError):
+                    speech_metrics = None
+            
             history.append({
                 'id': s.id,
                 'session_type': s.session_type,
                 'created_at': s.created_at.isoformat(),
                 'score': s.score,
                 'duration': s.duration,
-                'data': json.loads(s.questions) if s.questions else {}
+                'feedback': s.feedback,  # 🔥 CRITICAL: Include coaching feedback
+                'speech_metrics': speech_metrics,  # 🔥 Include speech metrics for analysis
+                'data': questions_data
             })
             
         # 2. Fetch DebuggingSession records (if not filtered out)
@@ -3266,11 +3440,13 @@ def get_user_history():
             debug_sessions = DebuggingSession.query.filter_by(user_id=g.current_user.id).filter(DebuggingSession.count > 0).order_by(DebuggingSession.start_time.desc()).all()
             for ds in debug_sessions:
                 history.append({
-                    'id': f"debug_{ds.id}", # unique ID for frontend
+                    'id': f"debug_{ds.id}",
                     'session_type': 'debugging',
                     'created_at': ds.start_time.isoformat(),
-                    'score': ds.avg_score * 100, # normalized to 100
+                    'score': ds.avg_score * 100,  # normalized to 100
                     'duration': None,
+                    'feedback': ds.summary,  # 🔥 Include debugging session summary as feedback
+                    'speech_metrics': None,  # Debugging sessions don't have speech metrics
                     'data': {
                         'summary': ds.summary,
                         'challenges': [c.to_dict() for c in ds.challenges]
@@ -3283,6 +3459,8 @@ def get_user_history():
         return jsonify({'success': True, 'history': history})
     except Exception as e:
         print(f"Error fetching history: {e}")
+        import traceback
+        traceback.print_exc()
         return jsonify({'success': False, 'error': str(e)}), 500
 
 

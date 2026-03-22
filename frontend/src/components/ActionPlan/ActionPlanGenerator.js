@@ -6,11 +6,11 @@ import './ActionPlanGenerator.css';
 
 const ActionPlanGenerator = () => {
     const [days, setDays] = useState(7);
-    const [selectedTopics, setSelectedTopics] = useState(['General Programming']);
+    const [selectedTopics, setSelectedTopics] = useState(['']);
     const [plan, setPlan] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
-    
+
     // History state
     const [savedPlans, setSavedPlans] = useState([]);
     const [loadingHistory, setLoadingHistory] = useState(false);
@@ -65,16 +65,14 @@ const ActionPlanGenerator = () => {
     }, []);
 
     const availableTopics = [
-        'General Programming',
         'Database Management Systems',
         'Operating Systems',
         'Object-Oriented Programming',
-        'Computer Networks'
     ];
 
     const toggleTopic = (topic) => {
-        setSelectedTopics(prev => 
-            prev.includes(topic) 
+        setSelectedTopics(prev =>
+            prev.includes(topic)
                 ? prev.filter(t => t !== topic)
                 : [...prev, topic]
         );
@@ -122,9 +120,9 @@ const ActionPlanGenerator = () => {
                 <div className="action-plan-controls">
                     <div className="control-group">
                         <label className="control-label">Study Duration (Days)</label>
-                        <input 
-                            type="number" 
-                            min="1" 
+                        <input
+                            type="number"
+                            min="1"
                             max="30"
                             value={days}
                             onChange={(e) => setDays(parseInt(e.target.value) || 7)}
@@ -137,7 +135,7 @@ const ActionPlanGenerator = () => {
                         <div className="topics-list">
                             {availableTopics.map(topic => (
                                 <label key={topic} className="topic-checkbox-label">
-                                    <input 
+                                    <input
                                         type="checkbox"
                                         checked={selectedTopics.includes(topic)}
                                         onChange={() => toggleTopic(topic)}
@@ -149,7 +147,7 @@ const ActionPlanGenerator = () => {
                         </div>
                     </div>
 
-                    <button 
+                    <button
                         onClick={generatePlan}
                         disabled={loading}
                         className="btn-generate"
@@ -205,8 +203,8 @@ const ActionPlanGenerator = () => {
                     <div className="history-list">
                         {savedPlans.map(p => (
                             <div key={p.id} className={`history-item ${expandedPlanId === p.id ? 'expanded' : ''}`}>
-                                <div 
-                                    className="history-item-header" 
+                                <div
+                                    className="history-item-header"
                                     onClick={() => togglePlanExpansion(p.id)}
                                     style={{ cursor: 'pointer' }}
                                 >
@@ -226,7 +224,7 @@ const ActionPlanGenerator = () => {
                                         {p.topics.length > 2 && <span className="topic-tag">+{p.topics.length - 2} more</span>}
                                     </div>
                                 </div>
-                                
+
                                 {expandedPlanId === p.id && (
                                     <div className="history-preview">
                                         <ReactMarkdown remarkPlugins={[remarkGfm]}>{scrubMarkdown(p.plan_markdown)}</ReactMarkdown>

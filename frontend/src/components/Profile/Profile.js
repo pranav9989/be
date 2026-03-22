@@ -77,7 +77,6 @@ const Profile = ({ user, onLogout }) => {
         let totalResponseLatency = 0;
         let totalArticulationRate = 0;
         let totalQuestions = 0;
-        let totalScore = 0;
         let sessionsWithMetrics = 0;
 
         sessions.forEach(session => {
@@ -118,11 +117,6 @@ const Profile = ({ user, onLogout }) => {
           } else if (session.qa_pairs && Array.isArray(session.qa_pairs)) {
             totalQuestions += session.qa_pairs.length;
           }
-
-          // Track total score
-          if (session.score) {
-            totalScore += session.score;
-          }
         });
 
         if (sessionsWithMetrics > 0) {
@@ -142,7 +136,6 @@ const Profile = ({ user, onLogout }) => {
             totalSessions: sessionsWithMetrics,
             totalQuestions: totalQuestions,
             totalPracticeHours: ((avgSpeakingTime + avgSilenceTime) * sessionsWithMetrics) / 3600,
-            avgScore: sessions.length > 0 ? totalScore / sessions.length : 0
           });
 
           console.log('📊 Final aggregated metrics:', {
@@ -473,20 +466,6 @@ const Profile = ({ user, onLogout }) => {
                       {formatPercentage(metrics.overallMastery)}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: '#888' }}>Knowledge across topics</div>
-                  </div>
-                  <div style={{ marginBottom: '1rem' }}>
-                    <div style={{ fontSize: '0.8rem', color: '#ccc', marginBottom: '0.2rem' }}>Semantic Score</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: metrics.avgSemantic > 0.6 ? '#10B981' : '#F59E0B' }}>
-                      {formatPercentage(metrics.avgSemantic)}
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: '#888' }}>Answer relevance</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.8rem', color: '#ccc', marginBottom: '0.2rem' }}>Keyword Coverage</div>
-                    <div style={{ fontSize: '1.5rem', fontWeight: 'bold', color: metrics.avgKeyword > 0.5 ? '#10B981' : '#F59E0B' }}>
-                      {formatPercentage(metrics.avgKeyword)}
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: '#888' }}>Technical terms used</div>
                   </div>
                 </div>
 
