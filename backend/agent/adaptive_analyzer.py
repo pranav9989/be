@@ -1,14 +1,12 @@
 # backend/agent/adaptive_analyzer.py
 
 import re
-from typing import List, Set, Dict, Tuple
-import numpy as np
+from typing import List, Set, Tuple
 import requests
-import os
-from sentence_transformers import SentenceTransformer, util
+from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
-from interview_analyzer import calculate_semantic_similarity
-from rag import agentic_expected_answer, retrieve_relevant_chunks
+from interview_analyzer import calculate_semantic_similarity, calculate_keyword_coverage, TECH_KEYWORDS
+from rag import retrieve_relevant_chunks, detect_topic_via_rag  # 🔥 ADD THIS IMPORT
 
 # Ollama configuration
 OLLAMA_URL = "http://localhost:11434/api/generate"
@@ -53,30 +51,6 @@ def semantic_concept_match(answer: str, concept: str, threshold: float = 0.65):
 class AdaptiveAnalyzer:
     """Enhanced analyzer with adaptive learning signals"""
     
-    # Technical keywords by topic for concept extraction
-    TECH_KEYWORDS = {
-        'DBMS': [
-            'database', 'sql', 'query', 'index', 'transaction', 'acid', 
-            'normalization', 'join', 'primary key', 'foreign key', 'schema', 
-            'table', 'bcnf', '3nf', 'redundancy', 'anomaly', 'lock',
-            'deadlock', 'concurrency', 'rollback', 'commit', 'logging'
-        ],
-        'OS': [
-            'process', 'thread', 'memory', 'deadlock', 'scheduling', 
-            'virtual memory', 'kernel', 'system call', 'context switch', 
-            'semaphore', 'mutex', 'paging', 'segmentation', 'fifo', 'lru',
-            'race condition', 'critical section', 'monitor', 'dining philosophers'
-        ],
-        'OOPS': [
-            'class', 'object', 'inheritance', 'polymorphism', 'encapsulation', 
-            'abstraction', 'interface', 'method', 'constructor', 'destructor',
-            'overloading', 'overriding', 'virtual function', 'abstract class',
-            'multiple inheritance', 'diamond problem', 'composition', 'aggregation'
-        ]
-    }
-    
-    # Add class-level variables for semantic detection
-    embedder = SentenceTransformer("all-MiniLM-L6-v2")
     concept_similarity_threshold = 0.65
     
     # Difficulty indicators
@@ -100,46 +74,6 @@ class AdaptiveAnalyzer:
         'sort of', 'kind of', 'approximately'
     ]
     
-    @classmethod
-    def _concept_in_answer(cls, concept: str, answer_lower: str) -> bool:
-        """
-        INVARIANT 1: Detect concept with synonym support
-        Used for concept mastery tracking (legacy method, kept for compatibility)
-        """
-        concept_lower = concept.lower()
-        
-        # Direct match
-        if concept_lower in answer_lower:
-            return True
-        
-        # Multi-word concept without spaces
-        if ' ' in concept_lower:
-            concept_no_space = concept_lower.replace(' ', '')
-            answer_no_space = answer_lower.replace(' ', '')
-            if concept_no_space in answer_no_space:
-                return True
-        
-        # Synonym mapping
-        synonyms = {
-            'mutex': ['mutex', 'mutual exclusion', 'lock'],
-            'semaphore': ['semaphore', 'counting semaphore', 'binary semaphore'],
-            'critical section': ['critical section', 'critical region'],
-            'deadlock': ['deadlock', 'deadly embrace'],
-            'process': ['process', 'task'],
-            'thread': ['thread', 'lightweight process'],
-            'primary key': ['primary key', 'primary-key', 'pk'],
-            'foreign key': ['foreign key', 'foreign-key', 'fk'],
-            'avoidance': ['banker', 'safe state', 'avoidance'],
-            'prevention': ['prevention', 'prevent'],
-            'detection': ['detection', 'detect', 'wait-for graph']
-        }
-        
-        if concept_lower in synonyms:
-            for synonym in synonyms[concept_lower]:
-                if synonym in answer_lower:
-                    return True
-        
-        return False
     
     @classmethod
     def detect_concepts_semantically(cls, answer: str, sampled_concepts: List[str]) -> Tuple[List[str], List[str]]:
@@ -201,16 +135,16 @@ class AdaptiveAnalyzer:
             if term in text.lower():
                 multi_word_terms.append(term)
         
-        if topic and topic in cls.TECH_KEYWORDS:
+        if topic and topic in TECH_KEYWORDS:
             # Filter by topic-specific keywords
-            topic_keywords = set(cls.TECH_KEYWORDS[topic])
+            topic_keywords = set(TECH_KEYWORDS[topic])
             result = words.intersection(topic_keywords).union(multi_word_terms)
             print(f"🔑 Extracted {len(result)} keywords for topic {topic}")
             return result
         
         # Return all technical keywords from any topic
         all_keywords = set()
-        for kw_list in cls.TECH_KEYWORDS.values():
+        for kw_list in TECH_KEYWORDS.values():
             all_keywords.update(kw_list)
         
         result = words.intersection(all_keywords).union(multi_word_terms)
@@ -278,21 +212,6 @@ class AdaptiveAnalyzer:
         print(f"🎯 Confidence assessment: {confidence} (confident: {confident_count}, hesitant: {hesitant_count})")
         return confidence
     
-    @classmethod
-    def identify_missing_concepts(cls, answer: str, expected_concepts: Set[str]) -> List[str]:
-        """Identify which expected concepts are missing (legacy method)"""
-        if not expected_concepts:
-            return []
-        
-        answer_lower = answer.lower()
-        missing = []
-        
-        for concept in expected_concepts:
-            if concept not in answer_lower:
-                missing.append(concept)
-        
-        print(f"🔍 Legacy missing concepts: {missing[:5]}")
-        return missing[:5]  # Return top 5 missing concepts
     
     @classmethod
     def generate_rag_expected_answer(cls, question: str, concepts: List[str]) -> str:
@@ -427,6 +346,36 @@ Expected answer:"""
         return missing_points[:3]
 
     @classmethod
+    def _detect_topic_from_question(cls, question: str, provided_topic: str = None) -> str:
+        """
+        Detect topic from question using RAG voting or fallback to provided topic
+        """
+        # If topic is provided and valid, use it
+        if provided_topic and provided_topic in TECH_KEYWORDS:
+            print(f"   📍 Using provided topic: {provided_topic}")
+            return provided_topic
+        
+        # Try RAG-based topic detection
+        try:
+            detected_topic, confidence = detect_topic_via_rag(question)
+            if detected_topic and confidence > 0.5:
+                print(f"   📍 RAG detected topic: {detected_topic} (confidence: {confidence:.2f})")
+                return detected_topic
+        except Exception as e:
+            print(f"   ⚠️ RAG topic detection failed: {e}")
+        
+        # Fallback: keyword-based detection
+        q_lower = question.lower()
+        for topic_name, keywords in TECH_KEYWORDS.items():
+            if any(kw in q_lower for kw in keywords):
+                print(f"   📍 Keyword-based detection: {topic_name}")
+                return topic_name
+        
+        # Default fallback
+        print(f"   📍 No topic detected, defaulting to DBMS")
+        return "DBMS"
+
+    @classmethod
     def analyze(cls, question: str, answer: str, topic: str = None, 
                 subtopic: str = None, question_bank = None,
                 expected_answer: str = None) -> dict:
@@ -439,7 +388,11 @@ Expected answer:"""
         print("📊 ADAPTIVE ANALYZER")
         print("█"*80)
         print(f"   Question: {question[:100]}..." if len(question) > 100 else f"   Question: {question}")
-        print(f"   Topic: {topic}, Subtopic: {subtopic}")
+        print(f"   Provided Topic: {topic}, Provided Subtopic: {subtopic}")
+        
+        # 🔥 FIX: Detect topic if not provided
+        detected_topic = cls._detect_topic_from_question(question, topic)
+        print(f"   🎯 FINAL TOPIC FOR ANALYSIS: {detected_topic}")
         
         if not answer or not answer.strip() or len(answer.strip()) < 5:
             print(f"⚠️ Empty or very short answer detected, returning zeros")
@@ -460,12 +413,11 @@ Expected answer:"""
             }
         
         # Extract keywords
-        key_terms = list(cls.extract_keywords(answer, topic))
-        expected_keywords = cls.extract_keywords(question, topic)
+        key_terms = list(cls.extract_keywords(answer, detected_topic))
+        expected_keywords = cls.extract_keywords(question, detected_topic)
         
-        # Calculate RAW coverage
-        from interview_analyzer import calculate_keyword_coverage
-        keyword_coverage = calculate_keyword_coverage(answer, question)
+        # 🔥 FIX: Pass topic to calculate_keyword_coverage!
+        keyword_coverage = calculate_keyword_coverage(answer, question, detected_topic)
         print(f"📊 Keyword coverage: {keyword_coverage:.3f}")
         
         depth = cls.assess_depth(answer)
@@ -476,9 +428,9 @@ Expected answer:"""
         covered = []
         sampled_concepts = []
         
-        if topic and subtopic and question_bank:
+        if detected_topic and subtopic and question_bank:
             # Get the EXACT concepts for this subtopic from the taxonomy
-            subtopic_concepts = cls.get_subtopic_concepts(topic, subtopic, question_bank)
+            subtopic_concepts = cls.get_subtopic_concepts(detected_topic, subtopic, question_bank)
             sampled_concepts = list(subtopic_concepts) if subtopic_concepts else []
             
             if subtopic_concepts:
@@ -496,14 +448,16 @@ Expected answer:"""
                 if missing:
                     print(f"   ✗ Missing: {missing[:5]}")
             else:
-                # Fallback to old method if subtopic concepts not found
+                # Fallback to keyword-based detection
                 print(f"⚠️ No subtopic concepts found, using keyword-based fallback")
-                missing = cls.identify_missing_concepts(answer, expected_keywords)
+                answer_lower = answer.lower()
+                missing = [c for c in expected_keywords if c not in answer_lower]
                 covered = [c for c in expected_keywords if c not in missing]
         else:
-            # Fallback to old method
-            print(f"⚠️ Missing topic/subtopic/question_bank, using keyword-based fallback")
-            missing = cls.identify_missing_concepts(answer, expected_keywords)
+            # Fallback to keyword-based detection
+            print(f"⚠️ Missing subtopic/question_bank, using keyword-based fallback")
+            answer_lower = answer.lower()
+            missing = [c for c in expected_keywords if c not in answer_lower]
             covered = [c for c in expected_keywords if c not in missing]
         
         # Check for examples
@@ -541,7 +495,6 @@ Expected answer:"""
         semantic_similarity = 0.0
         if final_expected_answer and final_expected_answer.strip():
             try:
-                from interview_analyzer import calculate_semantic_similarity
                 semantic_similarity = calculate_semantic_similarity(answer, final_expected_answer)
                 print(f"📊 Semantic similarity calculated: {semantic_similarity:.3f}")
             except Exception as e:
