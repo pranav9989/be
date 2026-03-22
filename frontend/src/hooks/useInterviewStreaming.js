@@ -532,9 +532,12 @@ export const useInterviewStreaming = (userId) => {
             updateLiveWPM(data.text);
         });
 
-        // Listen for interview completion
+        // In useInterviewStreaming.js, find the interview_complete handler (around line 350)
+
         socketRef.current.on('interview_complete', (data) => {
             console.log('🎯 Interview complete with metrics:', data);
+            console.log('🔑 Session ID from event:', data.session_id);  // DEBUG LOG
+
             setIsFinalizing(false);
             setInterviewDone(true);
             setIsRecording(false);
@@ -552,12 +555,12 @@ export const useInterviewStreaming = (userId) => {
                 console.log('📊 Metrics received:', data.metrics);
             }
 
-            // Process analysis
+            // Process analysis - ENSURE session_id is included
             if (data.success) {
                 console.log('✅ Analysis completed with metrics');
                 setAnalysis({
                     ...data,
-                    // Ensure we have audio path for display
+                    session_id: data.session_id,  // 🔥 EXPLICITLY SET THIS
                     audio_saved: data.audio_saved || false,
                     audio_filepath: data.audio_filepath || null
                 });

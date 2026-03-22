@@ -1179,6 +1179,7 @@ def stop_interview(data, sid=None):
         }
 
         # 6️⃣ SAVE TO DATABASE - Store the unified metrics
+        saved_session_id = None  # 🔥 ADD THIS LINE - Store the session ID from DB
         with app.app_context():
             try:
                 from models import db, InterviewSession
@@ -1234,7 +1235,10 @@ def stop_interview(data, sid=None):
                 )
                 db.session.add(session_record)
                 db.session.commit()
-                print(f"   ✅ Agentic Voice session {session_record.id} saved to DB for user {user_id}")
+                
+                # 🔥 CRITICAL: Store the session ID
+                saved_session_id = session_record.id
+                print(f"   ✅ Agentic Voice session {saved_session_id} saved to DB for user {user_id}")
                 
             except Exception as db_err:
                 db.session.rollback()
@@ -1242,10 +1246,15 @@ def stop_interview(data, sid=None):
                 import traceback
                 traceback.print_exc()
 
-        # 7️⃣ Emit unified results to frontend
+        # 7️⃣ Emit unified results to frontend - WITH SESSION ID
         print(f"\n📡 Emitting interview_complete to room: {room}")
+        
+        # 🔥 CRITICAL: Add session ID to the results
+        analysis_results['session_id'] = saved_session_id
+        analysis_results['session_db_id'] = saved_session_id  # Alternative name for clarity
+        
         socketio.emit('interview_complete', analysis_results, room=room)
-        print(f"✅ Interview stopped for user {user_id} — FINAL metrics delivered")
+        print(f"✅ Interview stopped for user {user_id} — FINAL metrics delivered (session_id: {saved_session_id})")
 
         # 8️⃣ Cleanup session data
         session_data["user_audio_chunks"] = []
@@ -3344,6 +3353,210 @@ def get_interview_history():
 
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}), 500
+
+# ============================================================
+#  INTERVIEW RESULTS (Combined Metrics + Coaching)
+# ============================================================
+
+@app.route('/api/interview_results', methods=['POST'])
+@jwt_required
+def get_interview_results():
+    """
+    Get both metrics AND coaching feedback in one call
+    """
+    try:
+        data = request.get_json()
+        session_id = data.get('session_id')
+        
+        if not session_id:
+            return jsonify({'error': 'session_id is required'}), 400
+        
+        # Get session from DB
+        session = InterviewSession.query.filter_by(
+            id=session_id,
+            user_id=g.current_user.id
+        ).first()
+        
+        if not session:
+            return jsonify({'error': 'Session not found'}), 404
+        
+        # Load metrics
+        metrics = {}
+        if session.speech_metrics:
+            metrics = json.loads(session.speech_metrics)
+        
+        # Check if coaching already exists
+        if session.feedback and session.feedback.strip():
+            return jsonify({
+                'success': True,
+                'metrics': metrics,
+                'coaching_feedback': session.feedback,
+                'cached': True
+            })
+        
+        # ============================================
+        # Load Q&A data to extract missing concepts
+        # ============================================
+        
+        qa_data = {}
+        if session.questions:
+            qa_data = json.loads(session.questions)
+        
+        # Extract missing concepts from evaluations
+        missing_concepts = []
+        evaluations = qa_data.get('evaluations', {})
+        for idx, eval_data in evaluations.items():
+            improvements = eval_data.get('improvements', '')
+            if improvements and improvements not in ['Focus on key terms', 'Needs more detail']:
+                missing_concepts.append(improvements)
+        
+        # Get missing concepts from question history
+        from models import QuestionHistory
+        question_history = QuestionHistory.query.filter_by(
+            user_id=g.current_user.id,
+            session_id=session_id
+        ).order_by(QuestionHistory.timestamp.desc()).limit(10).all()
+        
+        for qh in question_history:
+            missing = qh.get_missing_concepts()
+            if missing:
+                missing_concepts.extend(missing)
+        
+        missing_concepts = list(dict.fromkeys(missing_concepts))[:5]
+        
+        # Get weak concepts from mastery
+        masteries = UserMastery.query.filter_by(user_id=g.current_user.id).all()
+        weak_concepts = []
+        for m in masteries:
+            weak_concepts.extend(m.get_weak_concepts())
+        weak_concepts = list(dict.fromkeys(weak_concepts))[:5]
+        
+        # ============================================
+        # Extract metrics with defaults
+        # ============================================
+        
+        pitch_stability = metrics.get('pitch_stability', 50)
+        wpm = metrics.get('wpm', 0)
+        speaking_ratio = metrics.get('speaking_ratio_during_turn', 0.5) * 100
+        semantic_similarity = metrics.get('semantic_similarity', 0.5) * 100
+        keyword_coverage = metrics.get('keyword_coverage', 0.5) * 100
+        response_latency = metrics.get('avg_response_latency', 1.5)
+        pause_count = metrics.get('pause_count', 0)
+        long_pauses = metrics.get('long_pause_count', 0)
+        total_questions = metrics.get('questions_answered', 0)
+        
+        # Determine issues for prompting
+        if pitch_stability < 50:
+            pitch_issue = "high variation (nervousness)"
+        elif pitch_stability < 70:
+            pitch_issue = "moderate variation"
+        else:
+            pitch_issue = "good stability"
+        
+        if wpm > 0:
+            if wpm < 100:
+                wpm_issue = "too slow (may appear uncertain)"
+            elif wpm < 120:
+                wpm_issue = "slightly slow"
+            elif wpm > 180:
+                wpm_issue = "too fast (may reduce comprehension)"
+            elif wpm > 160:
+                wpm_issue = "slightly fast"
+            else:
+                wpm_issue = "optimal"
+        else:
+            wpm_issue = "not enough data"
+        
+        if speaking_ratio < 55:
+            ratio_issue = "too low (excessive silence)"
+        elif speaking_ratio < 65:
+            ratio_issue = "slightly low"
+        elif speaking_ratio > 85:
+            ratio_issue = "too high (dominating conversation)"
+        elif speaking_ratio > 75:
+            ratio_issue = "slightly high"
+        else:
+            ratio_issue = "optimal"
+        
+        # ============================================
+        # Build prompt for Mistral
+        # ============================================
+        
+        prompt = f"""You are an expert interview coach. Based on the candidate's performance metrics below, provide SPECIFIC, ACTIONABLE coaching feedback.
+
+SESSION SUMMARY:
+- Questions Answered: {total_questions}
+- Session Duration: {metrics.get('session_duration', 0):.0f} seconds
+
+VOCAL DELIVERY METRICS:
+- Pitch Stability: {pitch_stability:.0f}% ({pitch_issue})
+- Speaking Rate (WPM): {wpm:.0f} words/minute ({wpm_issue})
+- Optimal: 140-160 wpm for technical interviews
+
+RESPONSE FLOW METRICS:
+- Speaking Ratio: {speaking_ratio:.0f}% ({ratio_issue})
+- Optimal: 65-75% (candidates should speak most of the turn)
+- Response Latency: {response_latency:.1f}s (optimal: 0.5-2.0s)
+- Pause Count: {pause_count}
+- Long Pauses (>5s): {long_pauses}
+
+CONTENT QUALITY METRICS:
+- Semantic Similarity: {semantic_similarity:.0f}% (alignment with ideal answer)
+- Keyword Coverage: {keyword_coverage:.0f}% (technical term usage)
+- Optimal: >70% for strong answers
+
+MISSING TECHNICAL CONCEPTS:
+{chr(10).join([f"- {c}" for c in missing_concepts]) if missing_concepts else "- None identified (good technical coverage!)"}
+
+WEAK CONCEPTS TO REVIEW:
+{chr(10).join([f"- {c}" for c in weak_concepts]) if weak_concepts else "- No weak concepts identified"}
+
+TASK:
+Generate personalized coaching feedback in the format below. Be SPECIFIC and ACTIONABLE. Do NOT just restate metrics. Give concrete exercises.
+
+## 🗣️ VOCAL DELIVERY COACHING
+[1-2 sentences explaining the issue based on pitch stability and speaking rate]
+[3 bullet points with specific exercises/actions]
+
+## 📚 TECHNICAL CONTENT COACHING
+[1-2 sentences explaining the issue based on semantic similarity and keyword coverage]
+[3 bullet points with specific concepts to review and practice techniques]
+
+## ⏱️ RESPONSE FLOW COACHING
+[1-2 sentences explaining the issue based on speaking ratio, pauses, and response latency]
+[3 bullet points with specific techniques to improve flow]
+
+## 🎯 PRACTICE EXERCISES
+[3 specific exercises the candidate can do to improve]
+- Exercise 1: [description]
+- Exercise 2: [description]  
+- Exercise 3: [description]
+
+Return ONLY the coaching feedback in the format above. No additional commentary."""
+
+        from rag import mistral_generate
+        coaching_text = mistral_generate(prompt, timeout=60)
+        
+        if not coaching_text:
+            raise Exception("Mistral failed to generate coaching feedback")
+        
+        # Store in DB
+        session.feedback = coaching_text
+        db.session.commit()
+        
+        return jsonify({
+            'success': True,
+            'metrics': metrics,
+            'coaching_feedback': coaching_text,
+            'weak_concepts': weak_concepts[:3],
+            'missing_concepts': missing_concepts[:3]
+        })
+        
+    except Exception as e:
+        print(f"❌ Error getting interview results: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/resume/gap-analysis', methods=['POST'])
 @jwt_required

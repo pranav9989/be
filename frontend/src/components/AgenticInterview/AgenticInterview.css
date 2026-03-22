@@ -1278,3 +1278,228 @@
     font-size: 1.75rem;
   }
 }
+
+.coaching-section-wrapper {
+  margin-bottom: 2rem;
+  background: var(--bg-card);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.coaching-feedback-container {
+  padding: 1.5rem;
+}
+
+.coaching-feedback-container h2 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0 0 0.5rem 0;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.coaching-feedback-container h2::before {
+  content: "🎯";
+  font-size: 1.3rem;
+}
+
+.coaching-intro {
+  color: var(--text-secondary);
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+  line-height: 1.6;
+  border-left: 3px solid var(--accent-gold);
+  padding-left: 1rem;
+  background: var(--bg-secondary);
+  border-radius: 0 8px 8px 0;
+  padding: 0.75rem 1rem;
+}
+
+/* Individual coaching sections */
+.coaching-section {
+  margin-bottom: 1.25rem;
+  background: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--border);
+  transition: all 0.2s ease;
+}
+
+.coaching-section:hover {
+  border-color: rgba(212, 168, 83, 0.3);
+  transform: translateX(2px);
+}
+
+.coaching-section-title {
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 0.875rem;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 0.5rem;
+}
+
+.coaching-icon {
+  font-size: 1.1rem;
+  width: 28px;
+  display: inline-block;
+}
+
+/* Content text */
+.coaching-text {
+  color: var(--text-secondary);
+  line-height: 1.65;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+}
+
+/* Bullet points - matching existing metric item style */
+.coaching-bullet {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 0.625rem;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.bullet-marker {
+  color: var(--accent-gold);
+  font-weight: bold;
+  font-size: 0.875rem;
+  min-width: 22px;
+  text-align: center;
+}
+
+.bullet-text {
+  color: var(--text-secondary);
+  line-height: 1.55;
+  flex: 1;
+  font-size: 0.875rem;
+}
+
+/* Loading spinner - matching theme */
+.coaching-loading {
+  text-align: center;
+  padding: 2.5rem;
+  background: var(--bg-card);
+  border-radius: 14px;
+  border: 1px solid var(--border);
+  margin-bottom: 1.5rem;
+}
+
+.spinner {
+  width: 48px;
+  height: 48px;
+  border: 3px solid var(--border);
+  border-top-color: var(--accent-gold);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.coaching-loading p {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* Error state */
+.coaching-error {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+  color: #EF4444;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+/* Success/positive feedback */
+.coaching-success {
+  background: rgba(74, 222, 128, 0.08);
+  border: 1px solid rgba(74, 222, 128, 0.25);
+  border-radius: 12px;
+  padding: 1rem;
+  text-align: center;
+  color: #4ADE80;
+  margin-bottom: 1.5rem;
+  font-size: 0.875rem;
+}
+
+/* Make sure all colors use CSS variables */
+.coaching-section-wrapper,
+.coaching-feedback-container,
+.coaching-section,
+.coaching-loading {
+  background: var(--bg-card);
+}
+
+.coaching-text,
+.bullet-text {
+  color: var(--text-secondary);
+}
+
+.coaching-section-title {
+  color: var(--text-primary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .coaching-feedback-container {
+    padding: 1rem;
+  }
+
+  .coaching-section {
+    padding: 0.875rem 1rem;
+  }
+
+  .coaching-bullet {
+    gap: 0.5rem;
+  }
+
+  .bullet-marker {
+    min-width: 20px;
+  }
+}
+
+/* Animation for new feedback appearing */
+.coaching-section-wrapper {
+  animation: fadeInUp 0.4s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Optional: Add a subtle gradient to section titles */
+.coaching-section-title::after {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--accent-gold), transparent);
+  margin-top: 0.5rem;
+}

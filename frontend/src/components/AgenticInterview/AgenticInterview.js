@@ -41,6 +41,9 @@ const AgenticInterview = ({ user, onLogout }) => {
     const [started, setStarted] = useState(false);
     const [showMetrics, setShowMetrics] = useState(false);
     const [expandedQA, setExpandedQA] = useState({});
+    const [coachingFeedback, setCoachingFeedback] = useState(null);
+    const [loadingCoaching, setLoadingCoaching] = useState(false);
+    const [sessionId, setSessionId] = useState(null);
     const [persona] = useState(() => getPersona(getSessionCount()));
     const chatBoxRef = useRef(null);
 
@@ -51,16 +54,63 @@ const AgenticInterview = ({ user, onLogout }) => {
         }
     }, [messages, liveTranscript]);
 
-    // Show metrics when interview is done
+    // Extract session ID from analysis when interview is done
     useEffect(() => {
-        if (interviewDone && analysis) {
-            setShowMetrics(true);
+        if (interviewDone && analysis && analysis.session_id) {
+            setSessionId(analysis.session_id);
         }
     }, [interviewDone, analysis]);
+
+    useEffect(() => {
+        const fetchInterviewResults = async () => {
+            if (sessionId && !coachingFeedback && !loadingCoaching) {
+                setLoadingCoaching(true);
+                try {
+                    const token = localStorage.getItem('token');
+                    // 🔥 FIX: Use full backend URL instead of relative path
+                    const response = await fetch('http://localhost:5000/api/interview_results', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${token}`
+                        },
+                        body: JSON.stringify({ session_id: sessionId })
+                    });
+
+                    const data = await response.json();
+                    if (data.success) {
+                        setCoachingFeedback(data.coaching_feedback);
+                        if (data.metrics) {
+                            console.log('Metrics from combined endpoint:', data.metrics);
+                        }
+                    } else {
+                        console.error('Failed to fetch results:', data.error);
+                    }
+                } catch (err) {
+                    console.error('Error fetching interview results:', err);
+                } finally {
+                    setLoadingCoaching(false);
+                }
+            }
+        };
+
+        fetchInterviewResults();
+    }, [sessionId, coachingFeedback, loadingCoaching]);
+
+    // Add this after your existing useEffects (around line 45)
+
+    useEffect(() => {
+        console.log('🔍 DEBUG: interviewDone =', interviewDone);
+        console.log('🔍 DEBUG: analysis =', analysis);
+        console.log('🔍 DEBUG: analysis.session_id =', analysis?.session_id);
+        console.log('🔍 DEBUG: sessionId state =', sessionId);
+    }, [interviewDone, analysis, sessionId]);
 
     const startAgenticInterview = async () => {
         setStarted(true);
         setShowMetrics(false);
+        setCoachingFeedback(null);
+        setSessionId(null);
         startRecording(false);
     };
 
@@ -183,6 +233,56 @@ const AgenticInterview = ({ user, onLogout }) => {
                         <p className="metrics-persona-role">{persona.title} · {persona.company}</p>
                     </div>
                 </div>
+
+                {/* COACHING FEEDBACK SECTION - FIXED */}
+                {(coachingFeedback || loadingCoaching) && (
+                    <div className="coaching-section-wrapper">
+                        {loadingCoaching ? (
+                            <div className="coaching-loading">
+                                <div className="spinner"></div>
+                                <p>Generating personalized coaching feedback...</p>
+                            </div>
+                        ) : coachingFeedback ? (
+                            <div className="coaching-feedback-container">
+                                <h2>🎯 Personalized Coaching Feedback</h2>
+                                <p className="coaching-intro">
+                                    Based on your performance, here are specific, actionable recommendations to improve your interview skills.
+                                </p>
+
+                                {coachingFeedback.split(/\n(?=## )/).map((section, idx) => {
+                                    const lines = section.split('\n');
+                                    const title = lines[0];
+                                    const content = lines.slice(1).join('\n');
+                                    const iconMatch = title.match(/[🗣️📚⏱️🎯]/);
+                                    const icon = iconMatch ? iconMatch[0] : '📌';
+
+                                    return (
+                                        <div key={idx} className="coaching-section">
+                                            <h3 className="coaching-section-title">
+                                                <span className="coaching-icon">{icon}</span>
+                                                {title.replace(/^## /, '').replace(/[🗣️📚⏱️🎯]/g, '').trim()}
+                                            </h3>
+                                            <div className="coaching-section-content">
+                                                {content.split('\n').map((line, i) => {
+                                                    if (!line.trim()) return null;
+                                                    if (line.trim().startsWith('-') || line.trim().startsWith('*')) {
+                                                        return (
+                                                            <div key={i} className="coaching-bullet">
+                                                                <span className="bullet-marker">✓</span>
+                                                                <span className="bullet-text">{line.replace(/^[-*]\s*/, '').trim()}</span>
+                                                            </div>
+                                                        );
+                                                    }
+                                                    return <p key={i} className="coaching-text">{line}</p>;
+                                                })}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        ) : null}
+                    </div>
+                )}
 
                 <h3>📊 Research-Grade Interview Analysis</h3>
 

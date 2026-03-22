@@ -57,6 +57,7 @@ class InterviewSession(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     completed_at = db.Column(db.DateTime, nullable=True)
     speech_metrics = db.Column(db.Text, nullable=True)  # JSON with research-grade metrics
+    feedback = db.Column(db.Text, nullable=True)
 
 
 class UserMastery(db.Model):

@@ -101,19 +101,20 @@ export const progressAPI = {
     api.get(`/user/subtopic/${topic}/${encodeURIComponent(subtopic)}/questions`),
 };
 
-// 🔥 NEW: Interview history API for aggregated metrics
-export const interviewAPI = {
-  getUserHistory: () => api.get('/user/history'),
-  getSessionDetails: (sessionId) => api.get(`/interview/session/${sessionId}`),
-  getMetrics: () => api.get('/interview/metrics'),
-};
-
 // Data Science Coding Practice API
 export const codingAPI = {
   generateQuestions: (count, difficulty) =>
     api.post('/coding/questions', { question_count: count, difficulty }),
   evaluateAnswer: (question, userCode, language) =>
     api.post('/coding/evaluate', { question, user_code: userCode, language }),
+};
+
+export const interviewAPI = {
+  getUserHistory: () => api.get('/user/history'),
+  getSessionDetails: (sessionId) => api.get(`/interview/session/${sessionId}`),
+  getMetrics: () => api.get('/interview/metrics'),
+  // 🔥 NEW: Get interview results (metrics + coaching)
+  getInterviewResults: (sessionId) => api.post('/interview_results', { session_id: sessionId }),
 };
 
 export default api;
