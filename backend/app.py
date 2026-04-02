@@ -12,6 +12,7 @@ import re
 import traceback
 import wave
 import time
+from datetime import datetime  
 import faiss
 import numpy as np
 from pathlib import Path
@@ -797,7 +798,18 @@ def analyze_resume_job_fit(resume_data, job_description):
         print(f"⚠️ Semantic model not available: {e}")
         model = None
 
-    resume_skills = set([s.lower() for s in resume_data.get('skills', [])])
+    # Extract skills from resume - handle both string and list formats
+    resume_skills = set()
+    skills_data = resume_data.get('skills', [])
+    if isinstance(skills_data, list):
+        for s in skills_data:
+            if isinstance(s, str):
+                resume_skills.add(s.lower())
+            elif isinstance(s, dict) and 'name' in s:
+                resume_skills.add(s['name'].lower())
+    else:
+        resume_skills = set([s.lower() for s in skills_data]) if skills_data else set()
+    
     jd_text = job_description.lower()
 
     # Extract skills from job description
@@ -827,13 +839,45 @@ def analyze_resume_job_fit(resume_data, job_description):
 
     # ----- SEMANTIC SIMILARITY SCORE -----
     semantic_score = 0.0
-    if model and resume_data.get('projects') or resume_data.get('skills'):
-        # Combine resume content for embedding
+    if model:
+        # Combine resume content for embedding - FIXED: Handle dicts properly
         resume_text_parts = []
-        resume_text_parts.extend(resume_data.get('skills', []))
-        resume_text_parts.extend(resume_data.get('projects', []))
-        resume_text_parts.extend(resume_data.get('internships', []))
-        resume_text_parts.extend(resume_data.get('certifications', []))
+        
+        # Add skills as strings
+        if isinstance(skills_data, list):
+            for s in skills_data:
+                if isinstance(s, str):
+                    resume_text_parts.append(s)
+                elif isinstance(s, dict) and 'name' in s:
+                    resume_text_parts.append(s['name'])
+        
+        # Add projects as strings (extract name and description)
+        projects_data = resume_data.get('projects', [])
+        for p in projects_data:
+            if isinstance(p, dict):
+                if p.get('name'):
+                    resume_text_parts.append(p['name'])
+                if p.get('description'):
+                    resume_text_parts.append(p['description'][:200])  # Limit length
+            elif isinstance(p, str):
+                resume_text_parts.append(p)
+        
+        # Add experience as strings
+        exp_data = resume_data.get('experience', [])
+        for e in exp_data:
+            if isinstance(e, dict):
+                if e.get('title'):
+                    resume_text_parts.append(e['title'])
+                if e.get('description'):
+                    resume_text_parts.append(e['description'][:200])  # Limit length
+            elif isinstance(e, str):
+                resume_text_parts.append(e)
+        
+        # Add certifications
+        cert_data = resume_data.get('certifications', [])
+        for c in cert_data:
+            if isinstance(c, str):
+                resume_text_parts.append(c)
         
         resume_text_combined = " ".join(resume_text_parts)
         
@@ -868,7 +912,6 @@ def analyze_resume_job_fit(resume_data, job_description):
     # Section-level gaps (where missing skills are from)
     section_gaps = {}
     if missing_skills:
-        # This is simplified - in production you'd map skills to sections
         section_gaps = {
             'technical': list(missing_skills)[:5],
             'experience': [],
@@ -2083,23 +2126,18 @@ def upload_resume():
         file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
         file.save(file_path)
 
-        # Extract text from resume
-        file_stream = BytesIO()
-        file.stream.seek(0)
-        file_stream.write(file.stream.read())
-        file_stream.seek(0)
+        # Determine file type and use the ENHANCED parser
+        file_type = 'pdf' if filename.lower().endswith('.pdf') else 'docx'
+        
+        # ✅ USE THE ENHANCED PARSER from resume_processor.py
+        from resume_processor import parse_resume_file
+        resume_data = parse_resume_file(file_path, file_type)
 
-        text = None
-        if filename.lower().endswith('.pdf'):
-            text = extract_text_from_pdf(file_stream)
-        elif filename.lower().endswith('.docx'):
-            text = extract_text_from_docx(file_stream)
-
-        if text:
-            resume_data = parse_resume_text(text)
+        if resume_data:
+            # Store in database
             g.current_user.resume_filename = filename
             g.current_user.skills = json.dumps(resume_data['skills'])
-            g.current_user.experience_years = resume_data['experience_years']
+            g.current_user.experience_years = resume_data.get('experience_years', 0)
 
             # Get job description from form data
             job_description = request.form.get('job_description', '').strip()
@@ -2113,6 +2151,8 @@ def upload_resume():
 
             # Analyze resume-job fit (now always runs)
             job_fit_analysis = analyze_resume_job_fit(resume_data, job_description)
+            
+            # ✅ ADD JOB FIT ANALYSIS TO THE RESPONSE
             resume_data['job_fit_analysis'] = job_fit_analysis
 
             # Store JD embedding for later use in interviews
@@ -2126,7 +2166,8 @@ def upload_resume():
 
             # Process resume with FAISS for interview questions
             try:
-                chunk_count = process_resume_for_faiss(text, g.current_user.id)
+                from resume_processor import process_resume_for_faiss
+                chunk_count = process_resume_for_faiss(resume_data.get('full_text', ''), g.current_user.id)
                 resume_data['chunks_processed'] = chunk_count
                 resume_data['rag_ready'] = True
             except Exception as e:
@@ -2134,17 +2175,25 @@ def upload_resume():
                 resume_data['rag_ready'] = False
 
             db.session.commit()
+            
+            # ✅ RETURN COMPLETE DATA including projects and experience
             return jsonify({
                 'success': True,
                 'message': 'Resume uploaded and analyzed successfully',
-                'data': resume_data,
+                'data': {
+                    'skills': resume_data.get('skills', []),
+                    'projects': resume_data.get('projects', []),  # ✅ NOW INCLUDED
+                    'experience': resume_data.get('experience', []),  # ✅ NOW INCLUDED
+                    'experience_years': resume_data.get('experience_years', 0),
+                    'certifications': resume_data.get('certifications', []),
+                    'internships': resume_data.get('internships', []),
+                    'full_text': resume_data.get('full_text', '')[:1000]
+                },
                 'job_description_provided': bool(job_description),
                 'job_fit_analysis': job_fit_analysis
             })
         else:
             return jsonify({'success': False, 'message': 'Could not extract text from resume'})
-
-
 
 @app.route('/api/user/progress', methods=['GET'])
 @jwt_required
@@ -3747,27 +3796,49 @@ def gap_analysis():
             return jsonify({'success': False, 'error': 'Job description is required'}), 400
 
         user = g.current_user
-        if not user.skills or user.skills == "[]" or user.skills == "":
-            return jsonify({'success': False, 'error': 'No skills found. Please upload your resume first.'}), 400
-
-        try:
-            resume_data = json.loads(user.skills)
-        except:
-            resume_data = user.skills # fallback if it's just raw text
         
-        # Add years of experience
-        resume_data_payload = {
-            "skills": resume_data,
-            "experience_years": user.experience_years
+        # ✅ LOAD THE COMPLETE RESUME DATA FROM FILE if available
+        resume_data = {
+            'skills': [],
+            'projects': [],
+            'experience': [],
+            'experience_years': user.experience_years or 0,
+            'certifications': []
         }
         
+        # Try to load from stored resume file
+        if user.resume_filename:
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], user.resume_filename)
+            if os.path.exists(file_path):
+                file_type = 'pdf' if user.resume_filename.lower().endswith('.pdf') else 'docx'
+                from resume_processor import parse_resume_file
+                full_resume_data = parse_resume_file(file_path, file_type)
+                if full_resume_data:
+                    resume_data = full_resume_data
+        
+        # Fallback to stored skills if file not found
+        if not resume_data.get('skills') and user.skills:
+            try:
+                resume_data['skills'] = json.loads(user.skills)
+            except:
+                resume_data['skills'] = []
+        
         from rag import generate_resume_gap_analysis
-        result_json_str = generate_resume_gap_analysis(resume_data_payload, job_description)
+        result_json_str = generate_resume_gap_analysis(resume_data, job_description)
         
         if not result_json_str:
             return jsonify({'success': False, 'error': 'Failed to generate gap analysis.'}), 500
             
         analysis_data = json.loads(result_json_str)
+        
+        # ✅ ADD RESUME DATA TO RESPONSE
+        analysis_data['resume_data'] = {
+            'skills': resume_data.get('skills', []),
+            'projects': resume_data.get('projects', []),
+            'experience': resume_data.get('experience', []),
+            'experience_years': resume_data.get('experience_years', 0)
+        }
+        
         return jsonify({
             'success': True,
             'gap_analysis': analysis_data

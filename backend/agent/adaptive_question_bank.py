@@ -42,30 +42,78 @@ class AdaptiveQuestionBank:
     MAX_CHARS = 400
     DUP_THRESHOLD = 0.85
     
-    # INTENT POOLS BY DIFFICULTY - ONLY DIFFICULTY-BASED INTENTS
-    INTENT_POOLS = {
-        # EASY
-        "easy": [
-            "core_definition",        # What is X?
-            "identification",         # Identify component
-            "listing",                # List types
-        ],
+     # ========== BLOOM'S TAXONOMY CONFIGURATION ==========
+    
+    # Bloom's Cognitive Levels (from lowest to highest)
+    BLOOM_LEVELS = ["remember", "understand", "apply", "analyze", "evaluate"]
+    
+    # Intent to Bloom Level Mapping
+    INTENT_TO_BLOOM = {
+        # Remember level - Basic recall
+        "core_definition": "remember",
+        "identification": "remember",
+        "listing": "remember",
         
-        # MEDIUM
-        "medium": [
-            "core_definition",        # What is X?
-            "mechanism_flow",         # How does it work? (simple)
-            "conceptual_difference",  # X vs Y (basic comparison)
-            "application",            # Simple application
-        ],
+        # Understand level - Explain concepts
+        "mechanism_flow": "understand",
+        "explanation": "understand",
         
-        # HARD 
-        "hard": [
-            "mechanism_flow",         # How does it work? (detailed)
-            "conceptual_difference",  # X vs Y (detailed)
-            "application",            # Application with context
-            "component_relationship", # How components interact
+        # Apply level - Use concepts
+        "application": "apply",
+        "scenario_application": "apply",
+        "problem_case": "apply",
+        
+        # Analyze level - Compare, contrast, debug
+        "conceptual_difference": "analyze",
+        "component_relationship": "analyze",
+        "tradeoff_analysis": "analyze",
+        "debugging_case": "analyze",
+        
+        # Evaluate level - Judge, design, optimize
+        "optimization_reasoning": "evaluate",
+        "design_decision": "evaluate",
+        "misconception_check": "evaluate",
+        "edge_case": "evaluate",
+        "prediction": "evaluate"
+    }
+    
+    # Bloom Level to Intent Pools (MUTUALLY EXCLUSIVE - NO REPETITION)
+    BLOOM_INTENT_POOLS = {
+        "remember": [
+            "core_definition",
+            "identification",
+            "listing"
+        ],
+        "understand": [
+            "mechanism_flow",
+            "explanation"
+        ],
+        "apply": [
+            "application",
+            "scenario_application",
+            "problem_case"
+        ],
+        "analyze": [
+            "conceptual_difference",
+            "component_relationship",
+            "tradeoff_analysis",
+            "debugging_case"
+        ],
+        "evaluate": [
+            "optimization_reasoning",
+            "design_decision",
+            "misconception_check",
+            "edge_case",
+            "prediction"
         ]
+    }
+    
+    # Keep original INTENT_POOLS for backward compatibility (NOT used in new flow)
+    # These are now DEPRECATED - will be replaced by Bloom's Taxonomy
+    LEGACY_INTENT_POOLS = {
+        "easy": ["core_definition", "identification", "listing"],
+        "medium": ["mechanism_flow", "conceptual_difference", "application"],
+        "hard": ["tradeoff_analysis", "component_relationship", "optimization_reasoning"]
     }
     
     # Question types for dynamic prompting
@@ -157,9 +205,7 @@ class AdaptiveQuestionBank:
                         {"name": "NoSQL", "concepts": [
                             "sql vs nosql",
                             "document store",
-                            "key value store",
-                            "column family",
-                            "graph database"
+                            "key value store"
                         ]}
                     ]
                 },
@@ -237,8 +283,7 @@ class AdaptiveQuestionBank:
                             "hold and wait",
                             "no preemption",
                             "circular wait",
-                            "banker's algorithm",
-                            "resource allocation graph"
+                            "banker's algorithm"
                         ]},
                         {"name": "Memory Management", "concepts": [
                             "paging",
@@ -247,8 +292,7 @@ class AdaptiveQuestionBank:
                         ]},
                         {"name": "Virtual Memory", "concepts": [
                             "page fault",
-                            "thrashing",
-                            "working set"
+                            "thrashing"
                         ]},
                         {"name": "Page Replacement", "concepts": [
                             "LRU",
@@ -265,12 +309,8 @@ class AdaptiveQuestionBank:
                         {"name": "IPC", "concepts": [
                             "pipe",
                             "shared memory",
-                            "message queue"
-                        ]},
-                        {"name": "I/O", "concepts": [
-                            "interrupt",
-                            "polling",
-                            "DMA"
+                            "message queue",
+                            "socket"
                         ]}
                     ]
                 }
@@ -326,6 +366,38 @@ class AdaptiveQuestionBank:
             r"draw": "describe",
             r"diagram": "describe"
         }
+    
+    def select_bloom_level(self, mastery_level: float) -> str:
+        """
+        Select appropriate Bloom's level based on concept mastery
+        
+        Mastery Thresholds:
+        - < 0.3: Remember (basic recall)
+        - < 0.5: Understand (explain concepts)
+        - < 0.7: Apply (use concepts)
+        - < 0.85: Analyze (compare, debug, trade-offs)
+        - >= 0.85: Evaluate (design, optimize, predict)
+        """
+        if mastery_level < 0.3:
+            return "remember"
+        elif mastery_level < 0.5:
+            return "understand"
+        elif mastery_level < 0.7:
+            return "apply"
+        elif mastery_level < 0.85:
+            return "analyze"
+        else:
+            return "evaluate"  # Advanced learners can evaluate/create
+
+    def _select_intent_by_bloom(self, bloom_level: str, used_intents: List[str]) -> str:
+        """Select intent based on Bloom's Taxonomy level"""
+        pool = self.BLOOM_INTENT_POOLS.get(bloom_level, self.BLOOM_INTENT_POOLS["remember"])
+        available = [i for i in pool if i not in used_intents]
+        if not available:
+            available = pool
+        chosen = random.choice(available)
+        print(f"      🎯 Selected intent '{chosen}' from Bloom level: {bloom_level}")
+        return chosen
 
     def _normalize_concept(self, concept: str) -> str:
         """Normalize concept names for better matching"""
@@ -503,7 +575,8 @@ Example: "A common misconception is that {concept1} and {concept2} are interchan
         difficulty: str,
         used_intents: List[str],
         history: List[str],
-        user_name: str = ""
+        user_name: str = "",
+        mastery_state = None
     ) -> tuple:
         """
         Generate question using RAG few-shot examples
@@ -514,7 +587,27 @@ Example: "A common misconception is that {concept1} and {concept2} are interchan
         assert len(concepts) == 2, f"INVARIANT FAILED: Expected 2 concepts, got {len(concepts)}"
         
         # Select intent by difficulty
-        intent = self._select_intent_by_difficulty(difficulty, used_intents)
+        if mastery_state is not None:
+            # Get concepts for this subtopic
+            concepts_list = self.get_concepts_for_subtopic(topic, subtopic)
+            avg_mastery = 0.5
+        
+            if concepts_list:
+                total = 0
+                count = 0
+                for concept in concepts_list:
+                    if concept in mastery_state.concepts:
+                        total += mastery_state.concepts[concept].mastery_level
+                        count += 1
+                if count > 0:
+                    avg_mastery = total / count
+            
+            bloom_level = self.select_bloom_level(avg_mastery)
+            intent = self._select_intent_by_bloom(bloom_level, used_intents)
+            print(f"   📊 Bloom: mastery={avg_mastery:.2f} → {bloom_level} → {intent}")
+        else:
+            # Fallback to difficulty-based
+            intent = self._select_intent_by_difficulty(difficulty, used_intents)
         
         # Normalize concepts for better matching
         def normalize_concept(c):
@@ -1062,7 +1155,7 @@ Question:
     
     def generate_question(self, topic: str, subtopic: str, concepts: List[str], 
                          difficulty: str = "medium", user_name: str = "", 
-                         history: List[str] = None) -> str:
+                         history: List[str] = None, mastery_state=None) -> str:
         """
         Generate a question that MUST include both sampled concepts
         Uses RAG few-shot retrieval for better quality
@@ -1092,7 +1185,8 @@ Question:
             difficulty=difficulty,
             used_intents=used_intents,
             history=history,
-            user_name=user_name
+            user_name=user_name,
+            mastery_state=mastery_state 
         )
         
         # Track the intent

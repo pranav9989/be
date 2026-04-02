@@ -1,0 +1,55 @@
+📄 Machine Learning Intern – Quantiphi (Sample JD)
+🧠 About Quantiphi
+
+Quantiphi is an AI-first digital engineering company that helps enterprises solve complex problems using Machine Learning, Data Analytics, and Cloud technologies (especially Google Cloud).
+
+🎯 Role: Machine Learning Intern
+
+As a Machine Learning Intern, you will work on real-world AI/ML problems across domains like healthcare, retail, finance, and media. You’ll collaborate with data scientists and engineers to build, test, and deploy ML models.
+
+🚀 Key Responsibilities
+Assist in building and training machine learning models
+Work on data preprocessing, cleaning, and feature engineering
+Perform exploratory data analysis (EDA)
+Implement ML algorithms (supervised & unsupervised)
+Evaluate model performance using metrics like accuracy, precision, recall
+Support deployment of models using APIs or cloud platforms
+Work with large datasets and optimize performance
+🛠️ Required Skills
+💻 Technical Skills
+Strong knowledge of Python
+Familiarity with ML libraries:
+Scikit-learn
+TensorFlow / PyTorch
+Understanding of core ML concepts:
+Regression, Classification, Clustering
+Basic knowledge of SQL
+Data handling using Pandas, NumPy
+🧠 Concepts
+Statistics & Probability basics
+Linear Algebra fundamentals
+Model evaluation techniques
+⭐ Preferred Qualifications
+Experience with Deep Learning or NLP
+Exposure to Google Cloud Platform (GCP)
+Knowledge of Data Visualization tools (Matplotlib, Seaborn)
+Prior ML projects or internships
+Familiarity with MLOps basics
+🎓 Eligibility
+Pursuing or recently completed B.E./B.Tech/M.Tech in CS, IT, AI, Data Science or related field
+Strong problem-solving skills
+Good communication and teamwork
+💼 Internship Details
+Duration: 3–6 months
+Location: Remote / Hybrid / Onsite (depends on project)
+Stipend: Competitive (varies)
+📈 What You’ll Gain
+Hands-on experience with production-level ML systems
+Exposure to real industry datasets
+Mentorship from experienced data scientists
+Opportunity for PPO (Pre-Placement Offer)
+🧩 Example Projects You Might Work On
+Customer churn prediction
+Recommendation systems
+NLP-based chatbots
+Computer vision models

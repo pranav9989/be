@@ -7,7 +7,7 @@ import '../Resume/ResumeUpload.css';
 
 const GapAnalysis = ({ user, onLogout }) => {
     const navigate = useNavigate();
-    
+
     // File Upload State
     const [selectedFile, setSelectedFile] = useState(null);
     const [dragOver, setDragOver] = useState(false);
@@ -19,6 +19,7 @@ const GapAnalysis = ({ user, onLogout }) => {
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [result, setResult] = useState(null);
     const [error, setError] = useState(null);
+    const [parsedResumeData, setParsedResumeData] = useState(null);
 
     const isValidFile = (file) => {
         const allowed = [
@@ -52,7 +53,6 @@ const GapAnalysis = ({ user, onLogout }) => {
             return;
         }
 
-        // If user hasn't selected a new file, and doesn't have an existing resume/skills, throw error.
         if (!selectedFile && (!user.skills || user.skills === '[]' || user.skills === '')) {
             setError('Please upload your resume to generate a study plan.');
             return;
@@ -63,6 +63,8 @@ const GapAnalysis = ({ user, onLogout }) => {
         setResult(null);
 
         try {
+            let resumeData = null;
+
             // STEP 1: Upload the resume if a new one is selected
             if (selectedFile) {
                 setUploadProgress(10);
@@ -72,26 +74,49 @@ const GapAnalysis = ({ user, onLogout }) => {
 
                 const formData = new FormData();
                 formData.append('resume', selectedFile);
-                formData.append('job_description', 'Gap Analysis Mode'); // Just a placeholder for the upload API
-                
+                formData.append('job_description', 'Gap Analysis Mode');
+
                 const uploadRes = await resumeAPI.upload(formData);
                 clearInterval(progressInterval);
                 setUploadProgress(100);
-                
+
                 if (!uploadRes.data.success) {
                     throw new Error(uploadRes.data.message || 'Resume upload failed');
                 }
-                
+
+                // Store the parsed resume data
+                if (uploadRes.data.data) {
+                    resumeData = uploadRes.data.data;
+                    setParsedResumeData(resumeData);
+                    console.log('✅ Resume parsed:', resumeData);
+                    console.log('📁 Projects found:', resumeData.projects?.length || 0);
+                    console.log('💼 Experience found:', resumeData.experience?.length || 0);
+                }
+
                 setTimeout(() => setUploadProgress(0), 1000);
+            } else if (parsedResumeData) {
+                // Use existing parsed data if no new file uploaded
+                resumeData = parsedResumeData;
             }
 
-            // STEP 2: Generate the Gap Analysis (which now uses the updated DB skills)
+            // STEP 2: Generate the Gap Analysis
             const response = await api.post('/resume/gap-analysis', {
                 job_description: jobDescription
             });
 
             if (response.data && response.data.success) {
-                setResult(response.data.gap_analysis);
+                // Merge gap analysis with parsed resume data
+                const mergedResult = {
+                    ...response.data.gap_analysis,
+                    parsed_resume: resumeData || parsedResumeData || {
+                        projects: [],
+                        experience: [],
+                        experience_years: 0,
+                        skills: []
+                    }
+                };
+                console.log('✅ Merged result:', mergedResult);
+                setResult(mergedResult);
             } else {
                 setError(response.data.error || 'Failed to analyze gap.');
             }
@@ -113,7 +138,7 @@ const GapAnalysis = ({ user, onLogout }) => {
     return (
         <div className="page-container">
             <Header user={user} onLogout={onLogout} title="Resume vs Reality" />
-            
+
             <main className="main-content gap-analysis-main">
                 <div className="gap-intro">
                     <h1 className="gradient-text">Resume vs Reality</h1>
@@ -126,7 +151,7 @@ const GapAnalysis = ({ user, onLogout }) => {
                         <p className="text-secondary mb-4">
                             Upload your latest resume and paste the full job description below. Our AI will compare them to reveal your skill gaps.
                         </p>
-                        
+
                         {error && (
                             <div className="message error mb-4">
                                 <i className="fas fa-exclamation-circle"></i> {error}
@@ -145,22 +170,22 @@ const GapAnalysis = ({ user, onLogout }) => {
                                     style={{ marginBottom: '1.5rem', marginTop: '1rem' }}
                                 >
                                     {selectedFile ? (
-                                    <>
-                                        <div className="upload-file-icon">
-                                            <i className={selectedFile.name.endsWith('.pdf') ? 'fas fa-file-pdf' : 'fas fa-file-word'} />
-                                        </div>
-                                        <div className="upload-text">{selectedFile.name}</div>
-                                        <div className="upload-subtext">
-                                        {(selectedFile.size / 1024 / 1024).toFixed(2)} MB ·{' '}
-                                        <span className="upload-change">Click to change</span>
-                                        </div>
-                                    </>
+                                        <>
+                                            <div className="upload-file-icon">
+                                                <i className={selectedFile.name.endsWith('.pdf') ? 'fas fa-file-pdf' : 'fas fa-file-word'} />
+                                            </div>
+                                            <div className="upload-text">{selectedFile.name}</div>
+                                            <div className="upload-subtext">
+                                                {(selectedFile.size / 1024 / 1024).toFixed(2)} MB ·{' '}
+                                                <span className="upload-change">Click to change</span>
+                                            </div>
+                                        </>
                                     ) : (
-                                    <>
-                                        <i className="fas fa-arrow-up-from-bracket upload-icon" />
-                                        <div className="upload-text">Drag & drop your Resume</div>
-                                        <div className="upload-subtext">PDF, DOC, DOCX up to 16 MB</div>
-                                    </>
+                                        <>
+                                            <i className="fas fa-arrow-up-from-bracket upload-icon" />
+                                            <div className="upload-text">Drag & drop your Resume</div>
+                                            <div className="upload-subtext">PDF, DOC, DOCX up to 16 MB</div>
+                                        </>
                                     )}
                                 </div>
                                 <input
@@ -202,16 +227,15 @@ const GapAnalysis = ({ user, onLogout }) => {
                             </div>
                         )}
 
-
                         <div className="gap-action-row">
-                            <button 
+                            <button
                                 className="btn btn-secondary"
                                 onClick={() => navigate('/dashboard')}
                                 disabled={isAnalyzing}
                             >
                                 Cancel
                             </button>
-                            <button 
+                            <button
                                 className="btn btn-primary btn-generate"
                                 onClick={handleAnalyze}
                                 disabled={isAnalyzing || !jobDescription.trim()}
@@ -241,7 +265,7 @@ const GapAnalysis = ({ user, onLogout }) => {
                             <div className="card-glass score-card">
                                 <h3>Match Score</h3>
                                 <div className="score-circle-container">
-                                    <div 
+                                    <div
                                         className="score-circle"
                                         style={{ '--score-color': getScoreColor(result.match_score) }}
                                     >
@@ -249,9 +273,9 @@ const GapAnalysis = ({ user, onLogout }) => {
                                     </div>
                                 </div>
                                 <p className="score-desc">
-                                    {result.match_score >= 80 ? "You are a strong fit! Focus on interview prep." : 
-                                     result.match_score >= 50 ? "You have the basics, but need to bridge some gaps." : 
-                                     "Significant gaps detected. A study plan is highly recommended."}
+                                    {result.match_score >= 80 ? "You are a strong fit! Focus on interview prep." :
+                                        result.match_score >= 50 ? "You have the basics, but need to bridge some gaps." :
+                                            "Significant gaps detected. A study plan is highly recommended."}
                                 </p>
                             </div>
 
@@ -272,6 +296,140 @@ const GapAnalysis = ({ user, onLogout }) => {
                                     </div>
                                 )}
                             </div>
+                        </div>
+
+                        {/* Projects and Experience Section */}
+                        <div className="resume-details-section mt-6">
+                            <h3 className="section-title">
+                                <i className="fas fa-file-alt"></i> Resume Details
+                            </h3>
+                            <div className="details-grid">
+                                {/* Projects Card */}
+                                <div className="card-glass details-card">
+                                    <div className="card-header">
+                                        <i className="fas fa-project-diagram text-blue-400"></i>
+                                        <h4>Projects Found</h4>
+                                        <span className="badge">{result.parsed_resume?.projects?.length || 0}</span>
+                                    </div>
+                                    <div className="card-body">
+                                        {result.parsed_resume?.projects && result.parsed_resume.projects.length > 0 ? (
+                                            <div className="items-list">
+                                                {result.parsed_resume.projects.map((project, idx) => (
+                                                    <div key={idx} className="list-item">
+                                                        <div className="item-title">
+                                                            <i className="fas fa-code"></i>
+                                                            <strong>{project.name}</strong>
+                                                        </div>
+                                                        {project.tech_stack && project.tech_stack.length > 0 && (
+                                                            <div className="tech-tags">
+                                                                {project.tech_stack.slice(0, 5).map((tech, tidx) => (
+                                                                    <span key={tidx} className="tech-tag">{tech}</span>
+                                                                ))}
+                                                            </div>
+                                                        )}
+                                                        <p className="item-description">
+                                                            {project.description?.length > 200
+                                                                ? project.description.substring(0, 200) + '...'
+                                                                : project.description}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="empty-state">No projects detected in resume.</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Experience Card */}
+                                <div className="card-glass details-card">
+                                    <div className="card-header">
+                                        <i className="fas fa-briefcase text-green-400"></i>
+                                        <h4>Experience & Internships</h4>
+                                        <span className="badge">{result.parsed_resume?.experience?.length || 0}</span>
+                                    </div>
+                                    <div className="card-body">
+                                        {result.parsed_resume?.experience && result.parsed_resume.experience.length > 0 ? (
+                                            <div className="items-list">
+                                                {result.parsed_resume.experience.map((exp, idx) => (
+                                                    <div key={idx} className="list-item">
+                                                        <div className="item-title">
+                                                            <i className="fas fa-building"></i>
+                                                            <strong>{exp.title}</strong>
+                                                        </div>
+                                                        {exp.company && (
+                                                            <div className="item-subtitle">
+                                                                <i className="fas fa-user-tie"></i> {exp.company}
+                                                            </div>
+                                                        )}
+                                                        <p className="item-description">
+                                                            {exp.description?.length > 200
+                                                                ? exp.description.substring(0, 200) + '...'
+                                                                : exp.description}
+                                                        </p>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        ) : (
+                                            <p className="empty-state">No experience detected in resume.</p>
+                                        )}
+                                    </div>
+                                </div>
+                                {result.parsed_resume?.certifications && result.parsed_resume.certifications.length > 0 && (
+                                    <div className="card-glass certifications-card mt-4">
+                                        <div className="card-header">
+                                            <i className="fas fa-certificate text-yellow-400"></i>
+                                            <h4>Certifications & Courses</h4>
+                                            <span className="badge">{result.parsed_resume.certifications.length}</span>
+                                        </div>
+                                        <div className="certifications-list-detailed">
+                                            {result.parsed_resume.certifications.slice(0, 15).map((cert, idx) => (
+                                                <div key={idx} className="certification-item-detailed">
+                                                    <i className="fas fa-award"></i>
+                                                    <span>{cert}</span>
+                                                </div>
+                                            ))}
+                                            {result.parsed_resume.certifications.length > 15 && (
+                                                <div className="certification-more-detailed">
+                                                    +{result.parsed_resume.certifications.length - 15} more certifications
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Skills Summary Card */}
+                            {result.parsed_resume?.skills && result.parsed_resume.skills.length > 0 && (
+                                <div className="card-glass skills-summary-card mt-4">
+                                    <div className="card-header">
+                                        <i className="fas fa-cogs text-purple-400"></i>
+                                        <h4>Skills Detected</h4>
+                                        <span className="badge">{result.parsed_resume.skills.length}</span>
+                                    </div>
+                                    <div className="skills-tags-container">
+                                        {result.parsed_resume.skills.slice(0, 20).map((skill, idx) => (
+                                            <span key={idx} className="skill-tag-detected">{skill}</span>
+                                        ))}
+                                        {result.parsed_resume.skills.length > 20 && (
+                                            <span className="skill-tag-more">+{result.parsed_resume.skills.length - 20} more</span>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* Experience Years Summary */}
+                            {result.parsed_resume?.experience_years > 0 && (
+                                <div className="card-glass experience-summary mt-4">
+                                    <div className="card-header">
+                                        <i className="fas fa-calendar-alt text-yellow-400"></i>
+                                        <h4>Total Experience</h4>
+                                    </div>
+                                    <div className="exp-years-value">
+                                        {result.parsed_resume.experience_years} year{result.parsed_resume.experience_years !== 1 ? 's' : ''}
+                                    </div>
+                                </div>
+                            )}
                         </div>
 
                         {/* Study Plan Timeline */}

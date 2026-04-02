@@ -25,55 +25,38 @@ class SubtopicTracker:
     
     SUBTOPICS_BY_TOPIC = {
         "DBMS": [
-            "DBMS basics",
-            "ER Modeling",
-            "DBMS Architecture",
-            "Entities & Keys",
             "Normalization",
+            "Keys",
             "Joins",
-            "DDL DML DCL TCL",
-            "Aggregations",
+            "SQL",
             "Indexing",
             "ACID",
-            "Isolation Levels",
+            "Transactions",
             "Locks",
-            "Deadlocks DBMS",
-            "Logging & Recovery",
+            "Deadlocks",
             "Query Optimization",
-            "Distributed Databases",
+            "Distributed DB",
             "NoSQL"
         ],
         "OOPS": [
-            "Classes",
-            "Objects",
+            "Core OOP",
             "Constructors",
-            "Encapsulation",
-            "Inheritance",
-            "Polymorphism",
-            "Abstraction",
-            "Interfaces",
-            "Virtual Functions",
+            "Interfaces & Abstraction",
             "Object Relationships",
+            "Virtual Functions",
             "Design Patterns",
-            "Memory Management in OOP"
+            "Memory Management"
         ],
         "OS": [
-            "OS basics",
-            "Processes",
-            "Threads",
+            "Processes & Threads",
             "CPU Scheduling",
-            "Process Synchronization",
-            "Deadlocks OS",
+            "Synchronization",
+            "Deadlocks",
             "Memory Management",
             "Virtual Memory",
-            "Paging",
-            "File Systems",
-            "Disk Scheduling",
-            "I/O Management",
+            "Page Replacement",
             "System Calls",
-            "Interprocess Communication",
-            "Networking",
-            "Security"
+            "IPC"
         ]
     }
     
@@ -416,197 +399,168 @@ class SubtopicTracker:
         except (ImportError, AttributeError) as e:
             # Fallback to hardcoded mapping if question bank not available
             concept_map = {
-
                 "DBMS": {
-
-                "DBMS basics": [
-                "database","dbms","rdbms","schema","instance","data independence"
-                ],
-
-                "ER Modeling": [
-                "entity","attribute","relationship","cardinality","weak entity"
-                ],
-
-                "DBMS Architecture": [
-                "three schema architecture","physical level","logical level","view level"
-                ],
-
-                "Entities & Keys": [
-                "primary key","foreign key","candidate key","composite key","referential integrity"
-                ],
-
-                "Normalization": [
-                "1NF","2NF","3NF","BCNF","functional dependency","transitive dependency"
-                ],
-
-                "Joins": [
-                "inner join","left join","right join","full join","self join"
-                ],
-
-                "DDL DML DCL TCL": [
-                "create","alter","drop","select","insert","update","delete","grant","revoke","commit","rollback"
-                ],
-
-                "Aggregations": [
-                "group by","having","count","sum","avg","min","max"
-                ],
-
-                "Indexing": [
-                "B+ tree","hash index","clustered index","non-clustered index"
-                ],
-
-                "ACID": [
-                "atomicity","consistency","isolation","durability"
-                ],
-
-                "Isolation Levels": [
-                "read committed","repeatable read","serializable","dirty read","phantom read"
-                ],
-
-                "Locks": [
-                "shared lock","exclusive lock","two phase locking","intention lock"
-                ],
-
-                "Deadlocks DBMS": [
-                "wait for graph","deadlock detection","deadlock prevention","deadlock avoidance"
-                ],
-
-                "Logging & Recovery": [
-                "write ahead logging","checkpoint","undo","redo"
-                ],
-
-                "Query Optimization": [
-                "query plan","execution plan","cost based optimization"
-                ],
-
-                "Distributed Databases": [
-                "replication","sharding","two phase commit","CAP theorem"
-                ],
-
-                "NoSQL": [
-                "document store","key value store","column family","graph database"
-                ]
-
+                    "Normalization": [
+                        "1NF", "2NF", "3NF", "BCNF",
+                        "functional dependency",
+                        "normalization",
+                        "denormalization"
+                    ],
+                    "Keys": [
+                        "primary key", "foreign key",
+                        "candidate key", "composite key",
+                        "referential integrity"
+                    ],
+                    "Joins": [
+                        "inner join", "left join", "right join",
+                        "self join", "subquery", "join vs subquery"
+                    ],
+                    "SQL": [
+                        "group by", "having",
+                        "order of execution",
+                        "subquery",
+                        "query optimization basics"
+                    ],
+                    "Indexing": [
+                        "clustered index", "non-clustered index",
+                        "B+ tree", "index scan", "full table scan"
+                    ],
+                    "ACID": [
+                        "atomicity", "consistency",
+                        "isolation", "durability"
+                    ],
+                    "Transactions": [
+                        "isolation levels",
+                        "dirty read",
+                        "non-repeatable read",
+                        "phantom read"
+                    ],
+                    "Locks": [
+                        "shared lock", "exclusive lock",
+                        "two phase locking",
+                        "lock granularity"
+                    ],
+                    "Deadlocks": [
+                        "deadlock conditions",
+                        "deadlock prevention",
+                        "deadlock avoidance",
+                        "wait for graph"
+                    ],
+                    "Query Optimization": [
+                        "query plan",
+                        "execution plan",
+                        "cost based optimization"
+                    ],
+                    "Distributed DB": [
+                        "CAP theorem",
+                        "two phase commit",
+                        "replication",
+                        "sharding"
+                    ],
+                    "NoSQL": [
+                        "sql vs nosql",
+                        "document store",
+                        "key value store"
+                    ]
                 },
-
                 "OOPS": {
-
-                "Classes": [
-                "class","attributes","methods","static","instance"
-                ],
-
-                "Objects": [
-                "instantiation","state","behavior","identity"
-                ],
-
-                "Constructors": [
-                "default constructor","parameterized constructor","copy constructor","destructor"
-                ],
-
-                "Encapsulation": [
-                "data hiding","private","public","protected"
-                ],
-
-                "Inheritance": [
-                "single inheritance","multiple inheritance","diamond problem"
-                ],
-
-                "Polymorphism": [
-                "overloading","overriding","runtime polymorphism"
-                ],
-
-                "Abstraction": [
-                "abstract class","interface","implementation hiding"
-                ],
-
-                "Interfaces": [
-                "interface","implements","contract"
-                ],
-
-                "Virtual Functions": [
-                "virtual function","vtable","dynamic binding"
-                ],
-
-                "Object Relationships": [
-                "association","aggregation","composition"
-                ],
-
-                "Design Patterns": [
-                "singleton","factory","observer","strategy"
-                ],
-
-                "Memory Management in OOP": [
-                "garbage collection","memory leak","smart pointer","RAII"
-                ]
-
+                    "Core OOP": [
+                        "encapsulation",
+                        "abstraction",
+                        "inheritance",
+                        "polymorphism",
+                        "method overloading",
+                        "method overriding"
+                    ],
+                    "Constructors": [
+                        "constructor",
+                        "destructor",
+                        "constructor overloading"
+                    ],
+                    "Interfaces & Abstraction": [
+                        "abstract class",
+                        "interface",
+                        "abstract vs interface"
+                    ],
+                    "Object Relationships": [
+                        "association",
+                        "aggregation",
+                        "composition"
+                    ],
+                    "Virtual Functions": [
+                        "virtual function",
+                        "runtime polymorphism",
+                        "vtable"
+                    ],
+                    "Design Patterns": [
+                        "singleton pattern",
+                        "factory pattern",
+                        "observer pattern"
+                    ],
+                    "Memory Management": [
+                        "garbage collection",
+                        "memory leak",
+                        "stack memory",
+                        "heap memory"
+                    ]
                 },
-
                 "OS": {
-
-                "OS basics": [
-                "kernel","user mode","system software","resource management"
-                ],
-
-                "Processes": [
-                "process state","PCB","zombie process","orphan process"
-                ],
-
-                "Threads": [
-                "user thread","kernel thread","multithreading"
-                ],
-
-                "CPU Scheduling": [
-                "FCFS","SJF","round robin","priority scheduling"
-                ],
-
-                "Process Synchronization": [
-                "mutex","semaphore","critical section","monitor"
-                ],
-
-                "Deadlocks OS": [
-                "mutual exclusion","hold and wait","circular wait","banker's algorithm"
-                ],
-
-                "Memory Management": [
-                "segmentation","fragmentation","contiguous allocation"
-                ],
-
-                "Virtual Memory": [
-                "page fault","thrashing","working set"
-                ],
-
-                "Paging": [
-                "page","frame","TLB"
-                ],
-
-                "File Systems": [
-                "inode","directory structure","file allocation"
-                ],
-
-                "Disk Scheduling": [
-                "SSTF","SCAN","C-SCAN","LOOK"
-                ],
-
-                "I/O Management": [
-                "interrupt","DMA","device driver"
-                ],
-
-                "System Calls": [
-                "fork","exec","wait","syscall"
-                ],
-
-                "Interprocess Communication": [
-                "pipe","shared memory","message queue","socket"
-                ],
-
-                "Networking": [
-                "TCP","UDP","socket programming"
-                ],
-
-                "Security": [
-                "authentication","authorization","access control"
-                ]
-
+                    "Processes & Threads": [
+                        "process",
+                        "thread",
+                        "process vs thread",
+                        "context switching",
+                        "multithreading"
+                    ],
+                    "CPU Scheduling": [
+                        "FCFS",
+                        "SJF",
+                        "round robin",
+                        "priority scheduling",
+                        "preemptive scheduling",
+                        "non-preemptive scheduling",
+                        "starvation"
+                    ],
+                    "Synchronization": [
+                        "mutex",
+                        "semaphore",
+                        "critical section",
+                        "race condition"
+                    ],
+                    "Deadlocks": [
+                        "mutual exclusion",
+                        "hold and wait",
+                        "no preemption",
+                        "circular wait",
+                        "banker's algorithm"
+                    ],
+                    "Memory Management": [
+                        "paging",
+                        "segmentation",
+                        "fragmentation"
+                    ],
+                    "Virtual Memory": [
+                        "page fault",
+                        "thrashing"
+                    ],
+                    "Page Replacement": [
+                        "LRU",
+                        "FIFO",
+                        "optimal replacement"
+                    ],
+                    "System Calls": [
+                        "fork",
+                        "exec",
+                        "wait",
+                        "user mode",
+                        "kernel mode"
+                    ],
+                    "IPC": [
+                        "pipe",
+                        "shared memory",
+                        "message queue",
+                        "socket"
+                    ]
                 }
             }
             # Return lowercase concepts for better matching

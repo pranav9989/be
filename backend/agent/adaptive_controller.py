@@ -329,7 +329,8 @@ class AdaptiveInterviewController:
                     concepts=sampled_concepts,
                     difficulty=difficulty,
                     user_name=user_name,
-                    history=asked_questions
+                    history=asked_questions,
+                    mastery_state=mastery
                 )
                 
                 # Check for duplicates
