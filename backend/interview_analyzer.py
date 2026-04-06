@@ -331,6 +331,7 @@ class RunningStatistics:
             self.finalize_session_metrics()
             
             # Words Per Minute (using speaking time only)
+            speaking_minutes = 0.0  # 🔥 FIX: Initialize before using
             if self.total_speaking_time > 5.0:
                 speaking_minutes = self.total_speaking_time / 60
                 wpm = self.total_words / speaking_minutes
@@ -370,7 +371,6 @@ class RunningStatistics:
             else:
                 silence_time = self.effective_duration - self.total_speaking_time
 
-            
             # Average response latency
             avg_response_latency = float(np.mean(self.response_latencies)) if self.response_latencies else 0.0
             
@@ -378,36 +378,31 @@ class RunningStatistics:
             avg_semantic = self.total_semantic_score / self.question_count if self.question_count > 0 else 0.0
             avg_keyword = self.total_keyword_score / self.question_count if self.question_count > 0 else 0.0
             
-            # Calculate pause frequency
-            if speaking_minutes > 0:
-                pause_frequency = len(self.pause_durations) / speaking_minutes
-            else:
-                pause_frequency = 0.0
-            
-            # 🔥 PRINT BLOCK HATAYA - duplicate tha
+            # Calculate overall relevance (80% semantic + 20% keyword)
+            overall_relevance = (avg_semantic * 0.8) + (avg_keyword * 0.2)
             
             return {
                 "session_duration": round(self.total_session_duration, 1),
                 "total_user_turn_time": round(self.total_user_turn_time, 1),
-                "available_speaking_time": round(available_speaking_time, 1),  # 🔥 NEW
+                "available_speaking_time": round(available_speaking_time, 1),
                 "effective_duration": round(self.effective_duration, 1),
                 "speaking_time": round(self.total_speaking_time, 1),
-                "silence_time": round(silence_time, 1),  # Legacy
+                "silence_time": round(silence_time, 1),
                 "silence_during_turn": round(silence_during_turn, 1),
                 "forced_silence_time": round(self.forced_silence_time, 1),
-                "speaking_ratio": round(self.speaking_ratio, 3),  # Legacy
-                "speaking_ratio_during_turn": round(speaking_ratio_during_turn, 3),  # 🔥 FIXED
+                "speaking_ratio": round(self.speaking_ratio, 3),
+                "speaking_ratio_during_turn": round(speaking_ratio_during_turn, 3),
                 "wpm": round(wpm, 1),
                 "total_words": self.total_words,
                 "avg_pause_duration": round(avg_pause, 2),
                 "pause_count": len(self.pause_durations),
                 "long_pause_count": self.long_pause_count,
-                "pause_frequency": round(pause_frequency, 2),
                 "hesitation_rate": round(hesitation_rate, 2),
                 "articulation_rate": round(articulation_rate, 2),
                 "avg_response_latency": round(avg_response_latency, 2),
                 "avg_semantic_similarity": round(avg_semantic, 3),
                 "avg_keyword_coverage": round(avg_keyword, 3),
+                "overall_relevance": round(overall_relevance, 3),
                 "questions_answered": self.question_count,
                 "pitch_mean": round(self.pitch_mean, 2),
                 "pitch_std": round(np.sqrt(self.pitch_m2 / (self.pitch_count - 1)) if self.pitch_count > 1 else 0, 2),

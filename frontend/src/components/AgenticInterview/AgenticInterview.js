@@ -35,7 +35,8 @@ const AgenticInterview = ({ user, onLogout }) => {
         livePitch,
         pitchHistory,
         pitchTimestamps,
-        stabilityHistory
+        stabilityHistory,
+        submitAnswer
     } = useInterviewStreaming(user.id);
 
     const [started, setStarted] = useState(false);
@@ -716,9 +717,21 @@ const AgenticInterview = ({ user, onLogout }) => {
                     {/* Controls */}
                     <div className="agentic-controls">
                         <div className="agentic-status">{status}</div>
-                        <button className="agentic-exit-btn" onClick={handleEndInterview}>
-                            <i className="fas fa-stop-circle" /> End Interview
-                        </button>
+                        <div className="agentic-buttons">
+                            {currentTurn === 'USER' && !interviewDone && (
+                                <button
+                                    className="agentic-submit-btn"
+                                    onClick={submitAnswer}
+                                    disabled={!liveTranscript || liveTranscript.trim() === ''}
+                                >
+                                    <i className="fas fa-paper-plane"></i>
+                                    Submit Answer
+                                </button>
+                            )}
+                            <button className="agentic-exit-btn" onClick={handleEndInterview}>
+                                <i className="fas fa-stop-circle" /> End Interview
+                            </button>
+                        </div>
                     </div>
 
                     {error && <div className="agentic-error">⚠️ {error}</div>}

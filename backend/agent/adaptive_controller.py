@@ -874,7 +874,6 @@ class AdaptiveInterviewController:
             # ============================================
             # CONCEPT MASTERY PERSISTENCE
             # ============================================
-            # Save ALL concept data
             concept_dict = {}
             for name, concept in mastery.concepts.items():
                 concept_dict[name] = concept.to_dict()
@@ -896,36 +895,77 @@ class AdaptiveInterviewController:
             print(f"   Concepts tracked: {len(mastery.concepts)}")
             for name, concept in list(mastery.concepts.items())[:3]:
                 print(f"   • {name}: attempts={concept.attempts}, "
-                      f"mastery={concept.mastery_level:.2f}")
+                    f"mastery={concept.mastery_level:.2f}")
             
+            # 🔥 CRITICAL FIX: Create QuestionHistory with ALL fields
             history = QuestionHistory(
                 user_id=user_id,
                 session_id=session_id,
-                topic=record.topic,
-                subtopic=record.subtopic,
+                topic=record.topic,                    # ✅ From record
+                subtopic=record.subtopic,              # ✅ From record
                 question=record.question,
                 answer=record.answer,
                 expected_answer=expected_answer,
                 semantic_score=record.semantic_score,
                 keyword_score=record.keyword_score,
-                difficulty=record.difficulty,
+                difficulty=record.difficulty,          # ✅ From record
                 response_time=record.response_time
             )
-            history.set_sampled_concepts(record.sampled_concepts)
-            history.set_missing_concepts(record.missing_concepts)
+            history.set_sampled_concepts(record.sampled_concepts)   # ✅ Concepts asked
+            history.set_missing_concepts(record.missing_concepts)   # ✅ Concepts missed
             db.session.add(history)
+            
+            # 🔥 ALSO update SubtopicMastery for better tracking
+            subtopic_mastery = SubtopicMastery.query.filter_by(
+                user_id=user_id,
+                topic=record.topic,
+                subtopic=record.subtopic
+            ).first()
+            
+            if not subtopic_mastery:
+                subtopic_mastery = SubtopicMastery(
+                    user_id=user_id,
+                    topic=record.topic,
+                    subtopic=record.subtopic
+                )
+                db.session.add(subtopic_mastery)
+            
+            # Update subtopic mastery with simple average
+            old_attempts = subtopic_mastery.attempts
+            old_mastery = subtopic_mastery.mastery_level
+            new_score = record.semantic_score
+            
+            if old_attempts == 0:
+                subtopic_mastery.mastery_level = new_score
+            else:
+                subtopic_mastery.mastery_level = (old_mastery * old_attempts + new_score) / (old_attempts + 1)
+            
+            subtopic_mastery.attempts += 1
+            subtopic_mastery.last_asked = datetime.utcnow()
+            
+            # Set subtopic status
+            if subtopic_mastery.attempts >= 3 and subtopic_mastery.mastery_level >= 0.7:
+                subtopic_mastery.subtopic_status = 'mastered'
+            elif subtopic_mastery.attempts > 0:
+                subtopic_mastery.subtopic_status = 'ongoing'
+            else:
+                subtopic_mastery.subtopic_status = 'not_started'
             
             db.session.commit()
             
             print(f"\n💾 Saved to DB:")
             print(f"   Topic: {record.topic}")
+            print(f"   Subtopic: {record.subtopic}")
+            print(f"   Difficulty: {record.difficulty}")
+            print(f"   Sampled concepts: {record.sampled_concepts}")
+            print(f"   Missing concepts: {record.missing_concepts}")
             print(f"   Concepts tracked: {len(mastery.concepts)}")
             print(f"   Learning velocity: {mastery.mastery_velocity:+.3f}")
-            print(f"   Weak: {list(mastery.weak_concepts)[:3]}")
-            print(f"   Strong: {list(mastery.strong_concepts)[:3]}")
             
         except Exception as e:
             print(f"❌ Error saving to DB: {e}")
+            import traceback
+            traceback.print_exc()
             db.session.rollback()
     
     def get_session(self, session_id: str) -> dict:

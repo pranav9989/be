@@ -58,19 +58,6 @@ export const hrAPI = {
   getHistory: (type) => api.get(`/interview_history?type=${type}`),
 };
 
-export const resumeAPI = {
-  upload: (formData) => api.post('/upload_resume', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' }
-  }),
-  // Legacy Ollama-based (kept for backward compatibility)
-  generateResumeBasedQuestions: (data) => api.post('/resume_based_questions', data),
-  // New Local Ollama endpoints replacing Gemini
-  generateQuestions: (data) => api.post('/mock_interview/questions', data),
-  evaluateAnswer: (data) => api.post('/mock_interview/evaluate_answer', data),
-  getSessionSummary: (data) => api.post('/mock_interview/session_summary', data),
-  getResumeAnalysis: () => api.get('/resume/analysis'),
-};
-
 export const statsAPI = {
   getUserStats: () => api.get('/user_stats'),
 };
@@ -115,6 +102,26 @@ export const interviewAPI = {
   getMetrics: () => api.get('/interview/metrics'),
   // 🔥 NEW: Get interview results (metrics + coaching)
   getInterviewResults: (sessionId) => api.post('/interview_results', { session_id: sessionId }),
+};
+
+export const resumeAPI = {
+  upload: (formData) => api.post('/upload_resume', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' }
+  }),
+
+  // Legacy Ollama-based (kept for backward compatibility)
+  generateResumeBasedQuestions: (data) => api.post('/resume_based_questions', data),
+
+  // New Local Ollama endpoints replacing Gemini
+  generateQuestions: (data) => api.post('/mock_interview/questions', data),
+  evaluateAnswer: (data) => api.post('/mock_interview/evaluate_answer', data),
+  getSessionSummary: (data) => api.post('/mock_interview/session_summary', data),
+  getResumeAnalysis: () => api.get('/resume/analysis'),
+
+  // 🔥 NEW: Resume conversational interview endpoints
+  startResumeInterview: (data) => api.post('/resume_interview/start', data),
+  getResumeInterviewHistory: () => api.get('/resume_interview/history'),
+  getResumeInterviewSession: (sessionId) => api.get(`/resume_interview/session/${sessionId}`),
 };
 
 export default api;

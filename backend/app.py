@@ -433,20 +433,175 @@ def finalize_user_answer(session_key):
 
     # ===== CLEANUP =====
     session["silence_thread_started"] = False
+    session["finalizing"] = False
+
+def finalize_resume_user_answer(session_key):
+    """
+    Resume-specific finalize.
+    SAME conversational flow.
+    NO adaptive controller.
+    NO semantic scoring (optional - you can keep scoring if you want).
+    """
+
+    session = streaming_sessions.get(session_key)
+    if not session:
+        print(f"⚠️ finalize_resume_user_answer: Session {session_key} not found")
+        return
+
+    if session.get("finalized"):
+        print(f"⚠️ Already finalized, skipping")
+        return
+
+    session["finalized"] = True
+    session["turn"] = "INTERVIEWER"
+
+    room = session.get("room")
+
+    # 🔥 STOP FRONTEND AUDIO
+    if room:
+        socketio.emit("force_stop_speaking", {"status": "stop"}, room=room)
+
+    # ===== USER TURN TIMING =====
+    stats = session.get("stats")
+    if "user_turn_start" in session:
+        user_turn_end = time.time()
+        duration = user_turn_end - session["user_turn_start"]
+        session["user_turn_total_time"] = duration
+        print(f"⏱️ USER TURN duration: {duration:.1f}s")
+
+        if stats:
+            stats.end_user_turn(now_ts())
+            stats._in_user_turn = False
+
+    # ===== FINAL ANSWER =====
+    final_answer = session.get("last_final_transcript", "").strip()
+    if not final_answer:
+        final_answer = "[User remained silent]"
+
+    print(f"✅ RESUME FINAL ANSWER: {final_answer[:200]}...")
+    session["last_voice_time"] = float("inf")
+
+    try:
+        question = session.get("current_question")
+
+        # ===== EXPECTED ANSWER (keep for scoring if needed) =====
+        expected_answer = ""
+        try:
+            from rag import agentic_expected_answer
+            expected_answer, _ = agentic_expected_answer(question, [])
+        except Exception as e:
+            print(f"⚠️ Expected answer error: {e}")
+
+        # ===== SCORING (optional - keep for metrics) =====
+        semantic_score = 0.0
+        keyword_score = 0.0
+        
+        if stats and question and final_answer != "[User remained silent]":
+            from interview_analyzer import calculate_semantic_similarity, calculate_keyword_coverage
+
+            is_silent = (final_answer == "[User remained silent]" or len(final_answer.strip()) < 5)
+
+            if not is_silent:
+                try:
+                    semantic_score = calculate_semantic_similarity(final_answer, expected_answer)
+                    keyword_score = calculate_keyword_coverage(final_answer, question)
+                except:
+                    pass  # Don't let scoring break the flow
+
+            stats.record_qa_pair(
+                question,
+                final_answer,
+                expected_answer,
+                semantic_score,
+                keyword_score
+            )
+            print(f"📊 Resume Scores → Semantic: {semantic_score:.3f}, Keyword: {keyword_score:.3f}")
+
+        # ===== STORE Q&A =====
+        if question:
+            if "qa_pairs" not in session:
+                session["qa_pairs"] = []
+            session["qa_pairs"].append({
+                "question": question,
+                "answer": final_answer,
+                "expected_answer": expected_answer,
+                "semantic_score": semantic_score,
+                "keyword_score": keyword_score,
+                "timestamp": time.time()
+            })
+
+        # ===== GENERATE NEXT QUESTION =====
+        next_question = generate_resume_question(session)
+        
+        # ===== INCREMENT QUESTION COUNTER =====
+        questions_asked = session.get("questions_asked", 0)
+        session["questions_asked"] = questions_asked + 1
+        total_questions = len(session.get("resume_flow", []))
+        print(f"📊 Resume Q: {questions_asked + 1}/{total_questions}")
+
+        # ===== FRONTEND UPDATE =====
+        socketio.emit(
+            "user_answer_complete",
+            {
+                "answer": final_answer,
+                "question": question,
+                "next_question": next_question
+            },
+            room=room
+        )
+
+        # ===== CHECK IF INTERVIEW SHOULD END =====
+        if not next_question or session["questions_asked"] >= total_questions:
+            print(f"🎉 Resume interview complete - asked all {total_questions} questions")
+            stop_resume_interview({"user_id": session.get("user_id")}, sid=session_key[1] if len(session_key) > 1 else None)
+            return
+
+        # ===== UPDATE SESSION FOR NEXT TURN =====
+        session.update({
+            "current_question": next_question,
+            "answer_finalized": False,
+            "last_final_transcript": "",
+            "final_text": [],
+            "first_voice_recorded": False,
+        })
+
+        if stats:
+            stats.record_question(next_question)
+            stats.record_question_end()
+
+        socketio.emit(
+            "resume_next_question",
+            {"question": next_question},
+            room=room
+        )
+        def trigger_interviewer_done():
+            time.sleep(1.5)
+
+            print("🔥 [RESUME FIX] Calling interviewer_done (next turn)")
+
+            interviewer_done({
+                "user_id": session.get("user_id")
+            })
+
+        socketio.start_background_task(trigger_interviewer_done)
+
+    except Exception as e:
+        print(f"❌ Resume finalize error: {e}")
+        import traceback
+        traceback.print_exc()
+        return
+
+    # DO NOT change turn here — handled by interviewer_done
+    session["silence_thread_started"] = False
 
 def silence_watcher(session_key, timeout=15):
     """
     Clock B: The Logic Engine.
-    Monitors time since last voice activity.
-    
-    RESEARCH-GRADE LOGIC:
-    - VAD handles speech start/end events (Clock A)
-    - This monitors silence between turns (Clock B)
-    - Thinking pauses are counted as silence_time (via VAD)
-    - Timeout period is forced_silence (removed from effective_duration)
+    NOW ONLY TRACKS METRICS - DOES NOT FINALIZE
+    User must click submit button to end their turn.
     """
-    print(f"👂 Silence watcher started for {session_key}")
-
+    print(f"👂 Silence watcher started for {session_key} (MONITORING ONLY - NO AUTO-FINALIZE)")
+    
     last_log_time = time.time()
     
     while True:
@@ -465,9 +620,6 @@ def silence_watcher(session_key, timeout=15):
 
         # 2️⃣ Turn check - only monitor during USER turn
         if session.get("turn") != "USER":
-            if session.get("finalized"):
-                print("✅ Silence watcher exiting (Turn already finalized)")
-                return
             continue
 
         # 3️⃣ Silence tracking
@@ -480,7 +632,7 @@ def silence_watcher(session_key, timeout=15):
 
         # Log every 2 seconds
         if now - last_log_time >= 2:
-            print(f"⏰ Silence elapsed: {elapsed:.1f}s")
+            print(f"⏰ Silence elapsed: {elapsed:.1f}s (monitoring only)")
             last_log_time = now
 
         # 4️⃣ Frontend timer update
@@ -496,39 +648,45 @@ def silence_watcher(session_key, timeout=15):
         except Exception:
             pass
 
-        # 5️⃣ DECISION POINT - SILENCE TIMEOUT REACHED
-        if elapsed >= timeout:
-            print(f"🛑 Silence limit ({timeout}s) reached. Finalizing turn.")
-            
-            stats = session.get("stats")
-            
-            if stats:
-                # ✅ CORRECT: Do NOT manually close speech segments
-                # ✅ VAD already handled that accurately
-                # ✅ Only record forced system wait time
-                stats.record_forced_silence(timeout)
-                
-                print(f"   📊 Recorded forced silence: {timeout}s")
-                print(f"   📊 Speaking time untouched: {stats.total_speaking_time:.1f}s")
-                print(f"   📊 Silence time (thinking): {stats.total_silence_time:.1f}s")
-                print(f"   📊 New forced silence total: {stats.forced_silence_time:.1f}s")
+        # ❌ DO NOT FINALIZE - WAIT FOR USER TO CLICK SUBMIT
+        # The old code that called finalize_user_answer() has been REMOVED
 
-            # Legacy metrics for backward compatibility
-            metrics = session.get("speech_metrics")
-            if metrics:
-                if hasattr(metrics, 'questions_answered'):
-                    metrics.questions_answered += 1
-                else:
-                    metrics.questions_answered = 1
+@socketio.on("user_done_speaking")
+def user_done_speaking(data):
+    user_id = data.get("user_id")
+    sid = request.sid
+    session_key = (user_id, sid)
 
-                if hasattr(metrics, 'current_silence'):
-                    metrics.current_silence = 0
+    session = streaming_sessions.get(session_key)
+    if not session:
+        print(f"⚠️ Session not found for manual submit - user {user_id}")
+        return
 
-                print(f"📊 Question #{getattr(metrics, 'questions_answered', 0)} completed")
+    # Prevent duplicate clicks
+    if session.get("finalizing"):
+        print("⚠️ Already finalizing, ignoring duplicate submit")
+        return
 
-            # Finalize the turn
-            finalize_user_answer(session_key)
-            return
+    print("📤 Manual submit triggered by user")
+
+    # 🔥 STOP MIC
+    room = session.get("room")
+    if room:
+        socketio.emit("force_stop_speaking", {"status": "stop"}, room=room)
+
+    # 🔥 WAIT FOR FINAL TRANSCRIPT (VERY IMPORTANT)
+    time.sleep(0.7)
+
+    # 🔥 NOW LOCK (AFTER transcript arrives)
+    session["finalizing"] = True
+
+    # 🔥 FINALIZE
+    mode = session.get("mode", "agentic")
+
+    if mode == "resume":
+        finalize_resume_user_answer(session_key)
+    else:
+        finalize_user_answer(session_key)
 
 @app.route('/api/debug_sessions', methods=['GET'])
 def debug_sessions():
@@ -1451,6 +1609,10 @@ def start_interview(data):
 
         # 2. Update Silence Timer
         if session and text.strip():
+            # ONLY update if no final text exists yet
+            if not session.get("final_text"):
+                session["last_final_transcript"] = text.strip()
+
             session["last_voice_time"] = time.time()
 
     # --------------------------------
@@ -1462,9 +1624,10 @@ def start_interview(data):
         if not session or session.get("destroyed"):
             return
 
-        # Only process during USER turn
-        if session.get("turn") != "USER" and not session.get("finalizing"):
-            return
+        # 🔥 allow during USER OR during finalizing window
+        if session.get("turn") != "USER":
+            if not session.get("finalizing", False):
+                return
 
         text = text.strip()
         if not text:
@@ -1508,27 +1671,20 @@ def start_interview(data):
                 metrics.last_audio_timestamp = now_ts_val
                 metrics.last_speech_end_time = now_ts_val
 
-        # ===== TRANSCRIPT FIX (CRITICAL) =====
-        last = session.get("last_final_transcript", "")
-
-        # Ignore exact duplicates
-        if text == last:
-            return
-
-        # Initialize if needed
+        # ===== TRANSCRIPT FIX (CORRECT) =====
         if "final_text" not in session:
             session["final_text"] = []
 
         last = session.get("last_final_transcript", "")
 
-        # Ignore exact duplicates
-        if text.strip() == last.strip():
+        # smarter duplicate check (prevents dropping valid chunks)
+        if text.strip() and last.endswith(text.strip()):
             return
 
-        # 🔥 APPEND instead of overwrite
+        # append safely
         session["final_text"].append(text)
 
-        # 🔥 Maintain full transcript
+        # rebuild full transcript
         session["last_final_transcript"] = " ".join(session["final_text"])
 
         # ===== RESET SILENCE TIMER =====
@@ -1638,6 +1794,7 @@ def interviewer_done(data):
     # 1. Flip State (Clock C)
     session["turn"] = "USER"
     session["finalized"] = False
+    session["finalizing"] = False
     session["final_text"] = []
     
     # 🔥 NEW: Record when USER TURN starts
@@ -1662,9 +1819,10 @@ def interviewer_done(data):
         vad.reset()
 
     # 5. Start the Watcher Thread
-    if not session.get("silence_thread_started"):
-        session["silence_thread_started"] = True
-        socketio.start_background_task(silence_watcher, session_key)
+    #if not session.get("silence_thread_started"):
+    #    session["silence_thread_started"] = True
+    #    socketio.start_background_task(silence_watcher, session_key)
+    print("🧠 Manual submit mode — silence watcher disabled")
 
 @socketio.on("audio_chunk")
 def receive_audio(data):
@@ -2277,6 +2435,69 @@ def get_user_sessions():
         'sessions': [s.to_dict() for s in sessions]
     })
 
+@app.route('/api/user/session/<int:session_id>/questions', methods=['GET'])
+@jwt_required
+def get_session_questions(session_id):
+    """Get detailed questions for a specific session with topic, subtopic, difficulty, and concepts"""
+    try:
+        # Get the session
+        session = InterviewSession.query.filter_by(
+            id=session_id,
+            user_id=g.current_user.id
+        ).first()
+        
+        if not session:
+            return jsonify({'success': False, 'error': 'Session not found'}), 404
+        
+        # For agentic sessions, we need to find QuestionHistory records by timestamp
+        from datetime import timedelta
+        
+        # Get questions from 1 hour before session created to 1 hour after
+        start_time = session.created_at - timedelta(hours=1)
+        end_time = session.created_at + timedelta(hours=1)
+        
+        questions = QuestionHistory.query.filter(
+            QuestionHistory.user_id == g.current_user.id,
+            QuestionHistory.timestamp >= start_time,
+            QuestionHistory.timestamp <= end_time
+        ).order_by(QuestionHistory.timestamp).all()
+        
+        # If we found questions by timestamp, return them
+        if questions:
+            result = []
+            for q in questions:
+                result.append({
+                    'id': q.id,
+                    'question': q.question,
+                    'answer': q.answer,
+                    'expected_answer': q.expected_answer,
+                    'semantic_score': q.semantic_score,
+                    'keyword_score': q.keyword_score,
+                    'difficulty': q.difficulty,
+                    'topic': q.topic,
+                    'subtopic': q.subtopic,
+                    'response_time': q.response_time,
+                    'missing_concepts': q.get_missing_concepts(),
+                    'sampled_concepts': q.get_sampled_concepts(),
+                    'timestamp': q.timestamp.isoformat()
+                })
+            
+            print(f"📊 Returning {len(result)} detailed questions for session {session_id}")
+            if result:
+                print(f"   First question: topic={result[0]['topic']}, subtopic={result[0]['subtopic']}, difficulty={result[0]['difficulty']}")
+                print(f"   Sampled concepts: {result[0]['sampled_concepts']}")
+                print(f"   Missing concepts: {result[0]['missing_concepts']}")
+            
+            return jsonify({'success': True, 'questions': result})
+        
+        # Fallback: Return empty array if no questions found
+        return jsonify({'success': True, 'questions': []})
+        
+    except Exception as e:
+        print(f"Error getting session questions: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/user/topics/<topic>/details', methods=['GET'])
 @jwt_required
@@ -3340,70 +3561,746 @@ def get_topics():
     except Exception as e:
         return jsonify({'error': f'Error loading topics: {str(e)}'}), 500
 
+# ============================================================
+#  RESUME-BASED CONVERSATIONAL INTERVIEW
+# ============================================================
 
-# ==============================================================================
-# ── DATA SCIENCE CODING PRACTICE ROUTES ───────────────────────────────────────
-# ==============================================================================
-import coding_engine as ce
+# Store active resume interview sessions
+resume_streaming_sessions = {}
 
-@app.route('/api/coding/questions', methods=['POST'])
-@jwt_required
-def get_coding_questions():
-    """Generate Data Science coding questions"""
-    data = request.json
-    count = int(data.get('question_count', 3))
-    difficulty = data.get('difficulty', 'medium')
-    
-    try:
-        questions = ce.generate_coding_questions(question_count=count, difficulty=difficulty)
-        return jsonify({'success': True, 'questions': questions})
-    except Exception as e:
-        print(f"Error generating coding questions: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
-
-@app.route('/api/coding/evaluate', methods=['POST'])
-@jwt_required
-def evaluate_coding_answer():
-    """Evaluate user's SQL or Pandas code"""
-    data = request.json
-    question = data.get('question', {})
-    user_code = data.get('user_code', '')
-    language = data.get('language', 'sql')
-    
-    try:
-        evaluation = ce.evaluate_coding_answer(
-            question=question,
-            user_code=user_code,
-            language=language
+@socketio.on('start_resume_interview')
+def start_resume_interview(data):
+    """Start a resume-based conversational interview"""
+    with app.app_context():
+        user_id = data.get('user_id')
+        sid = request.sid
+        job_description = data.get('job_description', '')
+        session_key = (user_id, sid)
+        
+        # Clean up existing session
+        if session_key in resume_streaming_sessions:
+            try:
+                old_session = resume_streaming_sessions[session_key]
+                if 'session' in old_session and old_session['session']:
+                    old_session['session'].stop()
+            except:
+                pass
+            del resume_streaming_sessions[session_key]
+        
+        room = f"resume_interview_{user_id}"
+        join_room(room)
+        
+        # Get user info
+        from models import User
+        user = db.session.get(User, user_id)
+        user_name = user.full_name if user and user.full_name else ""
+        
+        # ============================================================
+        # LOAD RESUME DATA AND CREATE FLOW
+        # ============================================================
+        
+        resume_data = {
+            "skills": [],
+            "projects": [],
+            "experience": [],
+            "certifications": []
+        }
+        
+        if user.resume_filename:
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], user.resume_filename)
+            if os.path.exists(file_path):
+                file_type = 'pdf' if user.resume_filename.lower().endswith('.pdf') else 'docx'
+                from resume_processor import parse_resume_file
+                parsed_data = parse_resume_file(file_path, file_type)
+                if parsed_data:
+                    resume_data = parsed_data
+        
+        # ============================================================
+        # BUILD RESUME FLOW QUESTIONS
+        # ============================================================
+        
+        resume_flow = []
+        
+        # 1. Introduction question
+        intro_question = f"Hi there! Thanks for joining me today. Could you please introduce yourself and tell me a bit about your background?"
+        resume_flow.append(intro_question)
+        
+        # 2. Skills question
+        skills = resume_data.get("skills", [])
+        if skills:
+            skills_str = ", ".join(skills[:3])
+            resume_flow.append(f"Your resume mentions skills like {skills_str}. Can you tell me about your experience with these technologies?")
+        else:
+            resume_flow.append("What are your key technical skills and how have you used them?")
+        
+        # 3. Projects question
+        projects = resume_data.get("projects", [])
+        if projects:
+            for proj in projects[:2]:
+                if isinstance(proj, dict):
+                    proj_name = proj.get("name", "a project")
+                    resume_flow.append(f"I see you worked on '{proj_name}'. Could you walk me through your role and the technical challenges you faced?")
+        else:
+            resume_flow.append("What's the most challenging project you've worked on?")
+        
+        # 4. Experience question
+        experience = resume_data.get("experience", [])
+        if experience:
+            for exp in experience[:2]:
+                if isinstance(exp, dict):
+                    exp_title = exp.get("title", "a position")
+                    resume_flow.append(f"Tell me more about your experience as {exp_title}. What were your key responsibilities?")
+        else:
+            resume_flow.append("Tell me about your work experience or internships.")
+        
+        # 5. Certifications question
+        certifications = resume_data.get("certifications", [])
+        if certifications:
+            certs_str = ", ".join(certifications[:2])
+            resume_flow.append(f"I noticed you have certifications like {certs_str}. How have these helped your career?")
+        else:
+            resume_flow.append("Do you have any certifications or ongoing learning initiatives?")
+        
+        # 6. Career goals question
+        resume_flow.append("Where do you see yourself in the next few years, and how does this role align with your goals?")
+        
+        # ============================================================
+        # INITIALIZE STATS AND VAD
+        # ============================================================
+        
+        from interview_analyzer import RunningStatistics, VoiceActivityDetector, now_ts
+        
+        interview_stats = RunningStatistics(
+            pause_threshold=0.3,
+            long_pause_threshold=5.0,
+            ignore_long_pause_over=20.0
         )
-        return jsonify({'success': True, 'evaluation': evaluation})
-    except Exception as e:
-        print(f"Error evaluating coding answer: {e}")
-        return jsonify({'success': False, 'error': str(e)}), 500
+        
+        vad = VoiceActivityDetector(
+            sample_rate=16000,
+            frame_ms=30,
+            energy_threshold=0.1,
+            hangover_ms=300,
+            min_speech_ms=150
+        )
+        
+        def on_vad_start(ts=None):
+            if ts is None:
+                ts = now_ts()
+            print(f"🔊 VAD START at {ts:.2f}s")
+            interview_stats.record_speech_start(ts)
+        
+        def on_vad_end(ts=None):
+            if ts is None:
+                ts = now_ts()
+            print(f"🔇 VAD END at {ts:.2f}s")
+            interview_stats.record_speech_end(ts)
+        
+        vad.on_voice_start = on_vad_start
+        vad.on_voice_end = on_vad_end
+        
+        # ============================================================
+        # CREATE SESSION IN streaming_sessions
+        # ============================================================
+        
+        streaming_sessions[session_key] = {
+            "turn": "INTERVIEWER",
+            "current_question": resume_flow[0],
+            "session": None,
+            "room": room,
+            "early_buffer": [],
+            "final_text": [],
+            "user_audio_chunks": [],
+            "interviewer_audio_chunks": [],
+            "stats": interview_stats,
+            "vad": vad,
+            "user_id": user_id,
+            "chunk_count": 0,
+            "ready": False,
+            "primed": False,
+            "buffer_count": 0,
+            "first_voice_recorded": False,
+            "session_start_time": time.time(),
+            "questions_asked": 0,
+            "speech_metrics": SpeechMetrics(),
+            "last_final_transcript": "",
+            "finalized": False,
+            "last_voice_time": time.time(),
+            "is_speaking": False,
+            "mode": "resume",
+            "resume_flow": resume_flow,
+            "resume_q_index": 1,
+            "resume_data": resume_data,
+            "qa_pairs": [],
+        }
+        
+        streaming_sessions[session_key]["stats"].session_start_time = now_ts()
+        
+        # ============================================================
+        # SETUP ASSEMBLYAI CALLBACKS
+        # ============================================================
+        
+        def on_partial(text):
+            session = streaming_sessions.get(session_key)
+            if not session or session.get("destroyed"):
+                return
+            
+            if session.get("turn") == "USER" and not session.get("finalized"):
+                try:
+                    socketio.emit('live_transcript', {'text': text}, room=room)
+                    if text.strip():
+                        session["last_voice_time"] = time.time()
+                except Exception as e:
+                    print(f"Error sending partial: {e}")
+        
+        def on_final(text):
+            session = streaming_sessions.get(session_key)
+            
+            if not session or session.get("destroyed"):
+                return
+            
+            if session.get("turn") != "USER":
+                return
+            
+            text = text.strip()
+            if not text:
+                return
+            
+            print(f"✅ FINAL transcript chunk: {text[:100]}...")
+            
+            if "final_text" not in session:
+                session["final_text"] = []
+            
+            session["final_text"].append(text)
+            combined = " ".join(session["final_text"])
+            session["last_final_transcript"] = combined
+            session["last_voice_time"] = time.time()
+            
+            stats = session.get("stats")
+            if stats:
+                if not session.get("first_voice_recorded"):
+                    stats.record_speech_start(now_ts())
+                    session["first_voice_recorded"] = True
+                stats.update_transcript(text)
+            
+            try:
+                socketio.emit('live_transcript', {'text': combined}, room=room)
+            except Exception as e:
+                print(f"Error emitting live_transcript: {e}")
+        
+        def on_error(error):
+            print(f"❌ Resume streaming error: {error}")
+        
+        def on_ready():
+            socketio.start_background_task(notify_resume_backend_ready, user_id, sid)
+        
+        # ============================================================
+        # START ASSEMBLYAI STREAMING
+        # ============================================================
+        
+        try:
+            from assemblyai_websocket_stream import AssemblyAIWebSocketStreamer
+            streamer = AssemblyAIWebSocketStreamer(
+                on_partial=on_partial,
+                on_final=on_final,
+                on_error=on_error,
+                on_ready=on_ready,
+            )
+            streamer.start()
+            streaming_sessions[session_key]["streamer"] = streamer
+            print(f"✅ AssemblyAI streaming started for resume interview user {user_id}")
+            use_mock = False
+        except Exception as e:
+            print(f"⚠️ AssemblyAI not available: {e}")
+            use_mock = True
+            streamer = MockAssemblyAIStreamer(on_partial, on_final, on_error)
+            streamer.start()
+            socketio.start_background_task(notify_resume_backend_ready, user_id, sid)
+        
+        streaming_sessions[session_key].update({
+            "turn": "INTERVIEWER",
+            "session": streamer,
+            "finalized": False,
+        })
+        
+        # ============================================================
+        # START TIMER BROADCASTER
+        # ============================================================
+        
+        def timer_broadcaster():
+            import time
+            while True:
+                time.sleep(1)
+                session = streaming_sessions.get(session_key)
+                if not session or session.get("destroyed") or session.get("turn") == "DONE":
+                    return
+                session_start = session.get("session_start_time")
+                if session_start:
+                    now = time.time()
+                    elapsed_total = now - session_start
+                    time_remaining = max(0, 30 * 60 - int(elapsed_total))
+                    turn_elapsed = 0
+                    if session.get("turn") == "USER" and session.get("last_voice_time"):
+                        turn_elapsed = now - session.get("last_voice_time", now)
+                    try:
+                        socketio.emit('timer_update', {
+                            'time_remaining': time_remaining,
+                            'turn_time_elapsed': turn_elapsed
+                        }, room=room)
+                    except:
+                        pass
+        
+        socketio.start_background_task(timer_broadcaster)
+        
+        # ============================================================
+        # SEND FIRST QUESTION VIA TTS
+        # ============================================================
+        
+        emit('resume_interview_started', {
+            'status': 'success',
+            'use_mock': use_mock,
+            'intro_question': intro_question,
+            'total_questions': len(resume_flow)
+        }, room=room)
+        
+        # Send the first question to frontend for TTS
+        socketio.emit('resume_question', {'question': intro_question}, room=room)
+        def trigger_interviewer_done():
+            time.sleep(1.5)  # let TTS start
 
+            print("🔥 [RESUME FIX] Calling interviewer_done (start)")
 
-@app.route('/api/health', methods=['GET'])
-def health_check():
+            interviewer_done({
+                "user_id": user_id
+        })
+
+        socketio.start_background_task(trigger_interviewer_done)
+        
+        # ============================================================
+        # 🔥 CRITICAL FIX: FORCE USER TURN START AFTER TTS
+        # ============================================================
+        
+        # Give a small delay for TTS to start playing, then force user turn
+        def start_user_turn_after_tts():
+            import time
+            time.sleep(2)  # Wait for TTS to start playing
+            
+            session = streaming_sessions.get(session_key)
+            if not session:
+                print(f"⚠️ [RESUME FIX] Session not found for user {user_id}")
+                return
+            
+            if session.get("turn") == "DONE" or session.get("destroyed"):
+                return
+            
+            print(f"🔥 [RESUME FIX] Forcing USER turn start for user {user_id}")
+            
+            # Set turn to USER
+            session["turn"] = "USER"
+            session["finalized"] = False
+            session["final_text"] = []
+            session["first_voice_recorded"] = False
+            
+            # Record turn start time
+            session["user_turn_start"] = time.time()
+            session["last_voice_time"] = time.time()
+            
+            # Update stats
+            stats = session.get("stats")
+            if stats:
+                stats._in_user_turn = True
+                stats.start_user_turn(now_ts())
+            
+            # Start silence watcher
+            #if not session.get("silence_thread_started"):
+            #    session["silence_thread_started"] = True
+            #    socketio.start_background_task(silence_watcher, session_key)
+            print("🧠 Manual submit mode — silence watcher disabled")
+            
+            # Notify frontend
+            socketio.emit('user_turn_started', {'status': 'ready'}, room=room)
+            print(f"✅ [RESUME FIX] USER turn started, silence watcher active")
+        
+        socketio.start_background_task(start_user_turn_after_tts)
+        
+        print(f"✅ Resume-based interview started for user {user_id}")
+        print(f"   Mode: resume, Questions available: {len(resume_flow)}")
+
+def notify_resume_backend_ready(user_id, sid):
+    """Notify frontend that backend is ready for resume interview"""
+    session_key = (user_id, sid)
+    
+    if session_key not in streaming_sessions:
+        print(f"⚠️ notify_resume_backend_ready: session not found for {session_key}")
+        return
+    
+    print(f"🔥 Resume interview backend ready for user {user_id}")
+    
+    streaming_sessions[session_key]['ready'] = True
+    streaming_sessions[session_key]['primed'] = True
+    
+    streamer = streaming_sessions[session_key].get("streamer")
+    if streamer:
+        print("🔥 Flushing AssemblyAI buffer")
+        streamer.flush_buffer()
+    
     try:
-        # Check if required files exist
-        import os
-        files_exist = all([
-            os.path.exists("data/processed/faiss_mistral/index.faiss"),
-            os.path.exists("data/processed/faiss_mistral/metas.json"),
-            os.path.exists("data/processed/kb_clean.json"),
-            os.path.exists("config/topic_rules.json")
-        ])
-        return jsonify({
-            'status': 'healthy',
-            'rag_initialized': files_exist
-        })
+        socketio.emit(
+            'resume_backend_ready',
+            {'status': 'ready', 'timestamp': time.time()},
+            room=streaming_sessions[session_key]['room']
+        )
     except Exception as e:
-        return jsonify({
-            'status': 'error',
-            'rag_initialized': False,
-            'error': str(e)
-        })
+        print(f"❌ Failed to emit resume_backend_ready: {e}")
 
+def generate_context_aware_question(resume_text, job_description, conversation_history, last_answer, last_score):
+    """Generate next question based on previous answer quality"""
+    from rag import mistral_generate
+    
+    # Format conversation
+    conv_text = ""
+    for msg in conversation_history[-8:]:  # Last 8 messages
+        role = "Candidate" if msg["role"] == "user" else "Interviewer"
+        conv_text += f"{role}: {msg['content']}\n"
+    
+    # Determine follow-up need based on score
+    follow_up_instruction = ""
+    if last_score < 0.4:
+        follow_up_instruction = """
+The candidate struggled with the last question (score < 40%). 
+Ask a SIMPLER follow-up question on the same topic to help them demonstrate understanding.
+"""
+    elif last_score < 0.7:
+        follow_up_instruction = """
+The candidate answered partially (score 40-70%). 
+Ask a CLARIFYING follow-up question to probe deeper on the same topic.
+"""
+    else:
+        follow_up_instruction = """
+The candidate answered well (score > 70%).
+Move to a NEW topic or ask about a DIFFERENT project/skill from their resume.
+"""
+    
+    prompt = f"""You are a friendly interviewer. Based on the candidate's resume and conversation, ask the NEXT question.
+
+RESUME:
+{resume_text[:1500]}
+
+JOB DESCRIPTION (if any):
+{job_description[:500] if job_description else 'General position'}
+
+CONVERSATION:
+{conv_text}
+
+CANDIDATE'S LAST ANSWER:
+{last_answer[:300]}
+
+LAST ANSWER SCORE: {last_score:.0%}
+
+{follow_up_instruction}
+
+RULES:
+1. Ask ONE question at a time
+2. Be conversational and friendly
+3. Reference specific projects/skills from their resume
+4. Don't repeat questions already asked
+5. If score was low, ask a simpler follow-up on the same topic
+
+Generate ONLY the question text, nothing else."""
+
+    try:
+        question = mistral_generate(prompt, timeout=30, temperature=0.7)
+        if not question or len(question) < 10:
+            # Fallback questions based on conversation length
+            if len(conversation_history) < 2:
+                question = "Could you tell me more about your technical background and experience?"
+            elif len(conversation_history) < 4:
+                question = "What technical projects are you most proud of, and what was your role in them?"
+            else:
+                question = "How do you approach learning new technologies or solving unfamiliar problems?"
+        return question
+    except:
+        return "Could you tell me more about your technical experience and the projects you've worked on?"
+
+@socketio.on("stop_resume_interview")
+def stop_resume_interview(data, sid=None):
+    """Stop resume interview and save FULL metrics (matching agentic interview)"""
+    user_id = data.get("user_id")
+    
+    # Find session key
+    session_key = None
+    if sid:
+        session_key = (user_id, sid)
+    else:
+        for key in resume_streaming_sessions.keys():
+            if key[0] == user_id:
+                session_key = key
+                break
+    
+    if not session_key or session_key not in resume_streaming_sessions:
+        print(f"⚠️ No resume interview session found for user {user_id}")
+        return
+    
+    session = resume_streaming_sessions[session_key]
+    room = session.get("room")
+    
+    print("\n" + "="*80)
+    print("🛑 STOPPING RESUME INTERVIEW - FINALIZING METRICS")
+    print("="*80)
+    
+    # Mark session as destroyed
+    session["destroyed"] = True
+    session["turn"] = "DONE"
+    
+    # Stop AssemblyAI session
+    if session.get("session"):
+        try:
+            session["session"].stop()
+            print("✅ AssemblyAI session stopped")
+        except Exception as e:
+            print(f"⚠️ Error stopping AssemblyAI session: {e}")
+    
+    # ===== COMPUTE FULL RESEARCH-GRADE METRICS =====
+    stats = session.get("stats")
+    metrics = {}
+    
+    if stats:
+        try:
+            # Force finalize any pending speech segment
+            if stats.current_speech_start is not None:
+                ts = now_ts()
+                speech_duration = ts - stats.current_speech_start
+                stats.total_speaking_time += speech_duration
+                stats.current_speech_start = None
+                print(f"🎤 Auto-closed final speech segment: +{speech_duration:.2f}s")
+            
+            # End user turn if still active
+            if stats._in_user_turn:
+                stats.end_user_turn(now_ts())
+            
+            # Compute all metrics - SAME as agentic interview
+            metrics = stats.compute_research_metrics()
+            
+            print("\n📊 RESEARCH-GRADE METRICS:")
+            print(f"   Speaking Time: {metrics.get('speaking_time', 0):.1f}s")
+            print(f"   Total User Turn Time: {metrics.get('total_user_turn_time', 0):.1f}s")
+            print(f"   Forced Silence: {metrics.get('forced_silence_time', 0):.1f}s")
+            print(f"   Available Speaking Time: {metrics.get('available_speaking_time', 0):.1f}s")
+            print(f"   Silence During Turn: {metrics.get('silence_during_turn', 0):.1f}s")
+            print(f"   Speaking Ratio: {metrics.get('speaking_ratio_during_turn', 0)*100:.1f}%")
+            print(f"   Session Duration: {metrics.get('session_duration', 0):.1f}s")
+            print(f"   WPM: {metrics.get('wpm', 0):.0f}")
+            print(f"   Articulation Rate: {metrics.get('articulation_rate', 0):.2f} words/s")
+            print(f"   Avg Response Latency: {metrics.get('avg_response_latency', 0):.2f}s")
+            print(f"   Avg Pause Duration: {metrics.get('avg_pause_duration', 0):.2f}s")
+            print(f"   Pause Count: {metrics.get('pause_count', 0)}")
+            print(f"   Long Pauses: {metrics.get('long_pause_count', 0)}")
+            print(f"   Hesitation Rate: {metrics.get('hesitation_rate', 0):.2f}/min")
+            print(f"   Semantic Similarity: {metrics.get('avg_semantic_similarity', 0)*100:.1f}%")
+            print(f"   Keyword Coverage: {metrics.get('avg_keyword_coverage', 0)*100:.1f}%")
+            print(f"   Questions Answered: {metrics.get('questions_answered', 0)}")
+            print(f"   Pitch Mean: {metrics.get('pitch_mean', 0):.1f} Hz")
+            print(f"   Pitch Stability: {metrics.get('pitch_stability', 0):.1f}%")
+            
+        except Exception as e:
+            print(f"❌ Error computing metrics: {e}")
+            import traceback
+            traceback.print_exc()
+    else:
+        # Create minimal metrics from session data
+        qa_pairs = session.get("qa_pairs", [])
+        total_duration = time.time() - session.get("session_start_time", time.time())
+        
+        metrics = {
+            "speaking_time": 0,
+            "total_user_turn_time": 0,
+            "forced_silence_time": 0,
+            "available_speaking_time": 0,
+            "silence_during_turn": 0,
+            "speaking_ratio_during_turn": 0,
+            "session_duration": total_duration,
+            "wpm": 0,
+            "articulation_rate": 0,
+            "avg_response_latency": 0,
+            "avg_pause_duration": 0,
+            "pause_count": 0,
+            "long_pause_count": 0,
+            "hesitation_rate": 0,
+            "avg_semantic_similarity": 0,
+            "avg_keyword_coverage": 0,
+            "questions_answered": len(qa_pairs),
+            "total_words": 0,
+            "pitch_mean": 0,
+            "pitch_std": 0,
+            "pitch_range": 0,
+            "pitch_stability": 0
+        }
+    
+    # Get QA pairs with scores
+    qa_pairs = session.get("qa_pairs", [])
+    
+    # ===== SAVE TO DATABASE WITH FULL METRICS =====
+    saved_session_id = None
+    with app.app_context():
+        try:
+            from models import InterviewSession
+            import json
+            
+            # Format QA pairs for frontend
+            questions_list = []
+            formatted_answers = {'user_answers': {}, 'evaluations': {}}
+            
+            for idx, qa in enumerate(qa_pairs):
+                questions_list.append(qa.get('question', ''))
+                formatted_answers['user_answers'][str(idx)] = qa.get('answer', '')
+                
+                semantic = qa.get('semantic_score', 0)
+                keyword = qa.get('keyword_score', 0)
+                overall = (semantic * 0.7 + keyword * 0.3) * 100
+                
+                if semantic > 0.8:
+                    grade = 'A'
+                elif semantic > 0.6:
+                    grade = 'B'
+                elif semantic > 0.4:
+                    grade = 'C'
+                else:
+                    grade = 'D'
+                
+                formatted_answers['evaluations'][str(idx)] = {
+                    'ideal_answer': qa.get('expected_answer', ''),
+                    'grade': grade,
+                    'score': int(overall),
+                    'strengths': 'Good technical coverage' if keyword > 0.5 else 'Needs more detail',
+                    'improvements': 'Focus on key technical terms' if keyword <= 0.5 else 'Expand on concepts further'
+                }
+            
+            session_duration = int(metrics.get('session_duration', 
+                time.time() - session.get("session_start_time", time.time())))
+            
+            session_record = InterviewSession(
+                user_id=user_id,
+                session_type='resume_based',
+                questions=json.dumps({'questions': questions_list, 'answers': formatted_answers}),
+                created_at=datetime.utcnow(),
+                completed_at=datetime.utcnow(),
+                score=metrics.get('avg_semantic_similarity', 0) * 100,
+                duration=session_duration,
+                speech_metrics=json.dumps(metrics)  # Store all metrics
+            )
+            db.session.add(session_record)
+            db.session.commit()
+            saved_session_id = session_record.id
+            print(f"✅ Resume interview session {saved_session_id} saved to DB with {len(qa_pairs)} Q&As")
+            
+        except Exception as e:
+            db.session.rollback()
+            print(f"❌ Failed to save resume interview: {e}")
+            import traceback
+            traceback.print_exc()
+    
+    # ===== GENERATE COACHING FEEDBACK =====
+    coaching_feedback = ""
+    try:
+        from rag import mistral_generate
+        
+        # Extract missing concepts from low-scoring answers
+        low_score_answers = [qa for qa in qa_pairs if qa.get('semantic_score', 0) < 0.5]
+        missing_concepts = []
+        for qa in low_score_answers[:3]:
+            missing_concepts.append(f"- {qa.get('question', '')[:80]}...")
+        
+        pitch_stability = metrics.get('pitch_stability', 50)
+        wpm = metrics.get('wpm', 0)
+        speaking_ratio = metrics.get('speaking_ratio_during_turn', 0.5) * 100
+        
+        prompt = f"""You are an expert interview coach. Provide personalized coaching feedback for this candidate.
+
+SESSION STATS:
+- Questions Answered: {len(qa_pairs)}
+- Average Semantic Score: {metrics.get('avg_semantic_similarity', 0)*100:.0f}%
+- Average Keyword Coverage: {metrics.get('avg_keyword_coverage', 0)*100:.0f}%
+- Speaking WPM: {wpm:.0f}
+- Speaking Ratio: {speaking_ratio:.0f}%
+- Pitch Stability: {pitch_stability:.0f}%
+
+AREAS FOR IMPROVEMENT:
+{chr(10).join(missing_concepts) if missing_concepts else "None identified - good overall!"}
+
+Provide feedback in this format:
+## 🗣️ VOCAL DELIVERY
+[1-2 sentences about speaking pace, pitch stability, and clarity]
+
+## 📚 TECHNICAL CONTENT
+[1-2 sentences about answer depth and technical accuracy]
+
+## ⏱️ RESPONSE FLOW
+[1-2 sentences about speaking ratio, pauses, and response timing]
+
+## 🎯 SPECIFIC IMPROVEMENTS
+- [Actionable item 1]
+- [Actionable item 2]
+- [Actionable item 3]
+
+Keep it concise and actionable. Return ONLY the coaching text."""
+
+        coaching_feedback = mistral_generate(prompt, timeout=45)
+        if coaching_feedback:
+            # Store feedback in database
+            with app.app_context():
+                session_record.feedback = coaching_feedback
+                db.session.commit()
+            print("✅ Coaching feedback generated and saved")
+    except Exception as e:
+        print(f"⚠️ Coaching feedback generation failed: {e}")
+        coaching_feedback = """## 🗣️ VOCAL DELIVERY
+Practice speaking at a steady pace. Aim for 140-160 WPM.
+
+## 📚 TECHNICAL CONTENT
+Review core concepts from your resume and practice explaining your projects.
+
+## ⏱️ RESPONSE FLOW
+Aim for a 65-75% speaking ratio. Avoid long pauses (>5 seconds).
+
+## 🎯 SPECIFIC IMPROVEMENTS
+- Record yourself answering common interview questions
+- Practice the STAR method for behavioral questions
+- Review technical concepts from your weakest answers"""
+    
+    # ===== EMIT COMPLETE RESULTS =====
+    socketio.emit('resume_interview_complete', {
+        'success': True,
+        'session_id': saved_session_id,
+        'metrics': metrics,
+        'qa_pairs': qa_pairs,
+        'coaching_feedback': coaching_feedback
+    }, room=room)
+    
+    # Cleanup
+    if session_key in resume_streaming_sessions:
+        del resume_streaming_sessions[session_key]
+    
+    print("="*80 + "\n")
+
+
+def generate_resume_question(session):
+    """Generate next question from resume flow"""
+    resume_flow = session.get("resume_flow", [])
+    
+    if not resume_flow:
+        return None
+
+    idx = session.get("resume_q_index", 0)
+    
+    if idx >= len(resume_flow):
+        return None
+
+    question = resume_flow[idx]
+    session["resume_q_index"] = idx + 1
+    
+    print(f"📝 Resume question {idx + 1}/{len(resume_flow)}: {question[:100]}...")
+    
+    return question
 
 @app.route('/api/save_interview_session', methods=['POST'])
 @jwt_required

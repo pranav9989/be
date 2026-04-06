@@ -224,20 +224,66 @@ function SessionModal({ session, onClose, getSessionName, formatDate }) {
   const questions = data.questions || [];
   const answers = data.answers || {};
 
-  // 🔥 CRITICAL FIX: Get feedback from multiple possible locations
+  // 🔥 Get coaching feedback
   const coachingFeedback = session.feedback || data.feedback || null;
 
-  // 🔥 Debug log to verify feedback exists
+  // 🔥 NEW: Fetch detailed question history from backend
+  const [detailedQuestions, setDetailedQuestions] = useState([]);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
+  useEffect(() => {
+    // Fetch detailed question history for agentic sessions
+    if (session.session_type === 'agentic' && session.id) {
+      fetchDetailedHistory();
+    }
+  }, [session.id, session.session_type]);
+
+  const fetchDetailedHistory = async () => {
+    setLoadingDetails(true);
+    try {
+      // Try to get from session data first
+      if (session.detailed_questions) {
+        setDetailedQuestions(session.detailed_questions);
+      } else {
+        // Fetch from API endpoint (you may need to create this)
+        const res = await api.get(`/user/session/${session.id}/questions`);
+        if (res.data.success) {
+          setDetailedQuestions(res.data.questions);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch detailed questions:', err);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
+
   React.useEffect(() => {
     if (coachingFeedback) {
       console.log('✅ Feedback loaded for session:', session.id);
-      console.log('📝 Feedback preview:', coachingFeedback.substring(0, 100));
-    } else {
-      console.log('⚠️ No feedback found for session:', session.id);
     }
   }, [coachingFeedback, session.id]);
 
-  // 🔥 Function to render coaching feedback (improved)
+  // Helper to get icon for difficulty
+  const getDifficultyIcon = (difficulty) => {
+    switch (difficulty?.toLowerCase()) {
+      case 'easy': return '🟢';
+      case 'medium': return '🟡';
+      case 'hard': return '🔴';
+      default: return '⚪';
+    }
+  };
+
+  const getDifficultyColor = (difficulty) => {
+    switch (difficulty?.toLowerCase()) {
+      case 'easy': return '#4ade80';
+      case 'medium': return '#fbbf24';
+      case 'hard': return '#ef4444';
+      default: return '#6b7280';
+    }
+  };
+
+  // Render coaching feedback
   const renderCoachingFeedback = (feedbackText) => {
     if (!feedbackText || feedbackText === 'null' || feedbackText === 'undefined') {
       return (
@@ -253,17 +299,11 @@ function SessionModal({ session, onClose, getSessionName, formatDate }) {
             <i className="fas fa-comment-dots"></i> Coaching Feedback
           </h4>
           <p style={{ color: '#888' }}>No feedback available for this session yet.</p>
-          <p style={{ color: '#666', fontSize: '0.8rem', marginTop: '0.5rem' }}>
-            Feedback is generated automatically after each session.
-          </p>
         </div>
       );
     }
 
-    // Parse sections with improved regex
     const sections = [];
-
-    // Try to parse markdown sections
     const sectionRegex = /##\s*([^\n]+)\n([\s\S]*?)(?=##|$)/g;
     let match;
 
@@ -275,31 +315,6 @@ function SessionModal({ session, onClose, getSessionName, formatDate }) {
       }
     }
 
-    // If no sections found, try alternative parsing
-    if (sections.length === 0) {
-      // Split by lines and look for headers
-      const lines = feedbackText.split('\n');
-      let currentSection = null;
-      let currentContent = [];
-
-      for (const line of lines) {
-        if (line.startsWith('##')) {
-          if (currentSection && currentContent.length) {
-            sections.push({ title: currentSection, content: currentContent.join('\n') });
-          }
-          currentSection = line.replace(/^##\s*/, '').trim();
-          currentContent = [];
-        } else if (currentSection && line.trim()) {
-          currentContent.push(line);
-        }
-      }
-
-      if (currentSection && currentContent.length) {
-        sections.push({ title: currentSection, content: currentContent.join('\n') });
-      }
-    }
-
-    // If still no sections, treat entire text as one section
     if (sections.length === 0 && feedbackText.trim()) {
       sections.push({ title: 'Coaching Insights', content: feedbackText });
     }
@@ -310,8 +325,6 @@ function SessionModal({ session, onClose, getSessionName, formatDate }) {
       if (t.includes('technical') || t.includes('content')) return '📚';
       if (t.includes('response') || t.includes('flow')) return '⏱️';
       if (t.includes('practice') || t.includes('exercise')) return '🎯';
-      if (t.includes('weak') || t.includes('missing') || t.includes('gap')) return '⚠️';
-      if (t.includes('summary') || t.includes('overview')) return '📊';
       return '📌';
     };
 
@@ -321,7 +334,6 @@ function SessionModal({ session, onClose, getSessionName, formatDate }) {
       if (t.includes('technical') || t.includes('content')) return '#a78bfa';
       if (t.includes('response') || t.includes('flow')) return '#6ee7b7';
       if (t.includes('practice') || t.includes('exercise')) return '#f59e0b';
-      if (t.includes('weak') || t.includes('missing')) return '#ef4444';
       return '#10b981';
     };
 
@@ -374,11 +386,8 @@ function SessionModal({ session, onClose, getSessionName, formatDate }) {
 
               {lines.map((line, lineIdx) => {
                 if (!line.trim()) return null;
-
-                // Bold text handling
                 const processedLine = line.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 
-                // Bullet points
                 if (line.trim().startsWith('-') || line.trim().startsWith('*') || line.trim().startsWith('✓') || line.trim().startsWith('•')) {
                   const bulletText = line.replace(/^[-*✓•]\s*/, '').trim();
                   return (
@@ -396,7 +405,6 @@ function SessionModal({ session, onClose, getSessionName, formatDate }) {
                   );
                 }
 
-                // Numbered items
                 if (/^\d+\./.test(line.trim())) {
                   const numMatch = line.match(/^(\d+)\.\s*(.*)/);
                   if (numMatch) {
@@ -416,7 +424,6 @@ function SessionModal({ session, onClose, getSessionName, formatDate }) {
                   }
                 }
 
-                // Regular text (descriptions)
                 if (line.trim()) {
                   return (
                     <p key={lineIdx} style={{
@@ -430,7 +437,6 @@ function SessionModal({ session, onClose, getSessionName, formatDate }) {
                       dangerouslySetInnerHTML={{ __html: processedLine }} />
                   );
                 }
-
                 return null;
               })}
             </div>
@@ -440,10 +446,8 @@ function SessionModal({ session, onClose, getSessionName, formatDate }) {
     );
   };
 
-  // 🔥 Get session metrics
   const getSessionMetrics = (session) => {
     let metrics = null;
-
     if (session.metrics) {
       metrics = session.metrics;
     } else if (session.data?.metrics) {
@@ -457,13 +461,11 @@ function SessionModal({ session, onClose, getSessionName, formatDate }) {
         console.log('Error parsing speech_metrics:', e);
       }
     }
-
     return metrics;
   };
 
   const metrics = getSessionMetrics(session);
 
-  // 🔥 Format duration
   const formatDuration = (seconds) => {
     if (!seconds) return 'N/A';
     const mins = Math.floor(seconds / 60);
@@ -471,79 +473,218 @@ function SessionModal({ session, onClose, getSessionName, formatDate }) {
     return `${mins}m ${secs}s`;
   };
 
-  let renderedQuestions = [];
+  // 🔥 RENDER QUESTIONS WITH FULL DETAILS (Topic, Subtopic, Difficulty, Missing Concepts)
+  const renderDetailedQuestions = () => {
+    if (loadingDetails) {
+      return <div style={{ textAlign: 'center', padding: '2rem' }}>Loading detailed questions...</div>;
+    }
 
-  if (session.session_type === 'mock' || session.session_type === 'agentic') {
-    const userAnswers = answers.user_answers || {};
-    const evals = answers.evaluations || {};
+    // Use detailedQuestions if available, otherwise fall back to session data
+    const questionsToRender = detailedQuestions.length > 0 ? detailedQuestions : [];
 
-    renderedQuestions = questions.map((q, i) => {
-      const ev = evals[i] || {};
-      return (
-        <div key={i} className="rev-item">
-          <h4 className="rev-q">Q{i + 1}: {q.question}</h4>
-          <div className="rev-split">
-            <div className="rev-user">
-              <h5>Your Answer</h5>
-              <p className="rev-ans">{userAnswers[i] || <em>No answer provided</em>}</p>
+    if (questionsToRender.length === 0) {
+      // Fallback: Show basic questions from session data
+      const qList = Array.isArray(questions) ? questions : [];
+      const userAnswers = answers.user_answers || {};
+      const evals = answers.evaluations || {};
+
+      return qList.map((q, i) => {
+        const ev = evals[i] || {};
+        return (
+          <div key={i} className="rev-item" style={{
+            background: 'rgba(255,255,255,0.05)',
+            borderRadius: '12px',
+            padding: '1.5rem',
+            marginBottom: '1rem',
+            borderLeft: '3px solid #a78bfa'
+          }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+              <h4 className="rev-q" style={{ margin: 0, color: '#e2e8f0' }}>Q{i + 1}: {q.question}</h4>
             </div>
-            <div className="rev-ai">
-              <h5>Ideal AI Answer</h5>
-              <p className="rev-ideal">{ev.ideal_answer || ev.model_answer || 'N/A'}</p>
+
+            <div className="rev-split" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="rev-user">
+                <h5 style={{ color: '#a78bfa', marginBottom: '0.5rem' }}>Your Answer</h5>
+                <p className="rev-ans" style={{ color: '#ccc', lineHeight: '1.6' }}>{userAnswers[i] || <em>No answer provided</em>}</p>
+              </div>
+              <div className="rev-ai">
+                <h5 style={{ color: '#a78bfa', marginBottom: '0.5rem' }}>Ideal AI Answer</h5>
+                <p className="rev-ideal" style={{ color: '#ccc', lineHeight: '1.6' }}>{ev.ideal_answer || ev.model_answer || 'N/A'}</p>
+              </div>
             </div>
           </div>
+        );
+      });
+    }
+
+    // Render detailed questions with topic, subtopic, difficulty, and missing concepts
+    return questionsToRender.map((q, i) => (
+      <div key={i} className="rev-item" style={{
+        background: 'rgba(255,255,255,0.05)',
+        borderRadius: '12px',
+        padding: '1.5rem',
+        marginBottom: '1rem',
+        borderLeft: `3px solid ${getDifficultyColor(q.difficulty)}`
+      }}>
+        {/* Header with metadata */}
+        <div style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '1rem',
+          flexWrap: 'wrap',
+          gap: '0.5rem',
+          paddingBottom: '0.75rem',
+          borderBottom: '1px solid rgba(255,255,255,0.1)'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flexWrap: 'wrap' }}>
+            <span style={{
+              background: 'rgba(167, 139, 250, 0.2)',
+              padding: '0.25rem 0.75rem',
+              borderRadius: '20px',
+              fontSize: '0.75rem',
+              color: '#a78bfa'
+            }}>
+              <i className="fas fa-folder"></i> {q.topic || 'Unknown Topic'}
+            </span>
+            {q.subtopic && (
+              <span style={{
+                background: 'rgba(110, 231, 183, 0.2)',
+                padding: '0.25rem 0.75rem',
+                borderRadius: '20px',
+                fontSize: '0.75rem',
+                color: '#6ee7b7'
+              }}>
+                <i className="fas fa-tag"></i> {q.subtopic}
+              </span>
+            )}
+            <span style={{
+              background: `rgba(${q.difficulty === 'easy' ? '74, 222, 128' : q.difficulty === 'medium' ? '251, 191, 36' : '239, 68, 68'}, 0.2)`,
+              padding: '0.25rem 0.75rem',
+              borderRadius: '20px',
+              fontSize: '0.75rem',
+              color: getDifficultyColor(q.difficulty)
+            }}>
+              {getDifficultyIcon(q.difficulty)} {q.difficulty?.toUpperCase() || 'MEDIUM'}
+            </span>
+          </div>
+          <span style={{
+            fontSize: '0.7rem',
+            color: '#888'
+          }}>
+            <i className="far fa-clock"></i> {q.response_time ? `${q.response_time.toFixed(1)}s` : 'N/A'}
+          </span>
         </div>
-      );
-    });
-  } else if (session.session_type === 'debugging') {
-    const challenges = data.challenges || [];
-    renderedQuestions = challenges.map((c, i) => (
-      <div key={i} className="rev-item debug-rev-item">
-        <div className="rev-debug-header">
-          <h4 className="rev-q">Challenge {i + 1}: {c.topic} ({c.language.toUpperCase()})</h4>
-        </div>
 
-        <div className="rev-debug-content">
-          <div className="code-block-rev">
-            <h5>Buggy Code</h5>
-            <pre><code>{c.buggy_code}</code></pre>
-          </div>
+        {/* Question */}
+        <h4 className="rev-q" style={{ margin: '0 0 1rem 0', color: '#e2e8f0', fontSize: '1rem' }}>
+          {i + 1}. {q.question}
+        </h4>
 
-          <div className="explanation-rev">
-            <h5>Your Explanation</h5>
-            <p>"{c.user_explanation || 'No explanation provided'}"</p>
+        {/* Scores */}
+        {(q.semantic_score > 0 || q.keyword_score > 0) && (
+          <div style={{
+            display: 'flex',
+            gap: '1rem',
+            marginBottom: '1rem',
+            padding: '0.5rem',
+            background: 'rgba(0,0,0,0.3)',
+            borderRadius: '8px'
+          }}>
+            {q.semantic_score > 0 && (
+              <span style={{ fontSize: '0.75rem', color: '#a78bfa' }}>
+                <i className="fas fa-chart-line"></i> Semantic: {Math.round(q.semantic_score * 100)}%
+              </span>
+            )}
+            {q.keyword_score > 0 && (
+              <span style={{ fontSize: '0.75rem', color: '#6ee7b7' }}>
+                <i className="fas fa-key"></i> Keyword: {Math.round(q.keyword_score * 100)}%
+              </span>
+            )}
           </div>
+        )}
 
-          <div className="feedback-rev">
-            <h5>AI Analysis</h5>
-            <p>{c.ai_feedback}</p>
-          </div>
-
-          <div className="code-block-rev fixed">
-            <h5>Corrected Code</h5>
-            <pre><code>{c.correct_code}</code></pre>
-          </div>
-        </div>
-      </div>
-    ));
-  } else {
-    const qList = Array.isArray(questions) ? questions : [];
-    renderedQuestions = qList.map((q, i) => (
-      <div key={i} className="rev-item">
-        <h4 className="rev-q">Q{i + 1}: {q.question || q}</h4>
-        <div className="rev-split">
+        {/* Answer Section */}
+        <div className="rev-split" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
           <div className="rev-user">
-            <h5>Your Answer</h5>
-            <p className="rev-ans">{answers[i] || <em>N/A</em>}</p>
+            <h5 style={{ color: '#a78bfa', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
+              <i className="fas fa-user"></i> Your Answer
+            </h5>
+            <p className="rev-ans" style={{ color: '#ccc', lineHeight: '1.6', fontSize: '0.85rem' }}>
+              {q.answer || q.user_answer || <em>No answer provided</em>}
+            </p>
+          </div>
+          <div className="rev-ai">
+            <h5 style={{ color: '#6ee7b7', marginBottom: '0.5rem', fontSize: '0.85rem' }}>
+              <i className="fas fa-robot"></i> Ideal AI Answer
+            </h5>
+            <p className="rev-ideal" style={{ color: '#ccc', lineHeight: '1.6', fontSize: '0.85rem' }}>
+              {q.expected_answer || 'N/A'}
+            </p>
           </div>
         </div>
+
+        {/* 🔥 MISSING CONCEPTS SECTION */}
+        {q.missing_concepts && q.missing_concepts.length > 0 && (
+          <div style={{
+            marginTop: '1rem',
+            padding: '0.75rem',
+            background: 'rgba(239, 68, 68, 0.1)',
+            borderRadius: '8px',
+            borderLeft: '3px solid #ef4444'
+          }}>
+            <h5 style={{ color: '#ef4444', marginBottom: '0.5rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <i className="fas fa-exclamation-triangle"></i> Missing Concepts
+            </h5>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {q.missing_concepts.map((concept, idx) => (
+                <span key={idx} style={{
+                  background: 'rgba(239, 68, 68, 0.2)',
+                  padding: '0.25rem 0.75rem',
+                  borderRadius: '16px',
+                  fontSize: '0.7rem',
+                  color: '#fca5a5'
+                }}>
+                  {concept}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 🔥 SAMPLED CONCEPTS (What was asked) */}
+        {q.sampled_concepts && q.sampled_concepts.length > 0 && (
+          <div style={{
+            marginTop: '0.75rem',
+            padding: '0.5rem 0.75rem',
+            background: 'rgba(167, 139, 250, 0.1)',
+            borderRadius: '8px'
+          }}>
+            <h5 style={{ color: '#a78bfa', marginBottom: '0.5rem', fontSize: '0.7rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <i className="fas fa-microchip"></i> Concepts Tested
+            </h5>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+              {q.sampled_concepts.map((concept, idx) => (
+                <span key={idx} style={{
+                  background: 'rgba(167, 139, 250, 0.2)',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '16px',
+                  fontSize: '0.65rem',
+                  color: '#c4b5fd'
+                }}>
+                  {concept}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     ));
-  }
+  };
 
   return (
     <div className="ih-modal-backdrop" onClick={onClose}>
-      <div className="ih-modal" onClick={e => e.stopPropagation()}>
+      <div className="ih-modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '900px', width: '90%' }}>
         <div className="ih-modal-header">
           <div className="modal-title-area">
             <h3>{getSessionName(session.session_type)}</h3>
@@ -551,57 +692,37 @@ function SessionModal({ session, onClose, getSessionName, formatDate }) {
           </div>
           <button className="ih-close-btn" onClick={onClose}>&times;</button>
         </div>
-        <div className="ih-modal-body">
+        <div className="ih-modal-body" style={{ maxHeight: '80vh', overflowY: 'auto' }}>
 
-          {/* 🔥 DISPLAY COACHING FEEDBACK - MOVED TO TOP FOR VISIBILITY */}
+          {/* Coaching Feedback */}
           {renderCoachingFeedback(coachingFeedback)}
 
-          {/* 🔥 SESSION METRICS SUMMARY */}
+          {/* Session Metrics */}
           {metrics && (
             <div className="session-metrics-summary" style={{
               background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
-              padding: '1.5rem',
+              padding: '1rem',
               borderRadius: '12px',
-              marginBottom: '2rem',
-              color: 'white'
+              marginBottom: '1.5rem'
             }}>
-              <h4 style={{ margin: '0 0 1rem 0', color: '#a78bfa' }}>📊 Session Performance Metrics</h4>
-
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem' }}>
-                {/* Row 1 */}
-                <div>
-                  <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>Session Duration</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{formatDuration(metrics.session_duration)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>Speaking Time</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#6ee7b7' }}>{formatDuration(metrics.speaking_time)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>Words Per Minute</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{Math.round(metrics.wpm)}</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>Questions</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{metrics.questions_answered || 0}</div>
-                </div>
-
-                {/* Row 2 */}
-                <div>
-                  <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>Speaking Ratio</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{Math.round(metrics.speaking_ratio * 100)}%</div>
-                </div>
-                <div>
-                  <div style={{ fontSize: '0.7rem', opacity: 0.7 }}>Response Latency</div>
-                  <div style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{metrics.avg_response_latency?.toFixed(2)}s</div>
-                </div>
+              <h4 style={{ margin: '0 0 0.75rem 0', color: '#a78bfa', fontSize: '0.9rem' }}>📊 Session Metrics</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(120px, 1fr))', gap: '0.75rem' }}>
+                <div><div style={{ fontSize: '0.65rem', opacity: 0.7 }}>Duration</div><div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{formatDuration(metrics.session_duration)}</div></div>
+                <div><div style={{ fontSize: '0.65rem', opacity: 0.7 }}>Speaking</div><div style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#6ee7b7' }}>{formatDuration(metrics.speaking_time)}</div></div>
+                <div><div style={{ fontSize: '0.65rem', opacity: 0.7 }}>WPM</div><div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{Math.round(metrics.wpm)}</div></div>
+                <div><div style={{ fontSize: '0.65rem', opacity: 0.7 }}>Questions</div><div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{metrics.questions_answered || 0}</div></div>
+                <div><div style={{ fontSize: '0.65rem', opacity: 0.7 }}>Speaking Ratio</div><div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{Math.round(metrics.speaking_ratio * 100)}%</div></div>
+                <div><div style={{ fontSize: '0.65rem', opacity: 0.7 }}>Latency</div><div style={{ fontSize: '0.9rem', fontWeight: 'bold' }}>{metrics.avg_response_latency?.toFixed(1)}s</div></div>
               </div>
             </div>
           )}
 
+          {/* Questions Section with Full Details */}
           <div className="rev-questions">
-            <h4 style={{ marginBottom: '1rem' }}>📝 Question & Answer Review</h4>
-            {renderedQuestions.length > 0 ? renderedQuestions : <p>No detailed data saved for this session.</p>}
+            <h4 style={{ marginBottom: '1rem', color: '#e2e8f0', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <i className="fas fa-question-circle"></i> Question & Answer Review
+            </h4>
+            {renderDetailedQuestions()}
           </div>
         </div>
       </div>

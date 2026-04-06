@@ -1,10 +1,12 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Header from '../Layout/Header';
-import MockInterview from '../MockInterview/MockInterview';
 import { resumeAPI } from '../../services/api';
+import { useResumeInterviewStreaming } from '../../hooks/useResumeInterviewStreaming';
+import PitchGraph from '../AgenticInterview/PitchGraph';  // 🔥 ADD PITCH GRAPH IMPORT
 import './ResumeUpload.css';
+import './ResumeInterview.css';
 
-// ─── Mini components ─────────────────────────────────────────────
+// ─── Mini components ─────────────────────────────────────────────────────────────
 const SkillTag = ({ skill, variant = '' }) => (
   <span className={`skill-tag ${variant}`}>{skill}</span>
 );
@@ -46,14 +48,252 @@ const ScoreRing = ({ pct, label, color, size = 80 }) => {
   );
 };
 
-// ─── Main Component ──────────────────────────────────────────────
+// ─── Conversational Interview Component - WITH PITCH GRAPH ─────────────────────────
+const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
+  const messagesEndRef = useRef(null);
+
+  // USE THE HOOK - handles ALL socket and audio logic with full metrics
+  const {
+    isConnected,
+    isRecording,
+    liveTranscript,
+    startRecording,
+    stopRecording,
+    status,
+    error,
+    timeRemaining,
+    messages,
+    currentTurn,
+    isInterviewerSpeaking,
+    interviewDone,
+    analysis,
+    metrics,
+    // 🔥 LIVE METRICS FOR PITCH GRAPH
+    livePitch,
+    pitchHistory,
+    pitchTimestamps,
+    stabilityHistory,
+    liveWpm
+  } = useResumeInterviewStreaming(user.id);
+
+  // Auto-scroll chat
+  useEffect(() => {
+    if (messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [messages, liveTranscript]);
+
+  // Start interview when component mounts and connection is ready
+  useEffect(() => {
+    if (isConnected) {
+      const timer = setTimeout(() => {
+        startRecording();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [isConnected, startRecording]);
+
+  // Parse timeRemaining (which comes as formatted string "MM:SS")
+  const getTimeInSeconds = (timeStr) => {
+    if (!timeStr || timeStr === '00:00') return 0;
+    const parts = timeStr.split(':');
+    if (parts.length === 2) {
+      return parseInt(parts[0]) * 60 + parseInt(parts[1]);
+    }
+    return 1800;
+  };
+
+  const formatDisplayTime = () => {
+    const seconds = getTimeInSeconds(timeRemaining);
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  if (interviewDone) {
+    return (
+      <div className="resume-interview-container">
+        <div className="interview-complete-card">
+          <div className="complete-icon">🎉</div>
+          <h2>Interview Complete!</h2>
+          <p>Thank you for completing the interview. Here's your performance summary:</p>
+
+          {metrics && (
+            <div className="metrics-summary">
+              <div className="metric">
+                <span className="metric-label">Speaking Time:</span>
+                <span className="metric-value">{metrics.speaking_time?.toFixed(1) || 0}s</span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">Speaking Ratio:</span>
+                <span className="metric-value">{((metrics.speaking_ratio || 0) * 100).toFixed(1)}%</span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">WPM:</span>
+                <span className="metric-value">{metrics.wpm?.toFixed(0) || 0}</span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">Questions Answered:</span>
+                <span className="metric-value">{metrics.questions_answered || 0}</span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">Pitch Stability:</span>
+                <span className="metric-value">{metrics.pitch_stability?.toFixed(0) || 0}%</span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">Avg Pitch:</span>
+                <span className="metric-value">{metrics.pitch_mean?.toFixed(0) || 0} Hz</span>
+              </div>
+            </div>
+          )}
+
+          {/* Coaching feedback from analysis */}
+          {analysis?.coaching_feedback && (
+            <div className="coaching-feedback">
+              <h3>🎯 Personalized Feedback</h3>
+              <div className="coaching-content">
+                {analysis.coaching_feedback.split('\n').map((line, i) => (
+                  <p key={i}>{line}</p>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="interview-actions">
+            <button className="btn-secondary" onClick={onBack}>Back to Analysis</button>
+            <button className="btn-primary" onClick={() => window.location.reload()}>New Interview</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="resume-interview-container">
+      <div className="interview-header">
+        <button className="back-btn" onClick={onBack}>
+          <i className="fas fa-arrow-left"></i> Exit Interview
+        </button>
+        <div className="timer">
+          <i className="fas fa-clock"></i> {formatDisplayTime()}
+        </div>
+        <div className="status">
+          <span className={`status-dot ${isConnected ? 'connected' : 'disconnected'}`}></span>
+          {isConnected ? 'Connected' : 'Connecting...'}
+        </div>
+      </div>
+
+      {error && (
+        <div className="error-message">
+          <i className="fas fa-exclamation-circle"></i> {error}
+        </div>
+      )}
+
+      <div className="interview-avatar-section">
+        <div className={`avatar-circle ${isInterviewerSpeaking ? 'speaking' : ''}`}>
+          <i className="fas fa-robot"></i>
+        </div>
+        <div className="interviewer-info">
+          <h3>AI Interviewer</h3>
+          <p>Based on your resume</p>
+          {isInterviewerSpeaking && (
+            <div className="speaking-indicator">
+              <span></span><span></span><span></span>
+            </div>
+          )}
+          {currentTurn === 'USER' && !isInterviewerSpeaking && (
+            <div className="listening-indicator">
+              <i className="fas fa-microphone"></i> Listening...
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* 🔥 PITCH ANALYSIS GRAPH - Same as Agentic Interview */}
+      {livePitch && livePitch.mean > 0 && (
+        <div className="pitch-section-resume" style={{ margin: '1rem 0' }}>
+          <PitchGraph
+            pitchHistory={pitchHistory || []}
+            stabilityHistory={stabilityHistory || []}
+            pitchTimestamps={pitchTimestamps || []}
+            livePitch={livePitch}
+          />
+        </div>
+      )}
+
+      {/* 🔥 WPM DISPLAY - Real-time speaking rate */}
+      {currentTurn === 'USER' && liveWpm > 0 && (
+        <div className="wpm-indicator" style={{
+          textAlign: 'center',
+          fontSize: '0.85rem',
+          color: liveWpm >= 120 && liveWpm <= 160 ? '#4ade80' : liveWpm > 180 ? '#ef4444' : '#f59e0b',
+          background: 'rgba(0,0,0,0.3)',
+          padding: '4px 12px',
+          borderRadius: '20px',
+          display: 'inline-block',
+          margin: '0 auto 10px auto',
+          width: 'fit-content'
+        }}>
+          <i className="fas fa-tachometer-alt"></i> Speaking Rate: {liveWpm} WPM
+          {liveWpm < 100 && ' (Too slow)'}
+          {liveWpm >= 100 && liveWpm < 120 && ' (Slightly slow)'}
+          {liveWpm >= 120 && liveWpm <= 160 && ' (Optimal)'}
+          {liveWpm > 160 && liveWpm <= 180 && ' (Slightly fast)'}
+          {liveWpm > 180 && ' (Too fast)'}
+        </div>
+      )}
+
+      <div className="conversation-container">
+        <div className="messages-list">
+          {messages.map((msg, idx) => (
+            <div key={idx} className={`message ${msg.role}`}>
+              <div className="message-avatar">
+                {msg.role === 'interviewer' ? <i className="fas fa-robot"></i> : <i className="fas fa-user"></i>}
+              </div>
+              <div className="message-bubble">
+                <div className="message-text">{msg.text}</div>
+              </div>
+            </div>
+          ))}
+          {liveTranscript && currentTurn === 'USER' && (
+            <div className="message user live">
+              <div className="message-avatar"><i className="fas fa-user"></i></div>
+              <div className="message-bubble">
+                <div className="message-text">{liveTranscript}<span className="cursor">|</span></div>
+              </div>
+            </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
+      </div>
+
+      <div className="recording-controls">
+        {isRecording && (
+          <div className="recording-indicator">
+            <div className="recording-pulse"></div>
+            <span>Recording your answer...</span>
+          </div>
+        )}
+        <div className="status-text">{status}</div>
+        <button
+          className={`end-interview-btn ${isRecording ? 'recording' : ''}`}
+          onClick={stopRecording}
+        >
+          <i className="fas fa-stop-circle"></i> End Interview
+        </button>
+      </div>
+    </div>
+  );
+};
+
+// ─── Main Component ──────────────────────────────────────────────────────────────
 const ResumeUpload = ({ user, onLogout }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [jobDescription, setJobDescription] = useState('');
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [results, setResults] = useState(null);
-  const [showMockInterview, setShowMockInterview] = useState(false);
+  const [showInterview, setShowInterview] = useState(false);
   const [error, setError] = useState('');
   const [dragOver, setDragOver] = useState(false);
   const [uploadedUser, setUploadedUser] = useState(null);
@@ -135,36 +375,39 @@ const ResumeUpload = ({ user, onLogout }) => {
     }
   };
 
-  const handleStartMockInterview = () => {
-    setShowMockInterview(true);
+  const handleStartConversationalInterview = () => {
+    if (!results) {
+      setError('Please upload your resume and add a job description first');
+      return;
+    }
+    setShowInterview(true);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const effectiveUser = uploadedUser || user;
+
+  if (showInterview) {
+    return (
+      <ResumeConversationalInterview
+        user={effectiveUser}
+        jobDescription={jobDescription}
+        onBack={() => setShowInterview(false)}
+      />
+    );
+  }
 
   return (
     <div className="resume-upload-container">
       <Header user={user} onLogout={onLogout} title="Resume Analysis" showBack={true} />
 
       <main className="resume-main">
-        {showMockInterview && (
-          <div className="mock-interview-overlay">
-            <MockInterview
-              user={effectiveUser}
-              onLogout={onLogout}
-              initialJobDescription={jobDescription}
-              onBack={() => setShowMockInterview(false)}
-            />
-          </div>
-        )}
-
-        {!showMockInterview && (
+        {!showInterview && (
           <>
             <div className="ru-page-hero">
               <div className="ru-hero-icon"><i className="fas fa-file-alt" /></div>
               <div className="ru-hero-text">
-                <h1>Resume Analysis <span className="ru-hero-amp">&</span> Mock Interview</h1>
-                <p>Upload your resume + paste a job description to get AI-powered analysis and a personalised mock interview.</p>
+                <h1>Resume Analysis <span className="ru-hero-amp">&</span> Conversational Interview</h1>
+                <p>Upload your resume + paste a job description to get AI-powered analysis and a realistic conversational interview experience.</p>
               </div>
             </div>
 
@@ -216,7 +459,7 @@ const ResumeUpload = ({ user, onLogout }) => {
                   className="job-description-textarea"
                   value={jobDescription}
                   onChange={e => setJobDescription(e.target.value)}
-                  placeholder="Paste the complete job description here. The AI will use this to perform skill-gap analysis and generate targeted interview questions..."
+                  placeholder="Paste the complete job description here. The AI will use this to perform skill-gap analysis and generate personalized interview questions..."
                   rows={5}
                 />
                 <small className="job-description-help">
@@ -258,8 +501,8 @@ const ResumeUpload = ({ user, onLogout }) => {
                     <h3><i className="fas fa-chart-line" /> Analysis Complete</h3>
                     <p>{selectedFile?.name}</p>
                   </div>
-                  <button className="start-mock-btn-inline" onClick={handleStartMockInterview}>
-                    <i className="fas fa-play" /> Start Mock Interview
+                  <button className="start-mock-btn-inline" onClick={handleStartConversationalInterview}>
+                    <i className="fas fa-play" /> Start Conversational Interview
                   </button>
                 </div>
 
@@ -284,29 +527,30 @@ const ResumeUpload = ({ user, onLogout }) => {
                     )}
                   </SectionCard>
 
+                  {/* Certifications Card */}
                   {results.certifications && results.certifications.length > 0 && (
-                    <div className="analysis-item">
-                      <h5><i className="fas fa-certificate" /> Certifications & Courses ({results.certifications.length})</h5>
-                      <div className="certifications-grid">
-                        {results.certifications.slice(0, 10).map((cert, i) => (
-                          <div key={i} className="certification-item">
-                            <i className="fas fa-award"></i>
-                            <span>{cert}</span>
-                          </div>
-                        ))}
-                        {results.certifications.length > 10 && (
-                          <div className="certification-more">+{results.certifications.length - 10} more</div>
-                        )}
+                    <SectionCard icon="fas fa-certificate" title="Certifications & Courses">
+                      <div className="analysis-item">
+                        <div className="certifications-grid">
+                          {results.certifications.slice(0, 10).map((cert, i) => (
+                            <div key={i} className="certification-item">
+                              <i className="fas fa-award"></i>
+                              <span>{cert}</span>
+                            </div>
+                          ))}
+                          {results.certifications.length > 10 && (
+                            <div className="certification-more">+{results.certifications.length - 10} more</div>
+                          )}
+                        </div>
                       </div>
-                    </div>
+                    </SectionCard>
                   )}
 
-                  {/* Projects Card - Clean version */}
+                  {/* Projects Card */}
                   {results.projects && results.projects.length > 0 && (
                     <SectionCard icon="fas fa-project-diagram" title="Key Projects">
                       <div className="projects-grid">
                         {results.projects.map((project, idx) => {
-                          // Handle both object and string formats
                           let projectName = '';
                           let projectDesc = '';
                           let techStack = [];
@@ -345,7 +589,7 @@ const ResumeUpload = ({ user, onLogout }) => {
                     </SectionCard>
                   )}
 
-                  {/* Experience/Internships Card */}
+                  {/* Experience Card */}
                   {results.experience && results.experience.length > 0 && (
                     <SectionCard icon="fas fa-briefcase" title="Experience & Internships">
                       <div className="experience-list">
@@ -457,21 +701,23 @@ const ResumeUpload = ({ user, onLogout }) => {
                       <i className="fas fa-robot" />
                     </div>
                     <div className="interview-ready-content">
-                      <h4><i className="fas fa-star" /> Ready for Your AI Mock Interview?</h4>
+                      <h4><i className="fas fa-star" /> Ready for Your Conversational Interview?</h4>
                       <p>
-                        Our Gemini-powered interviewer will ask{' '}
+                        Our AI interviewer will ask{' '}
                         <strong>custom questions based on your resume and the job description</strong>.
-                        Every answer is scored in real time with detailed AI feedback.
+                        This is a realistic conversational interview that lasts up to 30 minutes.
                       </p>
                       <div className="interview-features">
-                        <span><i className="fas fa-brain" /> Gemini AI Evaluation</span>
-                        <span><i className="fas fa-chart-bar" /> Per-Question Scoring</span>
-                        <span><i className="fas fa-lightbulb" /> Model Answers</span>
-                        <span><i className="fas fa-clock" /> Timed Session</span>
+                        <span><i className="fas fa-brain" /> AI-Powered Questions</span>
+                        <span><i className="fas fa-chart-bar" /> Real-time Analysis</span>
+                        <span><i className="fas fa-microphone" /> Voice Recognition</span>
+                        <span><i className="fas fa-clock" /> 30-Min Session</span>
+                        <span><i className="fas fa-chart-line" /> Pitch Analysis</span>
+                        <span><i className="fas fa-tachometer-alt" /> Real-time WPM</span>
                       </div>
                     </div>
-                    <button className="mock-interview-btn" onClick={handleStartMockInterview}>
-                      <i className="fas fa-play-circle" /> Start Mock Interview
+                    <button className="mock-interview-btn" onClick={handleStartConversationalInterview}>
+                      <i className="fas fa-play-circle" /> Start Conversational Interview
                     </button>
                   </div>
                 </div>

@@ -201,6 +201,33 @@ export const useInterviewStreaming = (userId) => {
 
     }, [userId, cleanupAudio]);
 
+    // 🔥 ADD THIS FUNCTION - Manual submit answer
+    const submitAnswer = useCallback(() => {
+        if (!socketRef.current?.connected) {
+            console.log("📤 Cannot submit - socket not connected");
+            return;
+        }
+
+        if (currentTurn !== 'USER') {
+            console.log("📤 Cannot submit - not user turn");
+            return;
+        }
+
+        if (isFinalizing) {
+            console.log("📤 Cannot submit - already finalizing");
+            return;
+        }
+
+        console.log("📤 Submitting answer manually");
+
+        socketRef.current.emit("user_done_speaking", {
+            user_id: userId
+        });
+
+        // Immediately set finalizing to prevent more audio
+        //setIsFinalizing(true);
+    }, [userId, currentTurn, isFinalizing]);
+
     // 🔧 FIX 1 (continued): Sync refs with state
     useEffect(() => {
         currentTurnRef.current = currentTurn;
@@ -511,6 +538,8 @@ export const useInterviewStreaming = (userId) => {
         socketRef.current.on('user_answer_complete', (data) => {
             console.log('✅ User answer complete:', data.answer);
 
+            setIsFinalizing(false);
+
             // Add user's answer to messages
             setMessages(prev => [
                 ...prev,
@@ -705,6 +734,7 @@ export const useInterviewStreaming = (userId) => {
         livePitch,
         pitchHistory,
         pitchTimestamps,
-        stabilityHistory
+        stabilityHistory,
+        submitAnswer,
     };
 };
