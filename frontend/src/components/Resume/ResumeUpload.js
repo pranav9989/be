@@ -67,6 +67,7 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
     isInterviewerSpeaking,
     interviewDone,
     analysis,
+    submitAnswer,
     metrics,
     // 🔥 LIVE METRICS FOR PITCH GRAPH
     livePitch,
@@ -143,6 +144,20 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
               <div className="metric">
                 <span className="metric-label">Avg Pitch:</span>
                 <span className="metric-value">{metrics.pitch_mean?.toFixed(0) || 0} Hz</span>
+              </div>
+              <div className="metric">
+                <span className="metric-label">Pause Count:</span>
+                <span className="metric-value">{metrics.pause_count || 0}</span>
+              </div>
+
+              <div className="metric">
+                <span className="metric-label">Hesitation Rate:</span>
+                <span className="metric-value">{metrics.hesitation_rate?.toFixed(2) || 0}</span>
+              </div>
+
+              <div className="metric">
+                <span className="metric-label">Silence Time:</span>
+                <span className="metric-value">{metrics.silence_during_turn?.toFixed(1) || 0}s</span>
               </div>
             </div>
           )}
@@ -248,9 +263,13 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
           {messages.map((msg, idx) => (
             <div key={idx} className={`message ${msg.role}`}>
               <div className="message-avatar">
-                {msg.role === 'interviewer' ? <i className="fas fa-robot"></i> : <i className="fas fa-user"></i>}
+                {msg.role === 'interviewer' && <i className="fas fa-robot"></i>}
+                {msg.role === 'user' && <i className="fas fa-user"></i>}
+                {msg.role === 'gold' && <i className="fas fa-lightbulb"></i>}
               </div>
-              <div className="message-bubble">
+
+              <div className={`message-bubble ${msg.role === 'gold' ? 'gold-answer' : ''}`}>
+                {msg.role === 'gold' && <strong>💡 Ideal Answer:</strong>}
                 <div className="message-text">{msg.text}</div>
               </div>
             </div>
@@ -275,6 +294,18 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
           </div>
         )}
         <div className="status-text">{status}</div>
+
+        {/* 🔥 NEW SUBMIT BUTTON - Only shows during user's turn */}
+        {currentTurn === 'USER' && (
+          <button
+            className="submit-answer-btn"
+            onClick={submitAnswer}
+            disabled={currentTurn !== 'USER'}
+          >
+            <i className="fas fa-paper-plane"></i> Submit Answer
+          </button>
+        )}
+
         <button
           className={`end-interview-btn ${isRecording ? 'recording' : ''}`}
           onClick={stopRecording}

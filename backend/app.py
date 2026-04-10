@@ -435,14 +435,58 @@ def finalize_user_answer(session_key):
     session["silence_thread_started"] = False
     session["finalizing"] = False
 
+def generate_resume_gold_answer(question, session):
+    """
+    Generate a strong ideal answer for a resume-based question.
+    Uses resume data from session and Mistral.
+    """
+    try:
+        from rag import mistral_generate
+        
+        resume_data = session.get("resume_data", {})
+        
+        # Build a compact resume summary
+        resume_summary = ""
+        if resume_data.get("skills"):
+            resume_summary += f"Skills: {', '.join(resume_data['skills'][:10])}\n"
+        if resume_data.get("projects"):
+            for p in resume_data['projects'][:3]:
+                if isinstance(p, dict):
+                    name = p.get("name", "")
+                    tech = ", ".join(p.get("tech_stack", []))
+                    resume_summary += f"Project: {name} (Tech: {tech})\n"
+        if resume_data.get("experience"):
+            for e in resume_data['experience'][:3]:
+                if isinstance(e, dict):
+                    title = e.get("title", "")
+                    resume_summary += f"Experience: {title}\n"
+        
+        prompt = f"""You are an expert interviewer.
+
+Based on the candidate's resume below, provide a **concise, interview-quality ideal answer** for the question.
+
+Resume:
+{resume_summary}
+
+Question: {question}
+
+Give a strong answer that would impress an interviewer. Keep it to 3-5 sentences, specific, and natural.
+Return ONLY the answer text, no extra commentary."""
+
+        response = mistral_generate(prompt, timeout=30, temperature=0.7)
+        if response and len(response.strip()) > 20:
+            return response.strip()
+        else:
+            return "A strong answer would highlight relevant experience and specific achievements from your resume."
+    except Exception as e:
+        print(f"⚠️ Gold answer generation error: {e}")
+        return "Ideal answer not available."
+
 def finalize_resume_user_answer(session_key):
     """
     Resume-specific finalize.
-    SAME conversational flow.
-    NO adaptive controller.
-    NO semantic scoring (optional - you can keep scoring if you want).
+    SAME conversational flow + gold answer generation.
     """
-
     session = streaming_sessions.get(session_key)
     if not session:
         print(f"⚠️ finalize_resume_user_answer: Session {session_key} not found")
@@ -456,6 +500,7 @@ def finalize_resume_user_answer(session_key):
     session["turn"] = "INTERVIEWER"
 
     room = session.get("room")
+    user_id = session.get("user_id")
 
     # 🔥 STOP FRONTEND AUDIO
     if room:
@@ -484,15 +529,11 @@ def finalize_resume_user_answer(session_key):
     try:
         question = session.get("current_question")
 
-        # ===== EXPECTED ANSWER (keep for scoring if needed) =====
-        expected_answer = ""
-        try:
-            from rag import agentic_expected_answer
-            expected_answer, _ = agentic_expected_answer(question, [])
-        except Exception as e:
-            print(f"⚠️ Expected answer error: {e}")
+        # ===== GENERATE GOLD ANSWER =====
+        gold_answer = generate_resume_gold_answer(question, session)
 
-        # ===== SCORING (optional - keep for metrics) =====
+        # ===== SCORING (optional) =====
+        expected_answer = gold_answer  # use gold answer for scoring
         semantic_score = 0.0
         keyword_score = 0.0
         
@@ -506,7 +547,7 @@ def finalize_resume_user_answer(session_key):
                     semantic_score = calculate_semantic_similarity(final_answer, expected_answer)
                     keyword_score = calculate_keyword_coverage(final_answer, question)
                 except:
-                    pass  # Don't let scoring break the flow
+                    pass
 
             stats.record_qa_pair(
                 question,
@@ -524,7 +565,7 @@ def finalize_resume_user_answer(session_key):
             session["qa_pairs"].append({
                 "question": question,
                 "answer": final_answer,
-                "expected_answer": expected_answer,
+                "gold_answer": gold_answer,
                 "semantic_score": semantic_score,
                 "keyword_score": keyword_score,
                 "timestamp": time.time()
@@ -539,12 +580,13 @@ def finalize_resume_user_answer(session_key):
         total_questions = len(session.get("resume_flow", []))
         print(f"📊 Resume Q: {questions_asked + 1}/{total_questions}")
 
-        # ===== FRONTEND UPDATE =====
+        # ===== FRONTEND UPDATE (with gold answer) =====
         socketio.emit(
             "user_answer_complete",
             {
                 "answer": final_answer,
                 "question": question,
+                "gold_answer": gold_answer,      # 🔥 ADDED
                 "next_question": next_question
             },
             room=room
@@ -553,13 +595,15 @@ def finalize_resume_user_answer(session_key):
         # ===== CHECK IF INTERVIEW SHOULD END =====
         if not next_question or session["questions_asked"] >= total_questions:
             print(f"🎉 Resume interview complete - asked all {total_questions} questions")
-            stop_resume_interview({"user_id": session.get("user_id")}, sid=session_key[1] if len(session_key) > 1 else None)
+            stop_resume_interview({"user_id": user_id}, sid=session_key[1] if len(session_key) > 1 else None)
             return
 
         # ===== UPDATE SESSION FOR NEXT TURN =====
         session.update({
             "current_question": next_question,
             "answer_finalized": False,
+            "finalizing": False,
+            "finalized": False,
             "last_final_transcript": "",
             "final_text": [],
             "first_voice_recorded": False,
@@ -574,16 +618,8 @@ def finalize_resume_user_answer(session_key):
             {"question": next_question},
             room=room
         )
-        def trigger_interviewer_done():
-            time.sleep(1.5)
 
-            print("🔥 [RESUME FIX] Calling interviewer_done (next turn)")
-
-            interviewer_done({
-                "user_id": session.get("user_id")
-            })
-
-        socketio.start_background_task(trigger_interviewer_done)
+        # ❌ DO NOT EMIT interviewer_done HERE – frontend will do it after TTS
 
     except Exception as e:
         print(f"❌ Resume finalize error: {e}")
@@ -591,65 +627,8 @@ def finalize_resume_user_answer(session_key):
         traceback.print_exc()
         return
 
-    # DO NOT change turn here — handled by interviewer_done
     session["silence_thread_started"] = False
-
-def silence_watcher(session_key, timeout=15):
-    """
-    Clock B: The Logic Engine.
-    NOW ONLY TRACKS METRICS - DOES NOT FINALIZE
-    User must click submit button to end their turn.
-    """
-    print(f"👂 Silence watcher started for {session_key} (MONITORING ONLY - NO AUTO-FINALIZE)")
-    
-    last_log_time = time.time()
-    
-    while True:
-        time.sleep(1)
-
-        session = streaming_sessions.get(session_key)
-
-        # 1️⃣ Safety checks
-        if not session:
-            print(f"👋 Silence watcher exiting: Session {session_key} no longer exists")
-            return
-
-        if session.get("destroyed"):
-            print("💀 Silence watcher exiting (Session Destroyed)")
-            return
-
-        # 2️⃣ Turn check - only monitor during USER turn
-        if session.get("turn") != "USER":
-            continue
-
-        # 3️⃣ Silence tracking
-        last_voice = session.get("last_voice_time")
-        if not last_voice:
-            continue
-
-        now = time.time()
-        elapsed = now - last_voice
-
-        # Log every 2 seconds
-        if now - last_log_time >= 2:
-            print(f"⏰ Silence elapsed: {elapsed:.1f}s (monitoring only)")
-            last_log_time = now
-
-        # 4️⃣ Frontend timer update
-        try:
-            session_start = session.get("session_start_time")
-            if session_start:
-                elapsed_total = now - session_start
-                time_remaining = max(0, 30 * 60 - int(elapsed_total))
-                socketio.emit('timer_update', {
-                    'time_remaining': time_remaining,
-                    'turn_time_elapsed': elapsed
-                }, room=session.get("room"))
-        except Exception:
-            pass
-
-        # ❌ DO NOT FINALIZE - WAIT FOR USER TO CLICK SUBMIT
-        # The old code that called finalize_user_answer() has been REMOVED
+    session["finalizing"] = False
 
 @socketio.on("user_done_speaking")
 def user_done_speaking(data):
@@ -3864,64 +3843,9 @@ def start_resume_interview(data):
         }, room=room)
         
         # Send the first question to frontend for TTS
-        socketio.emit('resume_question', {'question': intro_question}, room=room)
-        def trigger_interviewer_done():
-            time.sleep(1.5)  # let TTS start
-
-            print("🔥 [RESUME FIX] Calling interviewer_done (start)")
-
-            interviewer_done({
-                "user_id": user_id
-        })
-
-        socketio.start_background_task(trigger_interviewer_done)
-        
-        # ============================================================
-        # 🔥 CRITICAL FIX: FORCE USER TURN START AFTER TTS
-        # ============================================================
-        
-        # Give a small delay for TTS to start playing, then force user turn
-        def start_user_turn_after_tts():
-            import time
-            time.sleep(2)  # Wait for TTS to start playing
-            
-            session = streaming_sessions.get(session_key)
-            if not session:
-                print(f"⚠️ [RESUME FIX] Session not found for user {user_id}")
-                return
-            
-            if session.get("turn") == "DONE" or session.get("destroyed"):
-                return
-            
-            print(f"🔥 [RESUME FIX] Forcing USER turn start for user {user_id}")
-            
-            # Set turn to USER
-            session["turn"] = "USER"
-            session["finalized"] = False
-            session["final_text"] = []
-            session["first_voice_recorded"] = False
-            
-            # Record turn start time
-            session["user_turn_start"] = time.time()
-            session["last_voice_time"] = time.time()
-            
-            # Update stats
-            stats = session.get("stats")
-            if stats:
-                stats._in_user_turn = True
-                stats.start_user_turn(now_ts())
-            
-            # Start silence watcher
-            #if not session.get("silence_thread_started"):
-            #    session["silence_thread_started"] = True
-            #    socketio.start_background_task(silence_watcher, session_key)
-            print("🧠 Manual submit mode — silence watcher disabled")
-            
-            # Notify frontend
-            socketio.emit('user_turn_started', {'status': 'ready'}, room=room)
-            print(f"✅ [RESUME FIX] USER turn started, silence watcher active")
-        
-        socketio.start_background_task(start_user_turn_after_tts)
+        socketio.emit('resume_question', {'question': intro_question}, room=room) 
+         # 🔥 Start user turn using the same interviewer_done event (like agentic)
+        socketio.emit('interviewer_done', {'user_id': user_id}, room=room)   
         
         print(f"✅ Resume-based interview started for user {user_id}")
         print(f"   Mode: resume, Questions available: {len(resume_flow)}")
@@ -4027,21 +3951,21 @@ def stop_resume_interview(data, sid=None):
     """Stop resume interview and save FULL metrics (matching agentic interview)"""
     user_id = data.get("user_id")
     
-    # Find session key
+    # Find session key in streaming_sessions (not resume_streaming_sessions)
     session_key = None
     if sid:
         session_key = (user_id, sid)
     else:
-        for key in resume_streaming_sessions.keys():
+        for key in streaming_sessions.keys():
             if key[0] == user_id:
                 session_key = key
                 break
     
-    if not session_key or session_key not in resume_streaming_sessions:
+    if not session_key or session_key not in streaming_sessions:
         print(f"⚠️ No resume interview session found for user {user_id}")
         return
     
-    session = resume_streaming_sessions[session_key]
+    session = streaming_sessions[session_key]
     room = session.get("room")
     
     print("\n" + "="*80)
@@ -4078,7 +4002,7 @@ def stop_resume_interview(data, sid=None):
             if stats._in_user_turn:
                 stats.end_user_turn(now_ts())
             
-            # Compute all metrics - SAME as agentic interview
+            # Compute all metrics
             metrics = stats.compute_research_metrics()
             
             print("\n📊 RESEARCH-GRADE METRICS:")
@@ -4136,7 +4060,7 @@ def stop_resume_interview(data, sid=None):
             "pitch_stability": 0
         }
     
-    # Get QA pairs with scores
+    # Get QA pairs with scores and gold answers
     qa_pairs = session.get("qa_pairs", [])
     
     # ===== SAVE TO DATABASE WITH FULL METRICS =====
@@ -4146,7 +4070,7 @@ def stop_resume_interview(data, sid=None):
             from models import InterviewSession
             import json
             
-            # Format QA pairs for frontend
+            # Format QA pairs for frontend display (optional, but keep)
             questions_list = []
             formatted_answers = {'user_answers': {}, 'evaluations': {}}
             
@@ -4168,7 +4092,7 @@ def stop_resume_interview(data, sid=None):
                     grade = 'D'
                 
                 formatted_answers['evaluations'][str(idx)] = {
-                    'ideal_answer': qa.get('expected_answer', ''),
+                    'ideal_answer': qa.get('gold_answer', ''),   # use gold answer
                     'grade': grade,
                     'score': int(overall),
                     'strengths': 'Good technical coverage' if keyword > 0.5 else 'Needs more detail',
@@ -4204,7 +4128,6 @@ def stop_resume_interview(data, sid=None):
     try:
         from rag import mistral_generate
         
-        # Extract missing concepts from low-scoring answers
         low_score_answers = [qa for qa in qa_pairs if qa.get('semantic_score', 0) < 0.5]
         missing_concepts = []
         for qa in low_score_answers[:3]:
@@ -4246,7 +4169,6 @@ Keep it concise and actionable. Return ONLY the coaching text."""
 
         coaching_feedback = mistral_generate(prompt, timeout=45)
         if coaching_feedback:
-            # Store feedback in database
             with app.app_context():
                 session_record.feedback = coaching_feedback
                 db.session.commit()
@@ -4277,8 +4199,8 @@ Aim for a 65-75% speaking ratio. Avoid long pauses (>5 seconds).
     }, room=room)
     
     # Cleanup
-    if session_key in resume_streaming_sessions:
-        del resume_streaming_sessions[session_key]
+    if session_key in streaming_sessions:
+        del streaming_sessions[session_key]
     
     print("="*80 + "\n")
 

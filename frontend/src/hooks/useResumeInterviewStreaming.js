@@ -20,6 +20,7 @@ export const useResumeInterviewStreaming = (userId) => {
     const [sessionId, setSessionId] = useState(null);
     const [coachingFeedback, setCoachingFeedback] = useState(null);
     const [isInterviewerSpeaking, setIsInterviewerSpeaking] = useState(false);
+    const [isFinalizing, setIsFinalizing] = useState(false);
 
     // 🔥 Live metrics for real-time display - MATCH AGENTIC INTERVIEW
     const [liveWpm, setLiveWpm] = useState(0);
@@ -38,7 +39,6 @@ export const useResumeInterviewStreaming = (userId) => {
     const audioPlayingRef = useRef(false);
     const currentAudioRef = useRef(null);
     const hardStopRef = useRef(false);
-    const silenceWatcherRef = useRef(null);
     const userTurnStartRef = useRef(null);
     const lastWpmUpdateRef = useRef(0);
     const lastPitchUpdateRef = useRef(0);
@@ -47,6 +47,7 @@ export const useResumeInterviewStreaming = (userId) => {
     const currentTurnRef = useRef(currentTurn);
     const interviewDoneRef = useRef(interviewDone);
     const isInterviewerSpeakingRef = useRef(isInterviewerSpeaking);
+    const isFinalizingRef = useRef(isFinalizing);
 
     // Sync refs with state
     useEffect(() => {
@@ -61,13 +62,12 @@ export const useResumeInterviewStreaming = (userId) => {
         isInterviewerSpeakingRef.current = isInterviewerSpeaking;
     }, [isInterviewerSpeaking]);
 
+    useEffect(() => {
+        isFinalizingRef.current = isFinalizing;
+    }, [isFinalizing]);
+
     const cleanupAudio = useCallback(async () => {
         console.log('🧹 Cleaning up audio resources...');
-
-        if (silenceWatcherRef.current) {
-            clearInterval(silenceWatcherRef.current);
-            silenceWatcherRef.current = null;
-        }
 
         if (currentAudioRef.current) {
             currentAudioRef.current.pause();
@@ -165,54 +165,30 @@ export const useResumeInterviewStreaming = (userId) => {
         }
     }, [userId]);
 
-    // 🔥 Silence watcher for user turn - IMPROVED
-    const startSilenceWatcher = useCallback(() => {
-        if (silenceWatcherRef.current) {
-            clearInterval(silenceWatcherRef.current);
+    // 🔥 MANUAL SUBMIT - like agentic flow
+    const submitAnswer = useCallback(() => {
+        if (!socketRef.current?.connected) {
+            console.log("❌ Socket not connected");
+            return;
         }
 
-        let lastVoiceTime = Date.now();
-        let gracePeriodRemaining = 3; // 3 seconds grace period
-        const SILENCE_TIMEOUT = 15; // 15 seconds
+        if (currentTurnRef.current !== 'USER') {
+            console.log("❌ Not user turn, cannot submit");
+            return;
+        }
 
-        silenceWatcherRef.current = setInterval(() => {
-            if (currentTurnRef.current !== 'USER') return;
-            if (hardStopRef.current || interviewDoneRef.current) return;
+        if (isFinalizingRef.current) {
+            console.log("❌ Already finalizing, please wait");
+            return;
+        }
 
-            // Grace period - don't count silence yet
-            if (gracePeriodRemaining > 0) {
-                gracePeriodRemaining--;
-                return;
-            }
+        console.log("📤 Resume: submitting answer manually");
+        setIsFinalizing(true);
+        setStatus('⏳ Processing your answer...');
 
-            const silenceDuration = (Date.now() - lastVoiceTime) / 1000;
-
-            // Update timer display
-            const remaining = Math.max(0, SILENCE_TIMEOUT - silenceDuration);
-            setTimeRemaining(prev => Math.min(prev, remaining));
-
-            // Log every 2 seconds for debugging
-            if (Math.floor(silenceDuration) % 2 === 0 && silenceDuration > 0) {
-                console.log(`⏰ Resume silence: ${silenceDuration.toFixed(1)}s (timeout at ${SILENCE_TIMEOUT}s)`);
-            }
-
-            if (silenceDuration >= SILENCE_TIMEOUT) {
-                console.log('🛑 Silence timeout reached, finalizing turn');
-                clearInterval(silenceWatcherRef.current);
-                silenceWatcherRef.current = null;
-
-                if (socketRef.current?.connected) {
-                    socketRef.current.emit('resume_force_stop_speaking', { user_id: userId });
-                }
-            }
-        }, 1000);
-
-        return () => {
-            if (silenceWatcherRef.current) {
-                clearInterval(silenceWatcherRef.current);
-                silenceWatcherRef.current = null;
-            }
-        };
+        socketRef.current.emit("user_done_speaking", {
+            user_id: userId
+        });
     }, [userId]);
 
     const stopRecording = useCallback(async () => {
@@ -224,11 +200,6 @@ export const useResumeInterviewStreaming = (userId) => {
         setCurrentTurn('DONE');
         setStatus('🛑 Interview ended');
         setTimeRemaining(0);
-
-        if (silenceWatcherRef.current) {
-            clearInterval(silenceWatcherRef.current);
-            silenceWatcherRef.current = null;
-        }
 
         await cleanupAudio();
         if (socketRef.current?.connected) {
@@ -257,14 +228,10 @@ export const useResumeInterviewStreaming = (userId) => {
             setStabilityHistory([]);
             setMetrics(null);
             setIsInterviewerSpeaking(false);
+            setIsFinalizing(false);
             hardStopRef.current = false;
             lastWpmUpdateRef.current = 0;
             lastPitchUpdateRef.current = 0;
-
-            if (silenceWatcherRef.current) {
-                clearInterval(silenceWatcherRef.current);
-                silenceWatcherRef.current = null;
-            }
 
             await cleanupAudio();
             socketRef.current.emit('start_resume_interview', {
@@ -278,7 +245,7 @@ export const useResumeInterviewStreaming = (userId) => {
         }
     }, [userId, cleanupAudio]);
 
-    // Update WPM calculation - IMPROVED
+    // Update WPM calculation
     const updateWPM = useCallback((text) => {
         if (userTurnStartRef.current && text && text.trim()) {
             const words = text.trim().split(/\s+/).length;
@@ -286,7 +253,6 @@ export const useResumeInterviewStreaming = (userId) => {
             const minutes = elapsed / 60;
             const wpm = minutes > 0 ? Math.round(words / minutes) : 0;
 
-            // Only update if changed significantly (avoid too many updates)
             if (Math.abs(wpm - lastWpmUpdateRef.current) > 5) {
                 lastWpmUpdateRef.current = wpm;
                 setLiveWpm(wpm);
@@ -329,7 +295,6 @@ export const useResumeInterviewStreaming = (userId) => {
             };
             setLivePitch(pitchData);
 
-            // Only update history if we have valid pitch data
             if (pitchData.mean > 0) {
                 setPitchHistory(prev => {
                     const newHistory = [...prev, pitchData.mean];
@@ -359,7 +324,7 @@ export const useResumeInterviewStreaming = (userId) => {
             if (pendingAudioRef.current.length > 0 && currentTurnRef.current === 'USER') {
                 console.log(`📤 Flushing ${pendingAudioRef.current.length} buffered chunks`);
                 pendingAudioRef.current.forEach((bufferedChunk) => {
-                    socketRef.current.emit('resume_audio_chunk', {
+                    socketRef.current.emit('audio_chunk', {
                         user_id: userId,
                         audio: bufferedChunk
                     });
@@ -372,11 +337,30 @@ export const useResumeInterviewStreaming = (userId) => {
             }
         });
 
-        // 🔥 Force stop speaking
+        // 🔥 Force stop speaking (when answer is finalized)
         socketRef.current.on("force_stop_speaking", () => {
             console.log("🛑 Force stop speaking received");
+            setIsFinalizing(true);
             setCurrentTurn('INTERVIEWER');
             setStatus('⏳ Processing your answer...');
+        });
+
+        // 🔥 User answer complete (backend done processing)
+        socketRef.current.on("user_answer_complete", (data) => {
+            console.log("✅ Resume answer complete:", data.answer);
+            setIsFinalizing(false);
+
+            setMessages(prev => [
+                ...prev,
+                { role: "user", text: data.answer },
+                ...(data.gold_answer ? [{
+                    role: "gold",
+                    text: data.gold_answer
+                }] : [])
+            ]);
+
+            setLiveTranscript('');
+            setCurrentTurn('INTERVIEWER');
         });
 
         // 🔥 Interview started
@@ -388,6 +372,7 @@ export const useResumeInterviewStreaming = (userId) => {
             setFinalTranscript('');
             startTimeRef.current = Date.now();
             setCurrentTurn('INTERVIEWER');
+            setIsFinalizing(false);
             backendReadyRef.current = false;
             pendingAudioRef.current = [];
 
@@ -407,7 +392,9 @@ export const useResumeInterviewStreaming = (userId) => {
                     const pcmBuffer = floatTo16BitPCM(float32Samples);
 
                     if (hardStopRef.current || interviewDoneRef.current) return;
+                    // 🔥 MODIFIED: Check finalizing ref before sending
                     if (currentTurnRef.current !== 'USER') return;
+                    if (isFinalizingRef.current) return;
 
                     if (!backendReadyRef.current) {
                         if (pendingAudioRef.current.length < 200) {
@@ -417,7 +404,7 @@ export const useResumeInterviewStreaming = (userId) => {
                     }
 
                     if (socketRef.current?.connected) {
-                        socketRef.current.emit('resume_audio_chunk', {
+                        socketRef.current.emit('audio_chunk', {
                             user_id: userId,
                             audio: pcmBuffer
                         });
@@ -445,42 +432,49 @@ export const useResumeInterviewStreaming = (userId) => {
         socketRef.current.on('resume_question', async (data) => {
             if (hardStopRef.current || interviewDoneRef.current) return;
             console.log('🗣️ Question:', data.question);
+
+            // 🔥 Reset finalizing state for new user turn
+            setIsFinalizing(false);
             setCurrentTurn('INTERVIEWER');
             setStatus("🗣️ Interviewer speaking...");
             setLiveTranscript('');
             setMessages(prev => [...prev, { role: "interviewer", text: data.question }]);
             await speakWithMurf(data.question);
+
             if (socketRef.current?.connected) {
-                socketRef.current.emit("resume_interviewer_done", { user_id: userId });
+                socketRef.current.emit("interviewer_done", { user_id: userId });
             }
+
             setCurrentTurn('USER');
-            setStatus('🎤 Your turn...');
+            setStatus('🎤 Your turn... Click Submit when done');
             userTurnStartRef.current = Date.now();
-            startSilenceWatcher();
         });
 
         // 🔥 Next question
         socketRef.current.on('resume_next_question', async (data) => {
-            setLiveTranscript('');
             if (hardStopRef.current || interviewDoneRef.current) return;
             console.log('🗣️ Next question:', data.question);
+
+            // 🔥 Reset finalizing state for new user turn
+            setIsFinalizing(false);
             setCurrentTurn('INTERVIEWER');
             setStatus("🗣️ Interviewer speaking...");
             setLiveTranscript('');
             setMessages(prev => [...prev, { role: "interviewer", text: data.question }]);
             await speakWithMurf(data.question);
+
             if (socketRef.current?.connected) {
-                socketRef.current.emit("resume_interviewer_done", { user_id: userId });
+                socketRef.current.emit("interviewer_done", { user_id: userId });
             }
+
             setCurrentTurn('USER');
-            setStatus('🎤 Your turn...');
+            setStatus('🎤 Your turn... Click Submit when done');
             userTurnStartRef.current = Date.now();
-            startSilenceWatcher();
         });
 
         // 🔥 Live transcript
         socketRef.current.on('live_transcript', (data) => {
-            if (currentTurnRef.current === 'USER') {
+            if (currentTurnRef.current === 'USER' && !isFinalizingRef.current) {
                 setLiveTranscript(data.text);
                 updateWPM(data.text);
             }
@@ -500,6 +494,7 @@ export const useResumeInterviewStreaming = (userId) => {
             setIsRecording(false);
             setCurrentTurn('DONE');
             setStatus('✅ Completed');
+            setIsFinalizing(false);
 
             if (data.metrics) {
                 setMetrics(data.metrics);
@@ -519,11 +514,6 @@ export const useResumeInterviewStreaming = (userId) => {
                 setFinalTranscript(data.final_transcript);
             }
 
-            if (silenceWatcherRef.current) {
-                clearInterval(silenceWatcherRef.current);
-                silenceWatcherRef.current = null;
-            }
-
             cleanupAudio();
         });
 
@@ -533,26 +523,18 @@ export const useResumeInterviewStreaming = (userId) => {
             setError(data.error);
             setIsRecording(false);
             setStatus('❌ Error');
-
-            if (silenceWatcherRef.current) {
-                clearInterval(silenceWatcherRef.current);
-                silenceWatcherRef.current = null;
-            }
+            setIsFinalizing(false);
 
             cleanupAudio();
         });
 
         return () => {
-            if (silenceWatcherRef.current) {
-                clearInterval(silenceWatcherRef.current);
-                silenceWatcherRef.current = null;
-            }
             if (socketRef.current) {
                 socketRef.current.disconnect();
             }
             cleanupAudio();
         };
-    }, [userId, cleanupAudio, floatTo16BitPCM, speakWithMurf, startSilenceWatcher, updateWPM]);
+    }, [userId, cleanupAudio, floatTo16BitPCM, speakWithMurf, updateWPM]);
 
     const formatTime = (seconds) => {
         if (typeof seconds !== 'number' || !isFinite(seconds) || seconds <= 0) return '00:00';
@@ -587,8 +569,11 @@ export const useResumeInterviewStreaming = (userId) => {
         pitchTimestamps,
         stabilityHistory,
 
-        // 🔥 CRITICAL: isInterviewerSpeaking flag
+        // CRITICAL: isInterviewerSpeaking flag
         isInterviewerSpeaking,
+
+        // 🔥 MANUAL SUBMIT ACTION - EXPORTED
+        submitAnswer,
 
         // Actions
         startRecording,
