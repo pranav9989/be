@@ -177,7 +177,7 @@ const AgenticInterview = ({ user, onLogout }) => {
             return defaultValue;
         };
 
-        // ✅ CORRECT UNIFIED METRICS KEYS (matching backend)
+        // ✅ COMPLETE RESEARCH-GRADE METRICS (all from your output)
         const speakingTime = getValue('speaking_time');
         const totalUserTurnTime = getValue('total_user_turn_time');
         const forcedSilenceTime = getValue('forced_silence_time');
@@ -194,22 +194,12 @@ const AgenticInterview = ({ user, onLogout }) => {
         const longPauseCount = getValue('long_pause_count');
         const hesitationRate = getValue('hesitation_rate');
 
-        // Content Quality - Using correct keys
         const semanticSimilarity = getValue('semantic_similarity') || 0;
         const keywordCoverage = getValue('keyword_coverage') || 0;
         const questionsAnswered = getValue('questions_answered');
         const totalWords = getValue('total_words');
+        const overallRelevance = getValue('overall_relevance');
 
-        // Get overall relevance or calculate it
-        let overallRelevance = getValue('overall_relevance');
-        if ((overallRelevance === 'N/A' || overallRelevance === 0) &&
-            semanticSimilarity !== 'N/A' && keywordCoverage !== 'N/A') {
-            const semantic = typeof semanticSimilarity === 'number' ? semanticSimilarity : 0;
-            const keyword = typeof keywordCoverage === 'number' ? keywordCoverage : 0;
-            overallRelevance = (semantic * 0.8) + (keyword * 0.2);
-        }
-
-        // Voice Analysis
         const pitchMean = getValue('pitch_mean');
         const pitchStd = getValue('pitch_std');
         const pitchRange = getValue('pitch_range');
@@ -235,7 +225,7 @@ const AgenticInterview = ({ user, onLogout }) => {
                     </div>
                 </div>
 
-                {/* COACHING FEEDBACK SECTION - FIXED */}
+                {/* COACHING FEEDBACK SECTION */}
                 {(coachingFeedback || loadingCoaching) && (
                     <div className="coaching-section-wrapper">
                         {loadingCoaching ? (
@@ -353,9 +343,9 @@ const AgenticInterview = ({ user, onLogout }) => {
                         </div>
                     </div>
 
-                    {/* SPEAKING RATIO & WPM */}
+                    {/* SPEAKING RATIO & FLUENCY METRICS */}
                     <div className="metric-section">
-                        <h4>📊 Fluency Metrics</h4>
+                        <h4>⚡ Fluency Metrics</h4>
                         <div className="metrics-list">
                             <div className="metric-item highlight">
                                 <span className="metric-label">Speaking Ratio:</span>
@@ -392,7 +382,7 @@ const AgenticInterview = ({ user, onLogout }) => {
                                 <span className="metric-value">{pauseCount !== 'N/A' ? pauseCount : 'N/A'}</span>
                             </div>
                             <div className="metric-item">
-                                <span className="metric-label">Long Pauses ({'>'}5s):</span>
+                                <span className="metric-label">Long Pauses (&gt;5s):</span>
                                 <span className="metric-value">{longPauseCount !== 'N/A' ? longPauseCount : 'N/A'}</span>
                             </div>
                             <div className="metric-item">
@@ -463,7 +453,7 @@ const AgenticInterview = ({ user, onLogout }) => {
                                 )}
                                 {pitchStability !== 'N/A' && (
                                     <div className="metric-item">
-                                        <span className="metric-label">Stability:</span>
+                                        <span className="metric-label">Pitch Stability:</span>
                                         <span className="metric-value">
                                             <span className={`stability-badge ${pitchStability > 80 ? 'excellent' :
                                                 pitchStability > 60 ? 'good' :
@@ -476,7 +466,7 @@ const AgenticInterview = ({ user, onLogout }) => {
                                 )}
                                 {pitchStd !== 'N/A' && (
                                     <div className="metric-item">
-                                        <span className="metric-label">Variation (σ):</span>
+                                        <span className="metric-label">Pitch Variation (σ):</span>
                                         <span className="metric-value">
                                             {typeof pitchStd === 'number' ? pitchStd.toFixed(1) : pitchStd} Hz
                                         </span>
@@ -524,7 +514,6 @@ const AgenticInterview = ({ user, onLogout }) => {
                         </div>
                     </div>
                 </div>
-
                 <div className="metrics-actions">
                     <button className="restart-btn" onClick={handleNewInterview}>
                         🔄 Start New Interview

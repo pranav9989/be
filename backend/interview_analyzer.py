@@ -132,7 +132,7 @@ class RunningStatistics:
         self.event_log = []  # Keep last 20 events for debugging
         self._in_user_turn = False
         self.pitch_window = []
-        self.pitch_window_size = 100   # ~ last 2–3 seconds
+        self.pitch_window_size = 150   # ~ last 2–3 seconds
 
     def start_user_turn(self, ts=None):
         """Called when user turn starts"""
@@ -300,7 +300,7 @@ class RunningStatistics:
     # =====================================
     
     def finalize_session_metrics(self):
-        """Compute final, mathematically valid metrics"""
+        """Compute final metrics - CORRECTED for manual submit flow (no forced silence)"""
         with self.lock:
             self.session_end_time = now_ts()
             
@@ -316,8 +316,9 @@ class RunningStatistics:
                 self._log_event("auto_close_final", seg)
                 print(f"🎤 Auto-closed final speech segment: +{seg:.2f}s")
             
-            # Effective duration = total - forced silence (system waits)
-            self.effective_duration = max(0.0, self.total_session_duration - self.forced_silence_time)
+            # 🔥 NO FORCED SILENCE in manual submit mode
+            # effective_duration = total_session_duration (user clicks submit, no system waits)
+            self.effective_duration = self.total_session_duration
             
             # Speaking ratio = speaking_time / effective_duration
             if self.effective_duration > 0:
@@ -326,43 +327,44 @@ class RunningStatistics:
                 self.speaking_ratio = 0.0
     
     def compute_research_metrics(self):
-        """Return research-grade metrics dictionary"""
+        """Return research-grade metrics dictionary - CORRECTED for manual submit flow"""
         with self.lock:
             self.finalize_session_metrics()
             
+            # =============================================
+            # SPEAKING & SILENCE METRICS (NO FORCED SILENCE)
+            # =============================================
+            
             # Words Per Minute (using speaking time only)
-            speaking_minutes = 0.0  # 🔥 FIX: Initialize before using
-            if self.total_speaking_time > 5.0:
-                speaking_minutes = self.total_speaking_time / 60
-                wpm = self.total_words / speaking_minutes
-            else:
-                wpm = 0.0
+            speaking_minutes = self.total_speaking_time / 60 if self.total_speaking_time > 0 else 0.0
+            wpm = self.total_words / speaking_minutes if speaking_minutes > 0 else 0.0
             
             # Pause statistics
             avg_pause = float(np.mean(self.pause_durations)) if self.pause_durations else 0.0
             
             # Hesitation rate (pauses per minute of speaking)
-            if speaking_minutes > 0:
-                hesitation_rate = len(self.pause_durations) / speaking_minutes
-            else:
-                hesitation_rate = 0.0
+            meaningful_pauses = [
+                p for p in self.pause_durations 
+                if 0.7 <= p <= 5.0   # 🔥 ignore micro pauses, keep real hesitation
+            ]
+            hesitation_rate = len(meaningful_pauses) / speaking_minutes if speaking_minutes > 0 else 0.0
             
             # Articulation rate (words per second of actual speaking)
             articulation_rate = self.total_words / max(0.1, self.total_speaking_time)
             
-            # 🔥 CORRECT: Calculate available speaking time (user turn time minus forced silence)
-            available_speaking_time = max(0, self.total_user_turn_time - self.forced_silence_time)
+            # =============================================
+            # 🔥 CORRECTED: Available speaking time = total user turn time
+            # (No forced silence because user clicks submit)
+            # =============================================
+            available_speaking_time = self.total_user_turn_time
             
-            # 🔥 CORRECT: Calculate silence during turn
+            # Silence during turn = user turn time - actual speaking time
+            silence_during_turn = max(0, self.total_user_turn_time - self.total_speaking_time)
+            
+            # Speaking ratio during turn = speaking_time / total_user_turn_time
             if self.total_user_turn_time > 0:
-                silence_during_turn = max(0, self.total_user_turn_time - self.total_speaking_time - self.forced_silence_time)
-                # 🔥 FIXED: Speaking ratio based on AVAILABLE speaking time, not total user turn time
-                if available_speaking_time > 0:
-                    speaking_ratio_during_turn = self.total_speaking_time / available_speaking_time
-                else:
-                    speaking_ratio_during_turn = 0.0
+                speaking_ratio_during_turn = self.total_speaking_time / self.total_user_turn_time
             else:
-                silence_during_turn = 0.0
                 speaking_ratio_during_turn = 0.0
             
             # Legacy silence calculation (for backward compatibility)
@@ -370,28 +372,58 @@ class RunningStatistics:
                 silence_time = 0.0
             else:
                 silence_time = self.effective_duration - self.total_speaking_time
-
-            # Average response latency
+            
+            # Average response latency (time between question end and first speech)
             avg_response_latency = float(np.mean(self.response_latencies)) if self.response_latencies else 0.0
             
             # Average Q&A scores
             avg_semantic = self.total_semantic_score / self.question_count if self.question_count > 0 else 0.0
             avg_keyword = self.total_keyword_score / self.question_count if self.question_count > 0 else 0.0
             
-            # Calculate overall relevance (80% semantic + 20% keyword)
+            # Overall relevance (80% semantic + 20% keyword)
             overall_relevance = (avg_semantic * 0.8) + (avg_keyword * 0.2)
             
+            # =============================================
+            # PER-QUESTION METRICS (Important for detailed analysis)
+            # =============================================
+            per_question_metrics = []
+            for qa in self.question_scores:
+                per_question_metrics.append({
+                    "question": qa.get('question', ''),
+                    "answer": qa.get('answer', ''),
+                    "semantic_score": round(qa.get('similarity', 0), 3),
+                    "keyword_score": round(qa.get('keyword_coverage', 0), 3),
+                    "response_time": 0.0  # Would need separate tracking per question
+                })
+            
+            # =============================================
+            # 🔥 ROBUST PITCH RANGE USING PERCENTILES (ignores outliers)
+            # =============================================
+            if len(self.pitch_window) > 5:
+                p10 = np.percentile(self.pitch_window, 10)
+                p90 = np.percentile(self.pitch_window, 90)
+                robust_pitch_range = p90 - p10
+            else:
+                robust_pitch_range = 0.0
+            
             return {
+                # Session overview
                 "session_duration": round(self.total_session_duration, 1),
                 "total_user_turn_time": round(self.total_user_turn_time, 1),
-                "available_speaking_time": round(available_speaking_time, 1),
                 "effective_duration": round(self.effective_duration, 1),
+                
+                # Speaking metrics
                 "speaking_time": round(self.total_speaking_time, 1),
-                "silence_time": round(silence_time, 1),
                 "silence_during_turn": round(silence_during_turn, 1),
-                "forced_silence_time": round(self.forced_silence_time, 1),
-                "speaking_ratio": round(self.speaking_ratio, 3),
+                "available_speaking_time": round(available_speaking_time, 1),
                 "speaking_ratio_during_turn": round(speaking_ratio_during_turn, 3),
+                
+                # Legacy (backward compatibility)
+                "speaking_ratio": round(speaking_ratio_during_turn, 3),
+                "silence_time": round(silence_time, 1),
+                "forced_silence_time": 0.0,  # No forced silence in manual submit mode
+                
+                # Fluency metrics
                 "wpm": round(wpm, 1),
                 "total_words": self.total_words,
                 "avg_pause_duration": round(avg_pause, 2),
@@ -400,14 +432,21 @@ class RunningStatistics:
                 "hesitation_rate": round(hesitation_rate, 2),
                 "articulation_rate": round(articulation_rate, 2),
                 "avg_response_latency": round(avg_response_latency, 2),
+                
+                # Content quality
                 "avg_semantic_similarity": round(avg_semantic, 3),
                 "avg_keyword_coverage": round(avg_keyword, 3),
                 "overall_relevance": round(overall_relevance, 3),
                 "questions_answered": self.question_count,
+                
+                # Voice analysis
                 "pitch_mean": round(self.pitch_mean, 2),
                 "pitch_std": round(np.sqrt(self.pitch_m2 / (self.pitch_count - 1)) if self.pitch_count > 1 else 0, 2),
-                "pitch_range": round(self.pitch_max - self.pitch_min if self.pitch_min != float('inf') else 0, 2),
-                "pitch_stability": round(self.get_pitch_stability(), 2)
+                "pitch_range": round(robust_pitch_range, 2),  # 🔥 FIXED: Using percentile-based range
+                "pitch_stability": round(self.get_pitch_stability(), 2),
+                
+                # 🔥 Per-question metrics
+                "per_question_metrics": per_question_metrics
             }
     
     def _log_event(self, event_type, *args):
@@ -418,14 +457,18 @@ class RunningStatistics:
     
     def update_pitch_stats(self, pitch_values):
         for pitch in pitch_values:
-            if np.isfinite(pitch):
-
-                # 🔥 NEW: sliding window
+            if np.isfinite(pitch) and 80 <= pitch <= 300:  # 🔥 filter valid human pitch
+                
+                # 🔥 Sliding window (for stability)
                 self.pitch_window.append(pitch)
                 if len(self.pitch_window) > self.pitch_window_size:
                     self.pitch_window.pop(0)
-
-                # KEEP old stats for research
+                
+                # 🔥 UPDATE MIN/MAX (CRITICAL FIX)
+                self.pitch_min = min(self.pitch_min, pitch)
+                self.pitch_max = max(self.pitch_max, pitch)
+                
+                # 🔥 Running mean + variance (Welford)
                 self.pitch_count += 1
                 delta = pitch - self.pitch_mean
                 self.pitch_mean += delta / self.pitch_count
@@ -550,8 +593,16 @@ class VoiceActivityDetector:
 # =====================================
 
 def analyze_audio_chunk_fast(pcm_chunk, sample_rate, stats: RunningStatistics, prev_overlap=None):
+    """
+    RESEARCH-GRADE PITCH ANALYSIS
+    FIXES:
+    - Energy gating (skip silence/breath)
+    - Larger YIN window (2048 samples = ~128ms)
+    - Voiced filtering (80-300Hz human voice range)
+    - Smoothing (moving average)
+    """
     if stats is None or len(pcm_chunk) < 512:
-        return
+        return None
         
     # Convert int16 PCM → float32
     audio = pcm_chunk.astype(np.float32) / 32768.0
@@ -560,27 +611,60 @@ def analyze_audio_chunk_fast(pcm_chunk, sample_rate, stats: RunningStatistics, p
     if prev_overlap is not None and len(prev_overlap) > 0:
         audio = np.concatenate([prev_overlap, audio])
     
+    # =============================================
+    # 🔥 ENERGY GATING - Skip low energy frames
+    # =============================================
+    rms = np.sqrt(np.mean(audio**2))
+    if rms < 0.01:  # Too quiet (silence/breath)
+        # Return overlap for next chunk but skip pitch analysis
+        overlap_samples = int(sample_rate * 0.1)
+        return audio[-overlap_samples:] if len(audio) > overlap_samples else audio
+    
     try:
-        # YIN pitch estimation
+        # =============================================
+        # 🔥 IMPROVED YIN PITCH ESTIMATION
+        # =============================================
         f0 = librosa.yin(
             audio, 
             sr=sample_rate,
-            fmin=65,
-            fmax=400,
-            frame_length=1024,
-            hop_length=512
+            fmin=80,      # Human voice min
+            fmax=300,     # Human voice max
+            frame_length=2048,   # 🔥 Larger window = more stable
+            hop_length=256       # 🔥 Smaller hop = smoother tracking
         )
         
-        voiced_f0 = f0[np.isfinite(f0)]
+        # =============================================
+        # 🔥 VOICED FILTERING (80-300Hz range)
+        # =============================================
+        voiced_f0 = f0[(f0 > 80) & (f0 < 300)]
+        
         if len(voiced_f0) > 0:
-            stats.update_pitch_stats(voiced_f0)
+            # =============================================
+            # 🔥 SMOOTHING - Moving average filter
+            # =============================================
+            # Apply 5-point moving average to reduce jitter
+            kernel = np.ones(5) / 5
+            smooth_f0 = np.convolve(voiced_f0, kernel, mode='same')
             
-            # Voice Quality (Jitter/Shimmer)
-            jitter = np.std(voiced_f0) / np.mean(voiced_f0) if np.mean(voiced_f0) > 0 else 0
-            rms = np.sqrt(np.mean(audio**2))
+            # Update statistics with smoothed values
+            stats.update_pitch_stats(smooth_f0)
+            
+            # Calculate voice quality metrics
+            jitter = np.std(smooth_f0) / (np.mean(smooth_f0) + 1e-6)
             shimmer = np.std(audio) / (rms + 1e-6)
+            hnr = 10.0  # Placeholder - would need full frame analysis
             
-            stats.update_voice_quality(jitter, shimmer, 10.0)
+            stats.update_voice_quality(jitter, shimmer, hnr)
+            
+            # Debug output (every 50 frames to avoid spam)
+            if not hasattr(analyze_audio_chunk_fast, '_pitch_counter'):
+                analyze_audio_chunk_fast._pitch_counter = 0
+            analyze_audio_chunk_fast._pitch_counter += 1
+            
+            if analyze_audio_chunk_fast._pitch_counter % 50 == 0:
+                pitch_mean = np.mean(smooth_f0)
+                pitch_std = np.std(smooth_f0)
+                print(f"🎤 PITCH: mean={pitch_mean:.1f}Hz, std={pitch_std:.1f}Hz, rms={rms:.3f}")
         
         # Return last 100ms of audio for next chunk's overlap
         overlap_samples = int(sample_rate * 0.1)  # 100ms overlap
@@ -589,7 +673,6 @@ def analyze_audio_chunk_fast(pcm_chunk, sample_rate, stats: RunningStatistics, p
     except Exception as e:
         print(f"DSP Error: {e}")
         return None
-
 
 def calculate_semantic_similarity(answer, expected_answer):
     """

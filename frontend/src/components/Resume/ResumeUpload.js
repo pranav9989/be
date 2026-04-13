@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import Header from '../Layout/Header';
 import { resumeAPI } from '../../services/api';
 import { useResumeInterviewStreaming } from '../../hooks/useResumeInterviewStreaming';
-import PitchGraph from '../AgenticInterview/PitchGraph';  // 🔥 ADD PITCH GRAPH IMPORT
+import PitchGraph from '../AgenticInterview/PitchGraph';
 import './ResumeUpload.css';
 import './ResumeInterview.css';
 
@@ -52,7 +52,6 @@ const ScoreRing = ({ pct, label, color, size = 80 }) => {
 const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
   const messagesEndRef = useRef(null);
 
-  // USE THE HOOK - handles ALL socket and audio logic with full metrics
   const {
     isConnected,
     isRecording,
@@ -69,7 +68,6 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
     analysis,
     submitAnswer,
     metrics,
-    // 🔥 LIVE METRICS FOR PITCH GRAPH
     livePitch,
     pitchHistory,
     pitchTimestamps,
@@ -77,14 +75,12 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
     liveWpm
   } = useResumeInterviewStreaming(user.id);
 
-  // Auto-scroll chat
   useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [messages, liveTranscript]);
 
-  // Start interview when component mounts and connection is ready
   useEffect(() => {
     if (isConnected) {
       const timer = setTimeout(() => {
@@ -94,7 +90,6 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
     }
   }, [isConnected, startRecording]);
 
-  // Parse timeRemaining (which comes as formatted string "MM:SS")
   const getTimeInSeconds = (timeStr) => {
     if (!timeStr || timeStr === '00:00') return 0;
     const parts = timeStr.split(':');
@@ -120,45 +115,176 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
           <p>Thank you for completing the interview. Here's your performance summary:</p>
 
           {metrics && (
-            <div className="metrics-summary">
-              <div className="metric">
-                <span className="metric-label">Speaking Time:</span>
-                <span className="metric-value">{metrics.speaking_time?.toFixed(1) || 0}s</span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">Speaking Ratio:</span>
-                <span className="metric-value">{((metrics.speaking_ratio || 0) * 100).toFixed(1)}%</span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">WPM:</span>
-                <span className="metric-value">{metrics.wpm?.toFixed(0) || 0}</span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">Questions Answered:</span>
-                <span className="metric-value">{metrics.questions_answered || 0}</span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">Pitch Stability:</span>
-                <span className="metric-value">{metrics.pitch_stability?.toFixed(0) || 0}%</span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">Avg Pitch:</span>
-                <span className="metric-value">{metrics.pitch_mean?.toFixed(0) || 0} Hz</span>
-              </div>
-              <div className="metric">
-                <span className="metric-label">Pause Count:</span>
-                <span className="metric-value">{metrics.pause_count || 0}</span>
+            <div className="metrics-summary-complete">
+
+              {/* SPEAKING METRICS */}
+              <div className="metric-group speaking">
+                <h4>🎤 Speaking Metrics</h4>
+                <div className="metrics-grid">
+                  <div className="metric">
+                    <span className="metric-label">Speaking Time</span>
+                    <span className="metric-value">{metrics.speaking_time?.toFixed(1) || 0}s</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Total User Turn Time</span>
+                    <span className="metric-value">{metrics.total_user_turn_time?.toFixed(1) || 0}s</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Silence During Turn</span>
+                    <span className="metric-value">{metrics.silence_during_turn?.toFixed(1) || 0}s</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Speaking Ratio</span>
+                    <span className="metric-value" style={{
+                      color: metrics.speaking_ratio >= 0.6 && metrics.speaking_ratio <= 0.75 ? '#4ade80' : '#f59e0b'
+                    }}>{((metrics.speaking_ratio || 0) * 100).toFixed(1)}%</span>
+                    <span className="metric-benchmark">(Ideal: 60-75%)</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Session Duration</span>
+                    <span className="metric-value">{metrics.session_duration?.toFixed(1) || 0}s</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="metric">
-                <span className="metric-label">Hesitation Rate:</span>
-                <span className="metric-value">{metrics.hesitation_rate?.toFixed(2) || 0}</span>
+              {/* FLUENCY METRICS */}
+              <div className="metric-group fluency">
+                <h4>⚡ Fluency Metrics</h4>
+                <div className="metrics-grid">
+                  <div className="metric">
+                    <span className="metric-label">Words Per Minute (WPM)</span>
+                    <span className="metric-value" style={{
+                      color: metrics.wpm >= 120 && metrics.wpm <= 150 ? '#4ade80' : metrics.wpm > 180 ? '#ef4444' : '#f59e0b'
+                    }}>{metrics.wpm?.toFixed(1) || 0}</span>
+                    <span className="metric-benchmark">(Ideal: 120-150)</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Articulation Rate</span>
+                    <span className="metric-value" style={{
+                      color: metrics.articulation_rate >= 2.0 && metrics.articulation_rate <= 2.5 ? '#4ade80' : metrics.articulation_rate > 3.0 ? '#ef4444' : '#f59e0b'
+                    }}>{metrics.articulation_rate?.toFixed(2) || 0} words/s</span>
+                    <span className="metric-benchmark">(Ideal: 2.0-2.5)</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Avg Response Latency</span>
+                    <span className="metric-value" style={{
+                      color: metrics.avg_response_latency >= 1 && metrics.avg_response_latency <= 3 ? '#4ade80' : '#f59e0b'
+                    }}>{metrics.avg_response_latency?.toFixed(2) || 0}s</span>
+                    <span className="metric-benchmark">(Ideal: 1-3s)</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Avg Pause Duration</span>
+                    <span className="metric-value">{metrics.avg_pause_duration?.toFixed(2) || 0}s</span>
+                    <span className="metric-benchmark">(Ideal: 1-3s)</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Pause Count</span>
+                    <span className="metric-value">{metrics.pause_count || 0}</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Long Pauses (&gt;5s)</span>
+                    <span className="metric-value" style={{
+                      color: metrics.long_pause_count <= 2 ? '#4ade80' : '#ef4444'
+                    }}>{metrics.long_pause_count || 0}</span>
+                    <span className="metric-benchmark">(Ideal: &lt;2)</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Hesitation Rate</span>
+                    <span className="metric-value" style={{
+                      color: metrics.hesitation_rate <= 10 ? '#4ade80' : metrics.hesitation_rate <= 15 ? '#f59e0b' : '#ef4444'
+                    }}>{metrics.hesitation_rate?.toFixed(2) || 0}/min</span>
+                    <span className="metric-benchmark">(Ideal: &lt;10/min)</span>
+                  </div>
+                </div>
               </div>
 
-              <div className="metric">
-                <span className="metric-label">Silence Time:</span>
-                <span className="metric-value">{metrics.silence_during_turn?.toFixed(1) || 0}s</span>
+              {/* CONTENT QUALITY METRICS */}
+              <div className="metric-group quality">
+                <h4>📋 Content Quality</h4>
+                <div className="metrics-grid">
+                  <div className="metric">
+                    <span className="metric-label">Semantic Similarity</span>
+                    <span className="metric-value" style={{
+                      color: metrics.avg_semantic_similarity >= 0.7 ? '#4ade80' : metrics.avg_semantic_similarity >= 0.5 ? '#f59e0b' : '#ef4444'
+                    }}>{((metrics.avg_semantic_similarity || 0) * 100).toFixed(1)}%</span>
+                    <span className="metric-benchmark">(Ideal: &lt;70%)</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Keyword Coverage</span>
+                    <span className="metric-value" style={{
+                      color: metrics.avg_keyword_coverage >= 0.6 ? '#4ade80' : metrics.avg_keyword_coverage >= 0.4 ? '#f59e0b' : '#ef4444'
+                    }}>{((metrics.avg_keyword_coverage || 0) * 100).toFixed(1)}%</span>
+                    <span className="metric-benchmark">(Ideal: &lt;60%)</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Overall Relevance</span>
+                    <span className="metric-value" style={{
+                      color: metrics.overall_relevance >= 0.7 ? '#4ade80' : metrics.overall_relevance >= 0.5 ? '#f59e0b' : '#ef4444'
+                    }}>{((metrics.overall_relevance || 0) * 100).toFixed(1)}%</span>
+                    <span className="metric-benchmark">(Ideal: &lt;70%)</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Questions Answered</span>
+                    <span className="metric-value">{metrics.questions_answered || 0}</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Total Words</span>
+                    <span className="metric-value">{metrics.total_words || 0}</span>
+                  </div>
+                </div>
               </div>
+
+              {/* VOICE ANALYSIS METRICS */}
+              <div className="metric-group voice">
+                <h4>🎤 Voice Analysis</h4>
+                <div className="metrics-grid">
+                  <div className="metric">
+                    <span className="metric-label">Average Pitch</span>
+                    <span className="metric-value">{metrics.pitch_mean?.toFixed(1) || 0} Hz</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Pitch Range</span>
+                    <span className="metric-value" style={{
+                      color: metrics.pitch_range >= 50 && metrics.pitch_range <= 150 ? '#4ade80' : '#f59e0b'
+                    }}>{metrics.pitch_range?.toFixed(1) || 0} Hz</span>
+                    <span className="metric-benchmark">(Ideal: 50-150)</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Pitch Stability</span>
+                    <span className="metric-value" style={{
+                      color: metrics.pitch_stability >= 70 ? '#4ade80' : metrics.pitch_stability >= 50 ? '#f59e0b' : '#ef4444'
+                    }}>{metrics.pitch_stability?.toFixed(1) || 0}%</span>
+                    <span className="metric-benchmark">(Ideal: &lt;70%)</span>
+                  </div>
+                  <div className="metric">
+                    <span className="metric-label">Pitch Variation (σ)</span>
+                    <span className="metric-value">{metrics.pitch_std?.toFixed(1) || 0} Hz</span>
+                  </div>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* 🔥 NEW: Structured QA Review Cards */}
+          {analysis?.qa_pairs && analysis.qa_pairs.length > 0 && (
+            <div className="qa-review-section">
+              <h3>📝 Question & Answer Review</h3>
+              {analysis.qa_pairs.map((qa, index) => (
+                <div key={index} className="qa-card">
+                  <div className="qa-question">
+                    <strong>Q{index + 1}:</strong> {qa.question}
+                  </div>
+                  <div className="qa-answer user">
+                    <span>🗣️ Your Answer:</span>
+                    <p>{qa.answer}</p>
+                  </div>
+                  <div className="qa-answer gold">
+                    <span>💡 Ideal Answer:</span>
+                    <p>{qa.gold_answer || qa.expected_answer || "Not available"}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
 
@@ -224,7 +350,7 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
         </div>
       </div>
 
-      {/* 🔥 PITCH ANALYSIS GRAPH - Same as Agentic Interview */}
+      {/* Pitch graph */}
       {livePitch && livePitch.mean > 0 && (
         <div className="pitch-section-resume" style={{ margin: '1rem 0' }}>
           <PitchGraph
@@ -236,7 +362,7 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
         </div>
       )}
 
-      {/* 🔥 WPM DISPLAY - Real-time speaking rate */}
+      {/* WPM display */}
       {currentTurn === 'USER' && liveWpm > 0 && (
         <div className="wpm-indicator" style={{
           textAlign: 'center',
@@ -260,16 +386,13 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
 
       <div className="conversation-container">
         <div className="messages-list">
-          {messages.map((msg, idx) => (
+          {messages.filter(msg => msg.role !== 'gold').map((msg, idx) => (
             <div key={idx} className={`message ${msg.role}`}>
               <div className="message-avatar">
                 {msg.role === 'interviewer' && <i className="fas fa-robot"></i>}
                 {msg.role === 'user' && <i className="fas fa-user"></i>}
-                {msg.role === 'gold' && <i className="fas fa-lightbulb"></i>}
               </div>
-
-              <div className={`message-bubble ${msg.role === 'gold' ? 'gold-answer' : ''}`}>
-                {msg.role === 'gold' && <strong>💡 Ideal Answer:</strong>}
+              <div className="message-bubble">
                 <div className="message-text">{msg.text}</div>
               </div>
             </div>
@@ -295,7 +418,6 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
         )}
         <div className="status-text">{status}</div>
 
-        {/* 🔥 NEW SUBMIT BUTTON - Only shows during user's turn */}
         {currentTurn === 'USER' && (
           <button
             className="submit-answer-btn"

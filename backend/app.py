@@ -435,17 +435,96 @@ def finalize_user_answer(session_key):
     session["silence_thread_started"] = False
     session["finalizing"] = False
 
+def get_metric_benchmarks():
+    """
+    Benchmarks EXACTLY aligned with frontend displayed metrics.
+    Optimized for LLM comparison + reasoning.
+    """
+
+    return {
+        # 🎤 SPEAKING
+        "speaking_ratio": {
+            "ideal": "0.60–0.75",
+            "low": "<0.50 → low engagement / too much silence",
+            "high": ">0.80 → over-talking / poor pacing"
+        },
+
+        # ⚡ FLUENCY
+        "wpm": {
+            "ideal": "120–150",
+            "low": "<110 → slow / hesitant",
+            "high": ">160 → too fast / unclear"
+        },
+        "articulation_rate": {
+            "ideal": "2.0–2.5 words/sec",
+            "low": "<1.8 → slow speech",
+            "high": ">3.0 → rushed delivery"
+        },
+        "avg_response_latency": {
+            "ideal": "1–3 sec",
+            "low": "<1 → rushed / scripted",
+            "high": ">4 → slow thinking"
+        },
+        "avg_pause_duration": {
+            "ideal": "1–3 sec",
+            "high": ">4 → noticeable hesitation"
+        },
+        "pause_count": {
+            "ideal": "moderate",
+            "high": "too many pauses → broken fluency"
+        },
+        "long_pause_count": {
+            "ideal": "<2 per answer",
+            "high": ">3 → getting stuck"
+        },
+        "hesitation_rate": {
+            "ideal": "<10 per min",
+            "moderate": "10–15 → some hesitation",
+            "high": ">15 → frequent hesitation"
+        },
+
+        # 📋 CONTENT QUALITY
+        "semantic_similarity": {
+            "ideal": ">0.7",
+            "moderate": "0.5–0.7",
+            "low": "<0.5 → weak relevance"
+        },
+        "keyword_coverage": {
+            "ideal": ">0.6",
+            "moderate": "0.4–0.6",
+            "low": "<0.4 → missing key concepts"
+        },
+        "overall_relevance": {
+            "ideal": ">0.7",
+            "moderate": "0.5–0.7",
+            "low": "<0.5 → poor answer quality"
+        },
+
+        # 🎤 VOICE
+        "pitch_stability": {
+            "ideal": ">70%",
+            "moderate": "50–70%",
+            "low": "<50% → unstable / nervous tone"
+        },
+        "pitch_range": {
+            "ideal": "50–150 Hz",
+            "low": "<40 → monotone",
+            "high": ">180 → overly fluctuating"
+        },
+        "pitch_std": {
+            "ideal": "15–40 Hz",
+            "low": "<10 → flat tone",
+            "high": ">50 → inconsistent voice"
+        }
+    }
+
 def generate_resume_gold_answer(question, session):
-    """
-    Generate a strong ideal answer for a resume-based question.
-    Uses resume data from session and Mistral.
-    """
     try:
         from rag import mistral_generate
         
         resume_data = session.get("resume_data", {})
         
-        # Build a compact resume summary
+        # Build resume summary
         resume_summary = ""
         if resume_data.get("skills"):
             resume_summary += f"Skills: {', '.join(resume_data['skills'][:10])}\n"
@@ -473,14 +552,36 @@ Question: {question}
 Give a strong answer that would impress an interviewer. Keep it to 3-5 sentences, specific, and natural.
 Return ONLY the answer text, no extra commentary."""
 
-        response = mistral_generate(prompt, timeout=30, temperature=0.7)
+        # 🔥 FIX: Remove temperature parameter
+        response = mistral_generate(prompt, timeout=120)
+        
         if response and len(response.strip()) > 20:
-            return response.strip()
+            gold = response.strip()
+            print(f"✅ Gold answer generated for: {question[:50]}...")
+            return gold
         else:
-            return "A strong answer would highlight relevant experience and specific achievements from your resume."
+            # Fallback: generate a simple answer based on question type
+            if "introduce yourself" in question.lower():
+                return "A strong answer would briefly state your name, current role/education, key skills, and career interest."
+            elif "skills" in question.lower():
+                skills_str = ", ".join(resume_data.get("skills", [])[:3]) or "your technical skills"
+                return f"A strong answer would describe your experience with {skills_str}, including specific projects where you applied them and challenges overcome."
+            elif "project" in question.lower() or "worked on" in question.lower():
+                return "A strong answer would describe the project goal, your specific role, technologies used, key challenges, and the outcome or learning."
+            else:
+                return f"A strong answer would directly address the question: {question[:200]}. Use specific examples from your resume."
+                
     except Exception as e:
         print(f"⚠️ Gold answer generation error: {e}")
-        return "Ideal answer not available."
+        # Fallback that doesn't rely on LLM
+        if "introduce" in question.lower():
+            return "A strong introduction would state your name, current role, key technical skills, and what you're looking for."
+        elif "skills" in question.lower():
+            return "A strong answer would mention your most relevant technical skills and give a brief example of using each."
+        elif "project" in question.lower():
+            return "A strong answer would explain the project's purpose, your contribution, technologies used, and any measurable results."
+        else:
+            return f"An ideal answer would directly address: {question[:150]} with specific, structured examples from your experience."
 
 def finalize_resume_user_answer(session_key):
     """
@@ -1316,6 +1417,7 @@ def stop_interview(data, sid=None):
         # 5️⃣ Prepare final results with unified metrics
         analysis_results = {
             'success': True,
+            'benchmarks': get_metric_benchmarks(),
             'processing_method': 'research_grade_event_driven',
             'transcript': full_transcript,
             'conversation': "\n\n".join(session_data.get('full_transcript', [])) if stats and hasattr(stats, 'full_transcript') else full_transcript,
@@ -4091,8 +4193,15 @@ def stop_resume_interview(data, sid=None):
                 else:
                     grade = 'D'
                 
+                # 🔥 ENSURE GOLD ANSWER IS NOT EMPTY
+                gold = qa.get('gold_answer', '')
+                if not gold or len(gold.strip()) < 10:
+                    # Fallback: generate a simple default
+                    gold = f"An ideal answer would directly address the question: {qa.get('question', '')[:200]}. Use specific examples from your resume."
+                    print(f"⚠️ Missing gold answer, using fallback for question {idx}")
+                
                 formatted_answers['evaluations'][str(idx)] = {
-                    'ideal_answer': qa.get('gold_answer', ''),   # use gold answer
+                    'ideal_answer': gold,   # use gold answer (never empty)
                     'grade': grade,
                     'score': int(overall),
                     'strengths': 'Good technical coverage' if keyword > 0.5 else 'Needs more detail',
@@ -4137,36 +4246,82 @@ def stop_resume_interview(data, sid=None):
         wpm = metrics.get('wpm', 0)
         speaking_ratio = metrics.get('speaking_ratio_during_turn', 0.5) * 100
         
-        prompt = f"""You are an expert interview coach. Provide personalized coaching feedback for this candidate.
+        prompt = f"""
+You are an expert interview coach.
 
-SESSION STATS:
+You are given a candidate's performance in a resume-based interview.
+
+Your job is to provide CONCISE but INSIGHTFUL feedback by comparing their metrics with ideal benchmarks.
+
+----------------------------------------
+📊 PERFORMANCE METRICS
+----------------------------------------
+
 - Questions Answered: {len(qa_pairs)}
-- Average Semantic Score: {metrics.get('avg_semantic_similarity', 0)*100:.0f}%
 - Average Keyword Coverage: {metrics.get('avg_keyword_coverage', 0)*100:.0f}%
-- Speaking WPM: {wpm:.0f}
-- Speaking Ratio: {speaking_ratio:.0f}%
-- Pitch Stability: {pitch_stability:.0f}%
 
-AREAS FOR IMPROVEMENT:
-{chr(10).join(missing_concepts) if missing_concepts else "None identified - good overall!"}
+🎤 VOICE & DELIVERY:
+- Speaking Rate (WPM): {wpm:.0f} (Ideal: 120–150)
+- Pitch Stability: {pitch_stability:.0f}% (Ideal: >70%)
 
-Provide feedback in this format:
+⚡ FLUENCY:
+- Speaking Ratio: {speaking_ratio:.0f}% (Ideal: 60–75%)
+- Articulation Rate: {metrics.get('articulation_rate', 0):.2f} (Ideal: 2.0–2.5 words/sec)
+- Response Latency: {metrics.get('avg_response_latency', 0):.2f}s (Ideal: 1–3s)
+- Avg Pause Duration: {metrics.get('avg_pause_duration', 0):.2f}s (Ideal: 1–3s)
+- Pause Count: {metrics.get('pause_count', 0)}
+- Long Pauses (>5s): {metrics.get('long_pause_count', 0)} (Ideal: <2)
+- Hesitation Rate: {metrics.get('hesitation_rate', 0):.2f}/min (Ideal: <10)
+
+----------------------------------------
+🎯 YOUR TASK
+----------------------------------------
+
+1. Compare metrics with benchmarks:
+   - Identify GOOD / MODERATE / NEEDS IMPROVEMENT
+   - Use numbers for justification
+
+2. Keep feedback SHORT but meaningful
+
+3. Focus on:
+   - Communication clarity
+   - Confidence
+   - Resume-based technical articulation
+
+4. Give actionable improvements (NOT generic)
+
+----------------------------------------
+📌 OUTPUT FORMAT (STRICT)
+----------------------------------------
+
 ## 🗣️ VOCAL DELIVERY
-[1-2 sentences about speaking pace, pitch stability, and clarity]
+- 1–2 lines comparing WPM + pitch stability with ideal ranges
+- Mention confidence level
 
 ## 📚 TECHNICAL CONTENT
-[1-2 sentences about answer depth and technical accuracy]
+- 1–2 lines on keyword usage and answer depth
+- Mention if answers lacked specificity or were strong
 
 ## ⏱️ RESPONSE FLOW
-[1-2 sentences about speaking ratio, pauses, and response timing]
+- 1–2 lines on pauses, hesitation, and pacing
+- Mention if candidate was hesitant / smooth / rushed
 
 ## 🎯 SPECIFIC IMPROVEMENTS
-- [Actionable item 1]
-- [Actionable item 2]
-- [Actionable item 3]
+- 3 bullet points
+- MUST be actionable
+- Example: "Reduce hesitation by structuring answers before speaking"
 
-Keep it concise and actionable. Return ONLY the coaching text."""
+----------------------------------------
+🚨 RULES
+----------------------------------------
 
+- DO NOT repeat metrics blindly
+- ALWAYS compare with ideal values
+- NO generic advice like "practice more"
+- Be precise and practical
+
+Return ONLY the coaching feedback.
+"""
         coaching_feedback = mistral_generate(prompt, timeout=45)
         if coaching_feedback:
             with app.app_context():
@@ -4528,58 +4683,148 @@ def get_interview_results():
         # Build prompt for Mistral
         # ============================================
         
-        prompt = f"""You are an expert interview coach. Based on the candidate's performance metrics below, provide SPECIFIC, ACTIONABLE coaching feedback.
+        benchmarks = get_metric_benchmarks()
 
-SESSION SUMMARY:
+        prompt = f"""
+You are a senior technical interview coach with expertise in communication, behavioral analysis, and technical evaluation.
+
+You are given:
+1. Candidate performance metrics
+2. Benchmark ranges (ideal performance)
+3. Knowledge gaps
+
+Your job is to generate DEEP, SPECIFIC, NON-GENERIC feedback by COMPARING metrics with benchmarks.
+
+----------------------------------------
+📊 PERFORMANCE METRICS
+----------------------------------------
+
+SESSION:
 - Questions Answered: {total_questions}
 - Session Duration: {metrics.get('session_duration', 0):.0f} seconds
 
-VOCAL DELIVERY METRICS:
-- Pitch Stability: {pitch_stability:.0f}% ({pitch_issue})
-- Speaking Rate (WPM): {wpm:.0f} words/minute ({wpm_issue})
-- Optimal: 140-160 wpm for technical interviews
+🎤 VOCAL DELIVERY:
+- Pitch Stability: {pitch_stability:.0f}%
+- Speaking Rate: {wpm:.0f} WPM
 
-RESPONSE FLOW METRICS:
-- Speaking Ratio: {speaking_ratio:.0f}% ({ratio_issue})
-- Optimal: 65-75% (candidates should speak most of the turn)
-- Response Latency: {response_latency:.1f}s (optimal: 0.5-2.0s)
-- Pause Count: {pause_count}
+⚡ RESPONSE FLOW:
+- Speaking Ratio: {speaking_ratio:.0f}%
+- Response Latency: {response_latency:.1f}s
+- Total Pauses: {pause_count}
 - Long Pauses (>5s): {long_pauses}
 
-CONTENT QUALITY METRICS:
-- Semantic Similarity: {semantic_similarity:.0f}% (alignment with ideal answer)
-- Keyword Coverage: {keyword_coverage:.0f}% (technical term usage)
-- Optimal: >70% for strong answers
+📋 CONTENT QUALITY:
+- Semantic Similarity: {semantic_similarity:.0f}%
+- Keyword Coverage: {keyword_coverage:.0f}%
 
-MISSING TECHNICAL CONCEPTS:
-{chr(10).join([f"- {c}" for c in missing_concepts]) if missing_concepts else "- None identified (good technical coverage!)"}
+----------------------------------------
+📏 BENCHMARKS (IDEAL VALUES)
+----------------------------------------
 
-WEAK CONCEPTS TO REVIEW:
-{chr(10).join([f"- {c}" for c in weak_concepts]) if weak_concepts else "- No weak concepts identified"}
+{json.dumps(benchmarks, indent=2)}
 
-TASK:
-Generate personalized coaching feedback in the format below. Be SPECIFIC and ACTIONABLE. Do NOT just restate metrics. Give concrete exercises.
+----------------------------------------
+🧠 KNOWLEDGE GAPS
+----------------------------------------
 
-## 🗣️ VOCAL DELIVERY COACHING
-[1-2 sentences explaining the issue based on pitch stability and speaking rate]
-[3 bullet points with specific exercises/actions]
+Missing Concepts:
+{chr(10).join([f"- {c}" for c in missing_concepts]) if missing_concepts else "- None"}
 
-## 📚 TECHNICAL CONTENT COACHING
-[1-2 sentences explaining the issue based on semantic similarity and keyword coverage]
-[3 bullet points with specific concepts to review and practice techniques]
+Weak Concepts:
+{chr(10).join([f"- {c}" for c in weak_concepts]) if weak_concepts else "- None"}
 
-## ⏱️ RESPONSE FLOW COACHING
-[1-2 sentences explaining the issue based on speaking ratio, pauses, and response latency]
-[3 bullet points with specific techniques to improve flow]
+----------------------------------------
+🎯 YOUR TASK
+----------------------------------------
 
-## 🎯 PRACTICE EXERCISES
-[3 specific exercises the candidate can do to improve]
-- Exercise 1: [description]
-- Exercise 2: [description]  
-- Exercise 3: [description]
+You MUST:
 
-Return ONLY the coaching feedback in the format above. No additional commentary."""
+1. Compare EACH metric with its benchmark:
+   - Clearly label: GOOD / MODERATE / NEEDS IMPROVEMENT
+   - ALWAYS justify using numbers
+   - Example: "Your hesitation rate is 18/min vs ideal <10 → high hesitation"
 
+2. Identify REAL behavioral patterns:
+   - hesitation, confidence, pacing, clarity
+
+3. Explain WHY it matters:
+   - Example: "Frequent pauses may signal uncertainty to interviewers"
+
+4. Give ACTIONABLE fixes:
+   - Must be practical and specific
+   - No generic advice
+
+----------------------------------------
+📌 OUTPUT FORMAT (STRICT)
+----------------------------------------
+
+## 🗣️ Communication & Fluency
+
+**Feedback:**
+- Compare WPM, pauses, hesitation WITH benchmarks
+- Clearly state GOOD / MODERATE / NEEDS IMPROVEMENT
+- Explain impact on interviewer perception
+
+**Improvements:**
+- 3 specific fixes
+- MUST include actionable techniques (e.g., structured answering, timed practice)
+
+---
+
+## 🎤 Voice & Confidence
+
+**Feedback:**
+- Use pitch stability + variation
+- Compare with benchmark (>70%)
+- Infer confidence level (confident / slightly nervous / unstable)
+
+**Improvements:**
+- 2–3 actionable fixes (breathing, pacing, pitch control)
+
+---
+
+## 📚 Technical Answer Quality
+
+**Feedback:**
+- Compare semantic similarity & keyword coverage with benchmarks
+- Mention if answers are shallow / strong / missing depth
+
+**Improvements:**
+- 3 improvements tied to missing/weak concepts
+- MUST reference actual concepts
+
+---
+
+## ⏱️ Response Structure & Thinking
+
+**Feedback:**
+- Use speaking ratio + latency
+- Compare with benchmarks
+- Detect overthinking / rushing / imbalance
+
+**Improvements:**
+- 2–3 structured techniques (STAR, pause control, framing answers)
+
+---
+
+## 🎯 Final Assessment
+
+- 2–3 lines summary
+- MUST describe candidate type:
+  (e.g., "Technically capable but hesitant communicator")
+
+----------------------------------------
+🚨 STRICT RULES
+----------------------------------------
+
+- DO NOT repeat raw metrics without comparison
+- ALWAYS reference benchmark ranges
+- DO NOT give generic advice
+- ALWAYS explain cause → effect
+- Be analytical, specific, and realistic
+
+Return ONLY the formatted feedback.
+"""
         from rag import mistral_generate
         coaching_text = mistral_generate(prompt, timeout=60)
         
