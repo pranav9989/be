@@ -62,9 +62,11 @@ const GapAnalysis = ({ user, onLogout }) => {
         setError(null);
         setResult(null);
 
-        try {
-            let resumeData = null;
+        // Declare variables outside blocks to avoid scope issues
+        let resumeData = null;
+        let jobFitAnalysis = null;
 
+        try {
             // STEP 1: Upload the resume if a new one is selected
             if (selectedFile) {
                 setUploadProgress(10);
@@ -74,7 +76,7 @@ const GapAnalysis = ({ user, onLogout }) => {
 
                 const formData = new FormData();
                 formData.append('resume', selectedFile);
-                formData.append('job_description', 'Gap Analysis Mode');
+                formData.append('job_description', jobDescription);
 
                 const uploadRes = await resumeAPI.upload(formData);
                 clearInterval(progressInterval);
@@ -84,13 +86,19 @@ const GapAnalysis = ({ user, onLogout }) => {
                     throw new Error(uploadRes.data.message || 'Resume upload failed');
                 }
 
-                // Store the parsed resume data
+                // Store the parsed resume data and job fit analysis
                 if (uploadRes.data.data) {
                     resumeData = uploadRes.data.data;
                     setParsedResumeData(resumeData);
                     console.log('✅ Resume parsed:', resumeData);
                     console.log('📁 Projects found:', resumeData.projects?.length || 0);
                     console.log('💼 Experience found:', resumeData.experience?.length || 0);
+                }
+
+                // Store job fit analysis if present
+                if (uploadRes.data.job_fit_analysis) {
+                    jobFitAnalysis = uploadRes.data.job_fit_analysis;
+                    console.log('✅ Job fit analysis received:', jobFitAnalysis);
                 }
 
                 setTimeout(() => setUploadProgress(0), 1000);
@@ -105,7 +113,7 @@ const GapAnalysis = ({ user, onLogout }) => {
             });
 
             if (response.data && response.data.success) {
-                // Merge gap analysis with parsed resume data
+                // Merge gap analysis with parsed resume data and job fit analysis
                 const mergedResult = {
                     ...response.data.gap_analysis,
                     parsed_resume: resumeData || parsedResumeData || {
@@ -113,7 +121,9 @@ const GapAnalysis = ({ user, onLogout }) => {
                         experience: [],
                         experience_years: 0,
                         skills: []
-                    }
+                    },
+                    // Include any job fit analysis from the upload response
+                    ...(jobFitAnalysis || {})
                 };
                 console.log('✅ Merged result:', mergedResult);
                 setResult(mergedResult);
@@ -260,48 +270,239 @@ const GapAnalysis = ({ user, onLogout }) => {
                             </button>
                         </div>
 
-                        <div className="gap-dashboard">
-                            {/* Score Card */}
-                            <div className="card-glass score-card">
-                                <h3>Match Score</h3>
-                                <div className="score-circle-container">
-                                    <div
-                                        className="score-circle"
-                                        style={{ '--score-color': getScoreColor(result.match_score) }}
-                                    >
-                                        <span className="score-number">{result.match_score}%</span>
+                        {/* TWO COLUMN LAYOUT FOR MAIN DASHBOARD */}
+                        <div className="dashboard-two-column">
+                            {/* LEFT COLUMN - Match Score & Strengths */}
+                            <div className="dashboard-left">
+                                {/* Score Card */}
+                                <div className="card-glass score-card">
+                                    <h3><i className="fas fa-chart-line"></i> Match Score</h3>
+                                    <div className="score-circle-container">
+                                        <div
+                                            className="score-circle"
+                                            style={{ '--score-color': getScoreColor(result.match_score) }}
+                                        >
+                                            <span className="score-number">{result.match_score}%</span>
+                                        </div>
                                     </div>
+                                    <p className="score-desc">
+                                        {result.match_score >= 80 ? "🎉 You are a strong fit! Focus on interview prep." :
+                                            result.match_score >= 50 ? "📈 You have the basics, but need to bridge some gaps." :
+                                                "⚠️ Significant gaps detected. A study plan is highly recommended."}
+                                    </p>
+
+                                    {/* Fit Breakdown from LLM */}
+                                    {result.fit_breakdown && (
+                                        <div className="fit-breakdown mt-4">
+                                            <h4>Detailed Breakdown</h4>
+                                            <div className="breakdown-grid">
+                                                <div className="breakdown-item">
+                                                    <span className="breakdown-label">Technical Skills</span>
+                                                    <div className="breakdown-bar">
+                                                        <div className="breakdown-fill" style={{ width: `${result.fit_breakdown.technical_skills || 0}%` }}></div>
+                                                    </div>
+                                                    <span className="breakdown-value">{result.fit_breakdown.technical_skills || 0}%</span>
+                                                </div>
+                                                <div className="breakdown-item">
+                                                    <span className="breakdown-label">Experience Level</span>
+                                                    <div className="breakdown-bar">
+                                                        <div className="breakdown-fill" style={{ width: `${result.fit_breakdown.experience_level || 0}%` }}></div>
+                                                    </div>
+                                                    <span className="breakdown-value">{result.fit_breakdown.experience_level || 0}%</span>
+                                                </div>
+                                                <div className="breakdown-item">
+                                                    <span className="breakdown-label">Project Relevance</span>
+                                                    <div className="breakdown-bar">
+                                                        <div className="breakdown-fill" style={{ width: `${result.fit_breakdown.project_relevance || 0}%` }}></div>
+                                                    </div>
+                                                    <span className="breakdown-value">{result.fit_breakdown.project_relevance || 0}%</span>
+                                                </div>
+                                                {result.fit_breakdown.communication_leadership && (
+                                                    <div className="breakdown-item">
+                                                        <span className="breakdown-label">Communication</span>
+                                                        <div className="breakdown-bar">
+                                                            <div className="breakdown-fill" style={{ width: `${result.fit_breakdown.communication_leadership}%` }}></div>
+                                                        </div>
+                                                        <span className="breakdown-value">{result.fit_breakdown.communication_leadership}%</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Verdict from LLM */}
+                                    {result.verdict && (
+                                        <div className={`verdict-badge ${result.match_score >= 70 ? 'verdict-positive' : result.match_score >= 40 ? 'verdict-warning' : 'verdict-negative'} mt-3`}>
+                                            <i className={`fas ${result.match_score >= 70 ? 'fa-check-circle' : result.match_score >= 40 ? 'fa-exclamation-triangle' : 'fa-times-circle'}`}></i>
+                                            {result.verdict}
+                                        </div>
+                                    )}
+
+                                    {/* Preparation Time */}
+                                    {result.preparation_time && (
+                                        <div className="prep-time mt-3">
+                                            <i className="fas fa-hourglass-half"></i>
+                                            <strong>Estimated Prep Time:</strong> {result.preparation_time}
+                                        </div>
+                                    )}
                                 </div>
-                                <p className="score-desc">
-                                    {result.match_score >= 80 ? "You are a strong fit! Focus on interview prep." :
-                                        result.match_score >= 50 ? "You have the basics, but need to bridge some gaps." :
-                                            "Significant gaps detected. A study plan is highly recommended."}
-                                </p>
+
+                                {/* Strengths Card from LLM */}
+                                {result.strengths && result.strengths.length > 0 && (
+                                    <div className="card-glass strengths-card mt-4">
+                                        <h3><i className="fas fa-star text-yellow-400"></i> Your Strengths</h3>
+                                        <ul className="strengths-list">
+                                            {result.strengths.map((strength, idx) => (
+                                                <li key={idx}>
+                                                    <i className="fas fa-check-circle text-green-400"></i>
+                                                    {strength}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {/* Interview Prep Focus */}
+                                {result.interview_prep_focus && result.interview_prep_focus.length > 0 && (
+                                    <div className="card-glass interview-prep-card mt-4">
+                                        <h3><i className="fas fa-microphone-alt"></i> Interview Prep Focus</h3>
+                                        <div className="prep-tags">
+                                            {result.interview_prep_focus.map((topic, idx) => (
+                                                <span key={idx} className="prep-tag">
+                                                    <i className="fas fa-bookmark"></i> {topic}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
 
-                            {/* Missing Skills Card */}
-                            <div className="card-glass skills-card">
-                                <h3>Missing Key Skills</h3>
-                                {result.missing_skills && result.missing_skills.length > 0 ? (
-                                    <div className="skills-tags">
-                                        {result.missing_skills.map((skill, idx) => (
-                                            <span key={idx} className="skill-tag missing">
-                                                <i className="fas fa-times-circle"></i> {skill}
-                                            </span>
-                                        ))}
+                            {/* RIGHT COLUMN - Gaps & Recommendations */}
+                            <div className="dashboard-right">
+                                {/* Missing Skills Card with Descriptions */}
+                                <div className="card-glass skills-card">
+                                    <h3><i className="fas fa-exclamation-triangle text-red-400"></i> Skill Gaps</h3>
+                                    {result.missing_skills && result.missing_skills.length > 0 ? (
+                                        <>
+                                            <div className="skills-tags">
+                                                {result.missing_skills.map((skill, idx) => (
+                                                    <span key={idx} className="skill-tag missing">
+                                                        <i className="fas fa-times-circle"></i> {skill}
+                                                    </span>
+                                                ))}
+                                            </div>
+                                            {/* Detailed gap descriptions from LLM */}
+                                            {result.gaps && result.gaps.length > 0 && (
+                                                <div className="gaps-description mt-3">
+                                                    <p className="text-sm text-gray-400 mb-2">Why these matter:</p>
+                                                    <ul className="gaps-list">
+                                                        {result.gaps.map((gap, idx) => (
+                                                            <li key={idx}>
+                                                                <i className="fas fa-info-circle"></i>
+                                                                {gap}
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                        </>
+                                    ) : (
+                                        <div className="message success">
+                                            <i className="fas fa-check-circle"></i> No major skills missing!
+                                        </div>
+                                    )}
+                                </div>
+
+                                {/* Resume Improvements from LLM */}
+                                {result.resume_improvements && result.resume_improvements.length > 0 && (
+                                    <div className="card-glass resume-improvements-card mt-4">
+                                        <h3><i className="fas fa-file-alt"></i> Resume Improvements</h3>
+                                        <ul className="improvements-list">
+                                            {result.resume_improvements.map((improvement, idx) => (
+                                                <li key={idx}>
+                                                    <i className="fas fa-pen"></i>
+                                                    {improvement}
+                                                </li>
+                                            ))}
+                                        </ul>
                                     </div>
-                                ) : (
-                                    <div className="message success">
-                                        <i className="fas fa-check-circle"></i> No major skills missing!
+                                )}
+
+                                {/* Recommendations from LLM */}
+                                {result.recommendations && (
+                                    <div className="card-glass recommendations-card mt-4">
+                                        <h3><i className="fas fa-lightbulb text-yellow-400"></i> Recommendations</h3>
+
+                                        {/* Immediate Actions */}
+                                        {result.recommendations.immediate_actions && result.recommendations.immediate_actions.length > 0 && (
+                                            <div className="recommendation-section">
+                                                <h4><i className="fas fa-bolt"></i> Take Action Today</h4>
+                                                <ul className="action-list">
+                                                    {result.recommendations.immediate_actions.map((action, idx) => (
+                                                        <li key={idx}>
+                                                            <i className="fas fa-arrow-right"></i>
+                                                            {action}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
+
+                                        {/* Learning Resources */}
+                                        {result.recommendations.learning_resources && result.recommendations.learning_resources.length > 0 && (
+                                            <div className="recommendation-section">
+                                                <h4><i className="fas fa-graduation-cap"></i> Learning Resources</h4>
+                                                <div className="resources-grid">
+                                                    {result.recommendations.learning_resources.map((resource, idx) => {
+                                                        // Handle both string and object formats
+                                                        if (typeof resource === 'string') {
+                                                            return (
+                                                                <div key={idx} className="resource-card">
+                                                                    <i className="fas fa-link"></i>
+                                                                    <div>
+                                                                        <strong>Learning Resource</strong>
+                                                                        <p className="text-sm text-gray-400">{resource}</p>
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        }
+                                                        return (
+                                                            <div key={idx} className="resource-card">
+                                                                <i className="fas fa-link"></i>
+                                                                <div>
+                                                                    <strong>{resource.skill || 'Skill'}</strong>
+                                                                    <p className="text-sm text-gray-400">{resource.resource || resource}</p>
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Project Suggestions */}
+                                        {result.recommendations.project_suggestions && result.recommendations.project_suggestions.length > 0 && (
+                                            <div className="recommendation-section">
+                                                <h4><i className="fas fa-code"></i> Portfolio Projects</h4>
+                                                <ul className="project-list">
+                                                    {result.recommendations.project_suggestions.map((project, idx) => (
+                                                        <li key={idx}>
+                                                            <i className="fas fa-folder-open"></i>
+                                                            {project}
+                                                        </li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* Projects and Experience Section */}
+                        {/* FULL WIDTH - Resume Details Section */}
                         <div className="resume-details-section mt-6">
                             <h3 className="section-title">
-                                <i className="fas fa-file-alt"></i> Resume Details
+                                <i className="fas fa-file-alt"></i> Your Resume Details
                             </h3>
                             <div className="details-grid">
                                 {/* Projects Card */}
@@ -375,29 +576,31 @@ const GapAnalysis = ({ user, onLogout }) => {
                                         )}
                                     </div>
                                 </div>
-                                {result.parsed_resume?.certifications && result.parsed_resume.certifications.length > 0 && (
-                                    <div className="card-glass certifications-card mt-4">
-                                        <div className="card-header">
-                                            <i className="fas fa-certificate text-yellow-400"></i>
-                                            <h4>Certifications & Courses</h4>
-                                            <span className="badge">{result.parsed_resume.certifications.length}</span>
-                                        </div>
-                                        <div className="certifications-list-detailed">
-                                            {result.parsed_resume.certifications.slice(0, 15).map((cert, idx) => (
-                                                <div key={idx} className="certification-item-detailed">
-                                                    <i className="fas fa-award"></i>
-                                                    <span>{cert}</span>
-                                                </div>
-                                            ))}
-                                            {result.parsed_resume.certifications.length > 15 && (
-                                                <div className="certification-more-detailed">
-                                                    +{result.parsed_resume.certifications.length - 15} more certifications
-                                                </div>
-                                            )}
-                                        </div>
-                                    </div>
-                                )}
                             </div>
+
+                            {/* Certifications Card */}
+                            {result.parsed_resume?.certifications && result.parsed_resume.certifications.length > 0 && (
+                                <div className="card-glass certifications-card mt-4">
+                                    <div className="card-header">
+                                        <i className="fas fa-certificate text-yellow-400"></i>
+                                        <h4>Certifications & Courses</h4>
+                                        <span className="badge">{result.parsed_resume.certifications.length}</span>
+                                    </div>
+                                    <div className="certifications-list-detailed">
+                                        {result.parsed_resume.certifications.slice(0, 15).map((cert, idx) => (
+                                            <div key={idx} className="certification-item-detailed">
+                                                <i className="fas fa-award"></i>
+                                                <span>{cert}</span>
+                                            </div>
+                                        ))}
+                                        {result.parsed_resume.certifications.length > 15 && (
+                                            <div className="certification-more-detailed">
+                                                +{result.parsed_resume.certifications.length - 15} more certifications
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
 
                             {/* Skills Summary Card */}
                             {result.parsed_resume?.skills && result.parsed_resume.skills.length > 0 && (
@@ -432,7 +635,7 @@ const GapAnalysis = ({ user, onLogout }) => {
                             )}
                         </div>
 
-                        {/* Study Plan Timeline */}
+                        {/* Study Plan Timeline - Full Width */}
                         {result.study_plan && result.study_plan.length > 0 && (
                             <div className="card-glass study-plan-card mt-4">
                                 <h3 className="mb-4"><i className="fas fa-calendar-check icon-gold"></i> Your 2-Week Study Roadmap</h3>

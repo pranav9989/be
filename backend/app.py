@@ -868,154 +868,6 @@ def extract_text_from_docx(file_stream):
         traceback.print_exc()
         return None
 
-def parse_resume_text(text):
-    import re
-
-    lines = [l.strip() for l in text.split("\n") if l.strip()]
-
-    section_map = {
-        "skills": ["skills", "technical skills"],
-        "projects": ["projects", "key projects"],
-        "internships": ["internship", "internships", "work experience"],
-        "certifications": ["certifications", "certificate", "credentials"]
-    }
-
-    sections = {k: [] for k in section_map}
-    current_section = None
-
-    # ---------- SECTION SPLIT ----------
-    for line in lines:
-        line_lower = line.lower()
-
-        header_found = False
-        for section, keywords in section_map.items():
-            if any(line_lower == k for k in keywords):
-                current_section = section
-                header_found = True
-                break
-
-        if header_found:
-            continue
-
-        # Stop when new major header detected
-        if re.match(r"^[A-Z\s]{3,}$", line) and len(line.split()) <= 4:
-            current_section = None
-            continue
-
-        if current_section:
-            sections[current_section].append(line)
-
-    # ===============================
-    # 🔹 SKILLS CLEANING (STRICT)
-    # ===============================
-
-    skills = []
-    invalid_words = [
-        "tools", "technologies", "programming languages",
-        "showcasing", "coding", "extra", "curricular"
-    ]
-
-    for line in sections["skills"]:
-        parts = re.split(r"[•,|:]", line)
-        for p in parts:
-            clean = p.strip()
-
-            if not clean:
-                continue
-
-            clean_lower = clean.lower()
-
-            # remove unwanted labels
-            if any(word in clean_lower for word in invalid_words):
-                continue
-
-            # remove punctuation
-            clean = re.sub(r"[^\w\s+#]", "", clean)
-
-            clean = clean.strip().upper()
-
-            if 2 < len(clean) < 30:
-                skills.append(clean)
-
-    skills = sorted(list(dict.fromkeys(skills)))
-
-    # ===============================
-    # 🔹 EXPERIENCE FIX
-    # ===============================
-
-    experience_years = 0
-    match = re.search(r"(\d+)\+?\s*years?", text.lower())
-    if match:
-        experience_years = int(match.group(1))
-
-    # If internship exists but no years detected → assume 1
-    if experience_years == 0 and sections["internships"]:
-        experience_years = 1
-
-    # ===============================
-    # 🔹 INTERNSHIPS
-    # ===============================
-
-    internships = []
-    for line in sections["internships"]:
-        if "intern" in line.lower():
-            internships.append(line.strip())
-
-    internships = list(dict.fromkeys(internships))
-
-    # ===============================
-    # 🔹 CERTIFICATIONS
-    # ===============================
-
-    certifications = []
-    for line in sections["certifications"]:
-        if re.search(r"\S+@\S+", line):
-            continue
-        if re.search(r"\b(b\.?e|bachelor|master|university|college)\b", line, re.I):
-            continue
-        if 5 < len(line) < 100:
-            certifications.append(line.strip())
-
-    certifications = list(dict.fromkeys(certifications))
-
-    # ===============================
-    # 🔹 PROJECTS (NAME + TECH ONLY)
-    # ===============================
-
-    projects = []
-
-    for line in sections["projects"]:
-        if "Tools" in line or "Technologies" in line:
-            # Extract project name before month/year
-            name_match = re.match(r"•?\s*(.*?)\s+(January|February|March|April|May|June|July|August|September|October|November|December|20\d{2})", line)
-            project_name = None
-            if name_match:
-                project_name = name_match.group(1).strip()
-            else:
-                project_name = line.split("Tools")[0].strip("• ").strip()
-
-            # Extract tech stack
-            tech_match = re.search(r"Technologies:\s*(.*)", line, re.I)
-            tech_stack = []
-            if tech_match:
-                tech_stack = [t.strip().upper() for t in tech_match.group(1).split(",")]
-
-            if project_name:
-                projects.append({
-                    "name": project_name,
-                    "tech_stack": tech_stack
-                })
-
-    projects = projects[:5]
-
-    return {
-        "skills": skills,
-        "experience_years": experience_years,
-        "projects": projects,
-        "internships": internships,
-        "certifications": certifications
-    }
-
 def analyze_resume_job_fit(resume_data, job_description):
     """Analyze how well the resume fits the job description using both keyword and semantic matching"""
     if not job_description:
@@ -2388,8 +2240,25 @@ def upload_resume():
                     'message': 'Job Description is required for interview preparation'
                 }), 400
 
-            # Analyze resume-job fit (now always runs)
-            job_fit_analysis = analyze_resume_job_fit(resume_data, job_description)
+            # ============================================================
+            # 🔥 ENHANCED LLM-POWERED JOB FIT ANALYSIS
+            # ============================================================
+            from resume_processor import get_enhanced_job_fit_analysis
+            
+            # Get the original resume text for LLM analysis
+            resume_text = resume_data.get('full_text', '')
+            
+            # Try LLM-powered analysis first (more intelligent)
+            llm_analysis = get_enhanced_job_fit_analysis(resume_data, job_description, resume_text)
+            
+            if llm_analysis:
+                # Use the detailed LLM analysis
+                job_fit_analysis = llm_analysis
+                print(f"✅ Using LLM-powered job fit analysis - Match Score: {job_fit_analysis.get('match_score', 'N/A')}")
+            else:
+                # Fallback to keyword + semantic matching (this function is in app.py)
+                print("⚠️ LLM analysis failed, falling back to keyword matching")
+                job_fit_analysis = analyze_resume_job_fit(resume_data, job_description)
             
             # ✅ ADD JOB FIT ANALYSIS TO THE RESPONSE
             resume_data['job_fit_analysis'] = job_fit_analysis
@@ -2415,14 +2284,14 @@ def upload_resume():
 
             db.session.commit()
             
-            # ✅ RETURN COMPLETE DATA including projects and experience
+            # ✅ RETURN COMPLETE DATA including enhanced analysis
             return jsonify({
                 'success': True,
                 'message': 'Resume uploaded and analyzed successfully',
                 'data': {
                     'skills': resume_data.get('skills', []),
-                    'projects': resume_data.get('projects', []),  # ✅ NOW INCLUDED
-                    'experience': resume_data.get('experience', []),  # ✅ NOW INCLUDED
+                    'projects': resume_data.get('projects', []),
+                    'experience': resume_data.get('experience', []),
                     'experience_years': resume_data.get('experience_years', 0),
                     'certifications': resume_data.get('certifications', []),
                     'internships': resume_data.get('internships', []),
@@ -2433,7 +2302,7 @@ def upload_resume():
             })
         else:
             return jsonify({'success': False, 'message': 'Could not extract text from resume'})
-
+            
 @app.route('/api/user/progress', methods=['GET'])
 @jwt_required
 def get_user_progress():

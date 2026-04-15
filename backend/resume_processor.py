@@ -223,6 +223,188 @@ def fallback_extraction(text):
     
     return result
 
+# ================== ADD THIS TO resume_processor.py job fit analysis ==================
+
+@lru_cache(maxsize=50)
+def call_mistral_job_fit_analysis(resume_text_hash, resume_text, job_description):
+    """
+    Directly use Mistral to analyze job fit - NO intermediate JSON needed.
+    This is the PRIMARY job fit analyzer.
+    """
+    
+    # Truncate for context limits
+    truncated_resume = resume_text[:6000]
+    truncated_jd = job_description[:4000]
+    
+    system_prompt = """You are an expert Technical Recruiter and Career Coach at a FAANG company.
+    
+Your task: Analyze how well this candidate fits the job description.
+Be HONEST, SPECIFIC, and ACTIONABLE.
+
+Return ONLY valid JSON with the following structure:
+{
+    "match_score": <0-100, BE REALISTIC>,
+    "fit_breakdown": {
+        "technical_skills": <0-100>,
+        "experience_level": <0-100>,
+        "project_relevance": <0-100>,
+        "communication_leadership": <0-100>
+    },
+    "strengths": [
+        "<Specific strength #1 with explanation>",
+        "<Specific strength #2>"
+    ],
+    "gaps": [
+        "<Specific gap #1 - what's missing>",
+        "<Specific gap #2>"
+    ],
+    "recommendations": {
+        "immediate_actions": ["<Actionable step 1>", "<Actionable step 2>"],
+        "learning_resources": [
+            {"skill": "Topic name", "resource": "Coursera/Udemy/YouTube link"}
+        ],
+        "project_suggestions": ["<Project idea 1>", "<Project idea 2>"]
+    },
+    "interview_prep_focus": ["<Topic 1>", "<Topic 2>", "<Topic 3>"],
+    "resume_improvements": ["<Specific change 1>", "<Specific change 2>"],
+    "verdict": "<One sentence: ready or not?>",
+    "preparation_time": "<e.g., '2 weeks', 'Ready now'>"
+}
+
+CRITICAL RULES:
+1. Be HONEST - don't inflate scores
+2. Reference SPECIFIC things from the resume
+3. Give REAL resources (Coursera, freeCodeCamp, YouTube channels)
+4. Consider transferable skills
+5. If completely wrong for role, say so clearly"""
+
+    user_prompt = f"""Analyze this candidate's fit for the job:
+
+========================================
+CANDIDATE RESUME:
+========================================
+{truncated_resume}
+
+========================================
+JOB DESCRIPTION:
+========================================
+{truncated_jd}
+
+Return ONLY valid JSON with the analysis. No markdown, no extra text."""
+
+    try:
+        response = mistral_client.chat.complete(
+            model=MISTRAL_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ],
+            temperature=0.3,
+            max_tokens=2500,
+            response_format={"type": "json_object"}
+        )
+        
+        content = response.choices[0].message.content
+        # Clean response
+        content = content.strip()
+        if content.startswith("```json"):
+            content = content[7:]
+        if content.startswith("```"):
+            content = content[3:]
+        if content.endswith("```"):
+            content = content[:-3]
+        
+        analysis = json.loads(content)
+        print(f"✅ LLM Job Fit Analysis complete - Score: {analysis.get('match_score', 'N/A')}")
+        
+        # Add semantic score as sanity check (optional)
+        try:
+            from sentence_transformers import SentenceTransformer
+            model = SentenceTransformer("all-MiniLM-L6-v2")
+            resume_emb = model.encode([truncated_resume[:2000]], normalize_embeddings=True)
+            jd_emb = model.encode([truncated_jd], normalize_embeddings=True)
+            from sklearn.metrics.pairwise import cosine_similarity
+            semantic_score = float(cosine_similarity(resume_emb, jd_emb)[0][0]) * 100
+            analysis["semantic_similarity_score"] = round(semantic_score, 1)
+        except:
+            analysis["semantic_similarity_score"] = analysis.get("match_score", 50)
+        
+        analysis["analysis_method"] = "mistral_llm_direct"
+        
+        return analysis
+        
+    except Exception as e:
+        print(f"❌ Mistral job fit analysis failed: {e}")
+        return None
+
+def get_job_fit_analysis(resume_text, job_description):
+    """
+    Primary function to call - returns LLM analysis or falls back to keyword matching
+    """
+    if not job_description or not resume_text:
+        return None
+    
+    # Create hash for caching
+    text_hash = hash(resume_text[:500] + job_description[:500])
+    
+    # Try LLM analysis first
+    llm_analysis = call_mistral_job_fit_analysis(text_hash, resume_text, job_description)
+    
+    if llm_analysis:
+        return llm_analysis
+    
+    # Fallback to the existing keyword-based analysis
+    print("⚠️ LLM analysis failed, falling back to keyword matching")
+    
+    # First parse resume with Mistral to get structured data
+    parsed_data = call_mistral_extraction(hash(resume_text[:500]), resume_text)
+    
+    if parsed_data:
+        # Call the existing analyze_resume_job_fit (you'll need to import or copy it)
+        return analyze_resume_job_fit_fallback(parsed_data, job_description)
+    
+    return None
+
+# ================== ENHANCED JOB FIT ANALYSIS FUNCTION ==================
+
+def get_enhanced_job_fit_analysis(resume_data, job_description, resume_text=None):
+    """
+    Enhanced job fit analysis using Mistral LLM.
+    Falls back to keyword matching if LLM fails.
+    
+    Args:
+        resume_data: Structured JSON from parse_resume_file
+        job_description: The target job description
+        resume_text: Raw resume text (optional, will use from resume_data if not provided)
+    
+    Returns:
+        dict: Detailed job fit analysis with recommendations
+    """
+    
+    # Get raw resume text if not provided
+    if not resume_text:
+        resume_text = resume_data.get('full_text', '')
+    
+    if not resume_text or not job_description:
+        return None
+    
+    # Create hash for caching
+    text_hash = hash(resume_text[:500] + job_description[:500])
+    
+    # Try LLM analysis first
+    llm_analysis = call_mistral_job_fit_analysis(text_hash, resume_text, job_description)
+    
+    if llm_analysis:
+        # Enhance with extracted skills data
+        llm_analysis['extracted_skills'] = resume_data.get('skills', [])[:15]
+        llm_analysis['extracted_projects'] = len(resume_data.get('projects', []))
+        llm_analysis['extracted_experience_years'] = resume_data.get('experience_years', 0)
+        print(f"✅ Enhanced job fit analysis complete - Score: {llm_analysis.get('match_score', 'N/A')}")
+        return llm_analysis
+    
+    print("⚠️ Enhanced job fit analysis failed - returning None")
+    return None
+
 # ================== MAIN PARSING FUNCTION ==================
 
 def parse_resume_file(file_path, file_type):

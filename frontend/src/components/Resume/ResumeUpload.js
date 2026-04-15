@@ -11,8 +11,8 @@ const SkillTag = ({ skill, variant = '' }) => (
   <span className={`skill-tag ${variant}`}>{skill}</span>
 );
 
-const SectionCard = ({ icon, title, children, accent }) => (
-  <div className="analysis-card" style={accent ? { '--card-accent': accent } : {}}>
+const SectionCard = ({ icon, title, children, accent, fullWidth = false }) => (
+  <div className={`analysis-card ${fullWidth ? 'full-width-card' : ''}`} style={accent ? { '--card-accent': accent } : {}}>
     <h4>
       <i className={icon} />
       {title}
@@ -21,19 +21,19 @@ const SectionCard = ({ icon, title, children, accent }) => (
   </div>
 );
 
-const ScoreRing = ({ pct, label, color, size = 80 }) => {
-  const r = (size / 2) - 7;
+const ScoreRing = ({ pct, label, color, size = 100 }) => {
+  const r = (size / 2) - 8;
   const circ = 2 * Math.PI * r;
   const dash = (pct / 100) * circ;
   return (
     <div className="score-ring-wrap" title={`${pct}% ${label}`}>
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="score-ring-svg">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="7" />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="8" />
         <circle
           cx={size / 2} cy={size / 2} r={r}
           fill="none"
           stroke={color}
-          strokeWidth="7"
+          strokeWidth="8"
           strokeDasharray={`${dash} ${circ}`}
           strokeLinecap="round"
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
@@ -41,7 +41,7 @@ const ScoreRing = ({ pct, label, color, size = 80 }) => {
         />
       </svg>
       <div className="score-ring-inner">
-        <strong style={{ color }}>{pct}%</strong>
+        <strong style={{ color, fontSize: '1.5rem' }}>{pct}%</strong>
         <span>{label}</span>
       </div>
     </div>
@@ -116,7 +116,6 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
 
           {metrics && (
             <div className="metrics-summary-complete">
-
               {/* SPEAKING METRICS */}
               <div className="metric-group speaking">
                 <h4>🎤 Speaking Metrics</h4>
@@ -203,13 +202,6 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
                 <h4>📋 Content Quality</h4>
                 <div className="metrics-grid">
                   <div className="metric">
-                    <span className="metric-label">Semantic Similarity</span>
-                    <span className="metric-value" style={{
-                      color: metrics.avg_semantic_similarity >= 0.7 ? '#4ade80' : metrics.avg_semantic_similarity >= 0.5 ? '#f59e0b' : '#ef4444'
-                    }}>{((metrics.avg_semantic_similarity || 0) * 100).toFixed(1)}%</span>
-                    <span className="metric-benchmark">(Ideal: &lt;70%)</span>
-                  </div>
-                  <div className="metric">
                     <span className="metric-label">Keyword Coverage</span>
                     <span className="metric-value" style={{
                       color: metrics.avg_keyword_coverage >= 0.6 ? '#4ade80' : metrics.avg_keyword_coverage >= 0.4 ? '#f59e0b' : '#ef4444'
@@ -262,11 +254,10 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
                   </div>
                 </div>
               </div>
-
             </div>
           )}
 
-          {/* 🔥 NEW: Structured QA Review Cards */}
+          {/* QA Review Cards */}
           {analysis?.qa_pairs && analysis.qa_pairs.length > 0 && (
             <div className="qa-review-section">
               <h3>📝 Question & Answer Review</h3>
@@ -288,7 +279,7 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
             </div>
           )}
 
-          {/* Coaching feedback from analysis */}
+          {/* Coaching feedback */}
           {analysis?.coaching_feedback && (
             <div className="coaching-feedback">
               <h3>🎯 Personalized Feedback</h3>
@@ -514,8 +505,12 @@ const ResumeUpload = ({ user, onLogout }) => {
 
       const analysisData = {
         ...response.data.data,
-        job_fit_analysis: response.data.job_fit_analysis || response.data.data?.job_fit_analysis,
+        job_fit_analysis: response.data.job_fit_analysis
       };
+
+      console.log('📊 Full response:', response.data);
+      console.log('📊 Job fit analysis:', analysisData.job_fit_analysis);
+
       setResults(analysisData);
 
       setTimeout(() => setUploadProgress(0), 1500);
@@ -548,6 +543,16 @@ const ResumeUpload = ({ user, onLogout }) => {
       />
     );
   }
+
+  const getMatchScore = (analysis) => {
+    if (!analysis) return 0;
+    return analysis.match_score || analysis.match_percentage || 0;
+  };
+
+  const getMissingSkills = (analysis) => {
+    if (!analysis) return [];
+    return analysis.missing_skills || analysis.gaps || [];
+  };
 
   return (
     <div className="resume-upload-container">
@@ -659,6 +664,7 @@ const ResumeUpload = ({ user, onLogout }) => {
                   </button>
                 </div>
 
+                {/* Two column grid for other cards, Job Fit Analysis will be full width */}
                 <div className="analysis-grid">
                   {/* Resume Basics Card */}
                   <SectionCard icon="fas fa-id-card" title="Resume Basics">
@@ -780,72 +786,151 @@ const ResumeUpload = ({ user, onLogout }) => {
                       </div>
                     </SectionCard>
                   )}
+                </div>
 
-                  {/* Job Fit Analysis Card */}
-                  {results.job_fit_analysis && (
-                    <SectionCard icon="fas fa-bullseye" title="Job Fit Analysis">
-                      <div className="match-score">
+                {/* ========== ENHANCED JOB FIT ANALYSIS CARD - FULL WIDTH ========== */}
+                {results.job_fit_analysis && (
+                  <div className="full-width-analysis-card">
+                    <div className="full-width-header">
+                      <h3><i className="fas fa-robot" style={{ color: 'var(--accent-gold)' }} /> AI-Powered Job Fit Analysis</h3>
+                    </div>
+
+                    {/* Main Score Section */}
+                    <div className="full-width-score-section">
+                      <div className="main-score">
                         <ScoreRing
-                          pct={Math.round(results.job_fit_analysis.match_percentage || 0)}
+                          pct={getMatchScore(results.job_fit_analysis)}
                           label="Match"
                           color={
-                            results.job_fit_analysis.match_percentage >= 70 ? '#22c55e'
-                              : results.job_fit_analysis.match_percentage >= 45 ? '#f59e0b'
+                            getMatchScore(results.job_fit_analysis) >= 70 ? '#22c55e'
+                              : getMatchScore(results.job_fit_analysis) >= 45 ? '#f59e0b'
                                 : '#ef4444'
                           }
+                          size={120}
                         />
-                        {results.job_fit_analysis.semantic_similarity > 0 && (
-                          <ScoreRing
-                            pct={Math.round(results.job_fit_analysis.semantic_similarity * 100)}
-                            label="Semantic"
-                            color="#9E95F5"
-                          />
+                      </div>
+                      <div className="score-summary">
+                        {results.job_fit_analysis.verdict && (
+                          <div className={`verdict-large ${getMatchScore(results.job_fit_analysis) >= 70 ? 'positive' : getMatchScore(results.job_fit_analysis) >= 40 ? 'warning' : 'negative'}`}>
+                            {results.job_fit_analysis.verdict}
+                          </div>
                         )}
-                        <div className="fit-meta">
-                          <span className={`gap-severity severity-${results.job_fit_analysis.gap_severity?.toLowerCase()}`}>
-                            {results.job_fit_analysis.gap_severity} Skill Gap
-                          </span>
-                          <span className={`experience-fit ${results.job_fit_analysis.experience_fit === 'Good fit' ? 'good' : 'needs-work'}`}>
-                            <i className="fas fa-user-clock" /> {results.job_fit_analysis.experience_fit}
-                          </span>
-                        </div>
+                        {results.job_fit_analysis.preparation_time && (
+                          <div className="prep-time-large">
+                            <i className="fas fa-hourglass-half"></i>
+                            Estimated Prep: {results.job_fit_analysis.preparation_time}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Two column layout for the rest */}
+                    <div className="full-width-two-col">
+                      {/* Left Column - Strengths & Gaps */}
+                      <div className="fw-left-col">
+                        {/* Strengths */}
+                        {results.job_fit_analysis.strengths && results.job_fit_analysis.strengths.length > 0 && (
+                          <div className="fw-section strengths-section">
+                            <h4><i className="fas fa-star" style={{ color: '#fbbf24' }} /> Your Strengths</h4>
+                            <ul className="strengths-list-full">
+                              {results.job_fit_analysis.strengths.map((s, i) => (
+                                <li key={i}><i className="fas fa-check-circle" style={{ color: '#4ade80' }}></i> {s}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
+
+                        {/* Gaps / Missing Skills */}
+                        {getMissingSkills(results.job_fit_analysis).length > 0 && (
+                          <div className="fw-section gaps-section">
+                            <h4><i className="fas fa-exclamation-triangle" style={{ color: '#f87171' }} /> Skill Gaps</h4>
+                            <div className="skills-list">
+                              {getMissingSkills(results.job_fit_analysis).map((s, i) => (
+                                <SkillTag key={i} skill={typeof s === 'string' ? s : s.skill || s} variant="missing" />
+                              ))}
+                            </div>
+                            {results.job_fit_analysis.gaps && results.job_fit_analysis.gaps.length > 0 && (
+                              <ul className="gaps-detail-full">
+                                {results.job_fit_analysis.gaps.map((g, i) => (
+                                  <li key={i}><i className="fas fa-info-circle"></i> {g}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Resume Improvements */}
+                        {results.job_fit_analysis.resume_improvements && results.job_fit_analysis.resume_improvements.length > 0 && (
+                          <div className="fw-section resume-improvements-section">
+                            <h4><i className="fas fa-file-alt" style={{ color: '#a78bfa' }} /> Resume Improvements</h4>
+                            <ul className="improvements-list-full">
+                              {results.job_fit_analysis.resume_improvements.map((imp, i) => (
+                                <li key={i}><i className="fas fa-pen"></i> {imp}</li>
+                              ))}
+                            </ul>
+                          </div>
+                        )}
                       </div>
 
-                      {results.job_fit_analysis.matching_skills?.length > 0 && (
-                        <div className="analysis-item">
-                          <h5><i className="fas fa-check-circle" /> Matching Skills</h5>
-                          <div className="skills-list">
-                            {results.job_fit_analysis.matching_skills.map((s, i) => (
-                              <SkillTag key={i} skill={s} variant="match" />
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      {/* Right Column - Recommendations & Interview Prep */}
+                      <div className="fw-right-col">
+                        {/* Recommendations */}
+                        {results.job_fit_analysis.recommendations && (
+                          <div className="fw-section recommendations-section">
+                            <h4><i className="fas fa-lightbulb" style={{ color: '#fbbf24' }} /> Recommendations</h4>
 
-                      {results.job_fit_analysis.missing_skills?.length > 0 && (
-                        <div className="analysis-item">
-                          <h5><i className="fas fa-exclamation-triangle" /> Skills to Develop</h5>
-                          <div className="skills-list">
-                            {results.job_fit_analysis.missing_skills.map((s, i) => (
-                              <SkillTag key={i} skill={s} variant="missing" />
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                            {results.job_fit_analysis.recommendations.immediate_actions && (
+                              <>
+                                <h5>⚡ Take Action Today</h5>
+                                <ul>
+                                  {results.job_fit_analysis.recommendations.immediate_actions.map((action, i) => (
+                                    <li key={i}>{action}</li>
+                                  ))}
+                                </ul>
+                              </>
+                            )}
 
-                      {results.job_fit_analysis.jd_skills_found?.length > 0 && (
-                        <div className="analysis-item">
-                          <h5><i className="fas fa-search" /> Skills Found in JD</h5>
-                          <div className="skills-list">
-                            {results.job_fit_analysis.jd_skills_found.map((s, i) => (
-                              <SkillTag key={i} skill={s} variant="" />
-                            ))}
+                            {results.job_fit_analysis.recommendations.learning_resources && (
+                              <>
+                                <h5>📚 Learning Resources</h5>
+                                <ul>
+                                  {results.job_fit_analysis.recommendations.learning_resources.map((resource, i) => (
+                                    <li key={i}>
+                                      <strong>{resource.skill || 'Resource'}:</strong> {resource.resource || resource}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </>
+                            )}
+
+                            {results.job_fit_analysis.recommendations.project_suggestions && (
+                              <>
+                                <h5>💻 Portfolio Projects</h5>
+                                <ul>
+                                  {results.job_fit_analysis.recommendations.project_suggestions.map((project, i) => (
+                                    <li key={i}>{project}</li>
+                                  ))}
+                                </ul>
+                              </>
+                            )}
                           </div>
-                        </div>
-                      )}
-                    </SectionCard>
-                  )}
-                </div>
+                        )}
+
+                        {/* Interview Prep Focus */}
+                        {results.job_fit_analysis.interview_prep_focus && results.job_fit_analysis.interview_prep_focus.length > 0 && (
+                          <div className="fw-section interview-prep-section">
+                            <h4><i className="fas fa-microphone-alt" style={{ color: '#c084fc' }} /> Interview Prep Focus</h4>
+                            <div className="prep-tags-full">
+                              {results.job_fit_analysis.interview_prep_focus.map((topic, i) => (
+                                <span key={i} className="prep-tag-full">{topic}</span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* START INTERVIEW CTA */}
                 <div className="mock-interview-section">

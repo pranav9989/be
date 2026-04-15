@@ -424,3 +424,346 @@
     color: var(--color-text-secondary);
     font-style: italic;
 }
+
+/* TWO COLUMN LAYOUT */
+.dashboard-two-column {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.dashboard-left,
+.dashboard-right {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .dashboard-two-column {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+}
+
+/* Fit Breakdown */
+.fit-breakdown {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.fit-breakdown h4 {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 0.75rem;
+}
+
+.breakdown-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.breakdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.breakdown-label {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    width: 100px;
+}
+
+.breakdown-bar {
+    flex: 1;
+    height: 6px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 3px;
+    overflow: hidden;
+}
+
+.breakdown-fill {
+    height: 100%;
+    background: linear-gradient(90deg, var(--color-primary), #60a5fa);
+    border-radius: 3px;
+    transition: width 0.5s ease;
+}
+
+.breakdown-value {
+    font-size: 0.75rem;
+    font-weight: 600;
+    min-width: 40px;
+    text-align: right;
+    color: #60a5fa;
+}
+
+/* Verdict Badge */
+.verdict-badge {
+    padding: 0.75rem 1rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.verdict-positive {
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+    color: #4ade80;
+}
+
+.verdict-warning {
+    background: rgba(245, 158, 11, 0.15);
+    border: 1px solid rgba(245, 158, 11, 0.3);
+    color: #fbbf24;
+}
+
+.verdict-negative {
+    background: rgba(239, 68, 68, 0.15);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    color: #f87171;
+}
+
+/* Prep Time */
+.prep-time {
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    justify-content: center;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 8px;
+}
+
+/* Strengths Card */
+.strengths-card {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.05), rgba(34, 197, 94, 0.02));
+    border: 1px solid rgba(34, 197, 94, 0.2);
+}
+
+.strengths-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.strengths-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    color: var(--color-text-primary);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.strengths-list li i {
+    margin-top: 0.15rem;
+}
+
+/* Gaps Description */
+.gaps-description {
+    margin-top: 1rem;
+    padding-top: 1rem;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.gaps-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.gaps-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    font-size: 0.8rem;
+    color: #f87171;
+}
+
+.gaps-list li i {
+    font-size: 0.7rem;
+    margin-top: 0.2rem;
+    color: #fbbf24;
+}
+
+/* Recommendations Card */
+.recommendations-card {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(59, 130, 246, 0.02));
+    border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.recommendation-section {
+    margin-bottom: 1.5rem;
+}
+
+.recommendation-section:last-child {
+    margin-bottom: 0;
+}
+
+.recommendation-section h4 {
+    font-size: 0.9rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #60a5fa;
+}
+
+.action-list,
+.project-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.action-list li,
+.project-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    color: var(--color-text-primary);
+    font-size: 0.85rem;
+}
+
+.action-list li i,
+.project-list li i {
+    color: #fbbf24;
+    margin-top: 0.15rem;
+}
+
+/* Resources Grid */
+.resources-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.resource-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 12px;
+    transition: all 0.2s;
+}
+
+.resource-card:hover {
+    background: rgba(255, 255, 255, 0.06);
+    transform: translateX(4px);
+}
+
+.resource-card i {
+    font-size: 1.25rem;
+    color: #60a5fa;
+}
+
+.resource-card div {
+    flex: 1;
+}
+
+.resource-card strong {
+    font-size: 0.85rem;
+    display: block;
+    margin-bottom: 0.2rem;
+}
+
+/* Interview Prep Card */
+.interview-prep-card {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.05), rgba(168, 85, 247, 0.02));
+    border: 1px solid rgba(168, 85, 247, 0.2);
+}
+
+.prep-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+}
+
+.prep-tag {
+    background: rgba(168, 85, 247, 0.15);
+    padding: 0.5rem 1rem;
+    border-radius: 24px;
+    font-size: 0.85rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #c084fc;
+}
+
+/* Resume Improvements Card */
+.resume-improvements-card {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.05), rgba(236, 72, 153, 0.02));
+    border: 1px solid rgba(236, 72, 153, 0.2);
+}
+
+.improvements-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.improvements-list li {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    color: var(--color-text-primary);
+    font-size: 0.85rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.improvements-list li:last-child {
+    border-bottom: none;
+}
+
+.improvements-list li i {
+    color: #ec4899;
+    margin-top: 0.15rem;
+}
+
+/* Text Colors */
+.text-red-400 {
+    color: #f87171;
+}
+
+.text-green-400 {
+    color: #4ade80;
+}
+
+.text-yellow-400 {
+    color: #fbbf24;
+}
+
+.text-gray-400 {
+    color: #9ca3af;
+}
+
+/* Margin Utilities */
+.mt-3 {
+    margin-top: 0.75rem;
+}
+
+.mt-4 {
+    margin-top: 1rem;
+}
+
+.mb-2 {
+    margin-bottom: 0.5rem;
+}
+
+.mb-4 {
+    margin-bottom: 1rem;
+}
