@@ -49,7 +49,7 @@ const ScoreRing = ({ pct, label, color, size = 100 }) => {
 };
 
 // ─── Conversational Interview Component - WITH PITCH GRAPH ─────────────────────────
-const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
+const ResumeConversationalInterview = ({ user, jobDescription, onBack, onLogout }) => {
   const messagesEndRef = useRef(null);
 
   const {
@@ -109,6 +109,40 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
   if (interviewDone) {
     return (
       <div className="resume-interview-container">
+        {/* Profile Navbar */}
+        <div className="profile-navbar">
+          <div className="profile-navbar-left">
+            <div className="profile-navbar-logo">
+              <i className="fas fa-brain"></i>
+              <span>AI Prep</span>
+            </div>
+            <div className="profile-navbar-nav">
+              <button className="nav-link" onClick={onBack}>
+                <i className="fas fa-chart-line"></i>
+                <span>Analysis</span>
+              </button>
+              <button className="nav-link" onClick={() => window.location.href = '/profile'}>
+                <i className="fas fa-user"></i>
+                <span>Profile</span>
+              </button>
+              <button className="nav-link" onClick={() => window.location.href = '/dashboard'}>
+                <i className="fas fa-tachometer-alt"></i>
+                <span>Dashboard</span>
+              </button>
+            </div>
+          </div>
+          <div className="profile-navbar-right">
+            <div className="user-info">
+              <i className="fas fa-user-circle"></i>
+              <span>{user?.full_name || user?.username || 'User'}</span>
+            </div>
+            <button className="logout-btn" onClick={onLogout || (() => window.location.href = '/login')}>
+              <i className="fas fa-sign-out-alt"></i>
+              <span>Logout</span>
+            </button>
+          </div>
+        </div>
+
         <div className="interview-complete-card">
           <div className="complete-icon">🎉</div>
           <h2>Interview Complete!</h2>
@@ -118,109 +152,86 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
             <div className="metrics-summary-complete">
               {/* SPEAKING METRICS */}
               <div className="metric-group speaking">
-                <h4>🎤 Speaking Metrics</h4>
+                <h4><i className="fas fa-microphone-alt"></i> Speaking Metrics</h4>
                 <div className="metrics-grid">
                   <div className="metric">
-                    <span className="metric-label">Speaking Time</span>
-                    <span className="metric-value">{metrics.speaking_time?.toFixed(1) || 0}s</span>
-                  </div>
-                  <div className="metric">
-                    <span className="metric-label">Total User Turn Time</span>
+                    <span className="metric-label">Total Speaking Time</span>
                     <span className="metric-value">{metrics.total_user_turn_time?.toFixed(1) || 0}s</span>
                   </div>
                   <div className="metric">
-                    <span className="metric-label">Silence During Turn</span>
-                    <span className="metric-value">{metrics.silence_during_turn?.toFixed(1) || 0}s</span>
-                  </div>
-                  <div className="metric">
                     <span className="metric-label">Speaking Ratio</span>
-                    <span className="metric-value" style={{
-                      color: metrics.speaking_ratio >= 0.6 && metrics.speaking_ratio <= 0.75 ? '#4ade80' : '#f59e0b'
-                    }}>{((metrics.speaking_ratio || 0) * 100).toFixed(1)}%</span>
+                    <span className={`metric-value ${metrics.speaking_ratio >= 0.6 && metrics.speaking_ratio <= 0.75 ? 'good' : 'warning'}`}>
+                      {((metrics.speaking_ratio || 0) * 100).toFixed(1)}%
+                    </span>
                     <span className="metric-benchmark">(Ideal: 60-75%)</span>
                   </div>
                   <div className="metric">
                     <span className="metric-label">Session Duration</span>
                     <span className="metric-value">{metrics.session_duration?.toFixed(1) || 0}s</span>
                   </div>
+                  <div className="metric">
+                    <span className="metric-label">Silence During Turn</span>
+                    <span className="metric-value">{metrics.silence_during_turn?.toFixed(1) || 0}s</span>
+                  </div>
                 </div>
               </div>
 
               {/* FLUENCY METRICS */}
               <div className="metric-group fluency">
-                <h4>⚡ Fluency Metrics</h4>
+                <h4><i className="fas fa-tachometer-alt"></i> Fluency Metrics</h4>
                 <div className="metrics-grid">
                   <div className="metric">
                     <span className="metric-label">Words Per Minute (WPM)</span>
-                    <span className="metric-value" style={{
-                      color: metrics.wpm >= 120 && metrics.wpm <= 150 ? '#4ade80' : metrics.wpm > 180 ? '#ef4444' : '#f59e0b'
-                    }}>{metrics.wpm?.toFixed(1) || 0}</span>
+                    <span className={`metric-value ${metrics.wpm >= 120 && metrics.wpm <= 150 ? 'good' : metrics.wpm > 180 ? 'bad' : 'warning'}`}>
+                      {metrics.wpm?.toFixed(1) || 0}
+                    </span>
                     <span className="metric-benchmark">(Ideal: 120-150)</span>
                   </div>
                   <div className="metric">
                     <span className="metric-label">Articulation Rate</span>
-                    <span className="metric-value" style={{
-                      color: metrics.articulation_rate >= 2.0 && metrics.articulation_rate <= 2.5 ? '#4ade80' : metrics.articulation_rate > 3.0 ? '#ef4444' : '#f59e0b'
-                    }}>{metrics.articulation_rate?.toFixed(2) || 0} words/s</span>
+                    <span className={`metric-value ${metrics.articulation_rate >= 2.0 && metrics.articulation_rate <= 2.5 ? 'good' : metrics.articulation_rate > 3.0 ? 'bad' : 'warning'}`}>
+                      {metrics.articulation_rate?.toFixed(2) || 0} words/s
+                    </span>
                     <span className="metric-benchmark">(Ideal: 2.0-2.5)</span>
                   </div>
                   <div className="metric">
                     <span className="metric-label">Avg Response Latency</span>
-                    <span className="metric-value" style={{
-                      color: metrics.avg_response_latency >= 1 && metrics.avg_response_latency <= 3 ? '#4ade80' : '#f59e0b'
-                    }}>{metrics.avg_response_latency?.toFixed(2) || 0}s</span>
+                    <span className={`metric-value ${metrics.avg_response_latency >= 1 && metrics.avg_response_latency <= 3 ? 'good' : 'warning'}`}>
+                      {metrics.avg_response_latency?.toFixed(2) || 0}s
+                    </span>
                     <span className="metric-benchmark">(Ideal: 1-3s)</span>
                   </div>
                   <div className="metric">
                     <span className="metric-label">Avg Pause Duration</span>
-                    <span className="metric-value">{metrics.avg_pause_duration?.toFixed(2) || 0}s</span>
+                    <span className={`metric-value ${metrics.avg_pause_duration >= 1 && metrics.avg_pause_duration <= 3 ? 'good' : 'bad'}`}>
+                      {metrics.avg_pause_duration?.toFixed(2) || 0}s
+                    </span>
                     <span className="metric-benchmark">(Ideal: 1-3s)</span>
                   </div>
                   <div className="metric">
-                    <span className="metric-label">Pause Count</span>
+                    <span className="metric-label">Total Pauses</span>
                     <span className="metric-value">{metrics.pause_count || 0}</span>
                   </div>
                   <div className="metric">
                     <span className="metric-label">Long Pauses (&gt;5s)</span>
-                    <span className="metric-value" style={{
-                      color: metrics.long_pause_count <= 2 ? '#4ade80' : '#ef4444'
-                    }}>{metrics.long_pause_count || 0}</span>
+                    <span className={`metric-value ${(metrics.long_pause_count || 0) <= 2 ? 'good' : 'bad'}`}>
+                      {metrics.long_pause_count || 0}
+                    </span>
                     <span className="metric-benchmark">(Ideal: &lt;2)</span>
                   </div>
                   <div className="metric">
                     <span className="metric-label">Hesitation Rate</span>
-                    <span className="metric-value" style={{
-                      color: metrics.hesitation_rate <= 10 ? '#4ade80' : metrics.hesitation_rate <= 15 ? '#f59e0b' : '#ef4444'
-                    }}>{metrics.hesitation_rate?.toFixed(2) || 0}/min</span>
+                    <span className={`metric-value ${(metrics.hesitation_rate || 0) <= 10 ? 'good' : (metrics.hesitation_rate || 0) <= 15 ? 'warning' : 'bad'}`}>
+                      {metrics.hesitation_rate?.toFixed(2) || 0}/min
+                    </span>
                     <span className="metric-benchmark">(Ideal: &lt;10/min)</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* CONTENT QUALITY METRICS */}
-              <div className="metric-group quality">
-                <h4>📋 Content Quality</h4>
-                <div className="metrics-grid">
-                  <div className="metric">
-                    <span className="metric-label">Keyword Coverage</span>
-                    <span className="metric-value" style={{
-                      color: metrics.avg_keyword_coverage >= 0.6 ? '#4ade80' : metrics.avg_keyword_coverage >= 0.4 ? '#f59e0b' : '#ef4444'
-                    }}>{((metrics.avg_keyword_coverage || 0) * 100).toFixed(1)}%</span>
-                    <span className="metric-benchmark">(Ideal: &lt;60%)</span>
-                  </div>
-                  <div className="metric">
-                    <span className="metric-label">Overall Relevance</span>
-                    <span className="metric-value" style={{
-                      color: metrics.overall_relevance >= 0.7 ? '#4ade80' : metrics.overall_relevance >= 0.5 ? '#f59e0b' : '#ef4444'
-                    }}>{((metrics.overall_relevance || 0) * 100).toFixed(1)}%</span>
-                    <span className="metric-benchmark">(Ideal: &lt;70%)</span>
                   </div>
                   <div className="metric">
                     <span className="metric-label">Questions Answered</span>
                     <span className="metric-value">{metrics.questions_answered || 0}</span>
                   </div>
                   <div className="metric">
-                    <span className="metric-label">Total Words</span>
+                    <span className="metric-label">Total Words Spoken</span>
                     <span className="metric-value">{metrics.total_words || 0}</span>
                   </div>
                 </div>
@@ -228,7 +239,7 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
 
               {/* VOICE ANALYSIS METRICS */}
               <div className="metric-group voice">
-                <h4>🎤 Voice Analysis</h4>
+                <h4><i className="fas fa-chart-line"></i> Voice Analysis</h4>
                 <div className="metrics-grid">
                   <div className="metric">
                     <span className="metric-label">Average Pitch</span>
@@ -236,17 +247,17 @@ const ResumeConversationalInterview = ({ user, jobDescription, onBack }) => {
                   </div>
                   <div className="metric">
                     <span className="metric-label">Pitch Range</span>
-                    <span className="metric-value" style={{
-                      color: metrics.pitch_range >= 50 && metrics.pitch_range <= 150 ? '#4ade80' : '#f59e0b'
-                    }}>{metrics.pitch_range?.toFixed(1) || 0} Hz</span>
+                    <span className={`metric-value ${metrics.pitch_range >= 50 && metrics.pitch_range <= 150 ? 'good' : 'warning'}`}>
+                      {metrics.pitch_range?.toFixed(1) || 0} Hz
+                    </span>
                     <span className="metric-benchmark">(Ideal: 50-150)</span>
                   </div>
                   <div className="metric">
                     <span className="metric-label">Pitch Stability</span>
-                    <span className="metric-value" style={{
-                      color: metrics.pitch_stability >= 70 ? '#4ade80' : metrics.pitch_stability >= 50 ? '#f59e0b' : '#ef4444'
-                    }}>{metrics.pitch_stability?.toFixed(1) || 0}%</span>
-                    <span className="metric-benchmark">(Ideal: &lt;70%)</span>
+                    <span className={`metric-value ${(metrics.pitch_stability || 0) >= 70 ? 'good' : (metrics.pitch_stability || 0) >= 50 ? 'warning' : 'bad'}`}>
+                      {metrics.pitch_stability?.toFixed(1) || 0}%
+                    </span>
+                    <span className="metric-benchmark">(Ideal: &gt;70%)</span>
                   </div>
                   <div className="metric">
                     <span className="metric-label">Pitch Variation (σ)</span>
@@ -540,6 +551,7 @@ const ResumeUpload = ({ user, onLogout }) => {
         user={effectiveUser}
         jobDescription={jobDescription}
         onBack={() => setShowInterview(false)}
+        onLogout={onLogout}
       />
     );
   }

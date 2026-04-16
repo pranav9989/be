@@ -65,7 +65,7 @@
 
 .message-wrapper.assistant .message-bubble.error {
   background: var(--color-error-dim);
-  border-color: rgba(239,68,68,0.25);
+  border-color: rgba(239, 68, 68, 0.25);
   color: var(--color-error);
 }
 
@@ -107,4 +107,284 @@
   padding: 0 0.25rem;
 }
 
-.message-wrapper.user .message-timestamp { text-align: right; }
+.message-wrapper.user .message-timestamp {
+  text-align: right;
+}
+
+/* ============================================================
+   Message – Enhanced chat message bubbles with wider layout
+   ============================================================ */
+
+.message-wrapper {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+  animation: slideUp 0.3s ease both;
+  max-width: 85%;
+  margin-bottom: 1.25rem;
+}
+
+/* User message: align right */
+.message-wrapper.user {
+  flex-direction: row-reverse;
+  margin-left: auto;
+}
+
+/* Assistant message: align left */
+.message-wrapper.assistant {
+  margin-right: auto;
+}
+
+/* -- Avatar -- */
+.message-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: 2px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+  transition: transform 0.2s ease;
+}
+
+.message-avatar:hover {
+  transform: scale(1.05);
+}
+
+.message-wrapper.assistant .message-avatar {
+  background: var(--gradient-violet);
+  color: white;
+}
+
+.message-wrapper.user .message-avatar {
+  background: var(--gradient-gold);
+  color: #0F0F0F;
+}
+
+/* -- Message Body (contains bubble + timestamp) -- */
+.msg-body {
+  display: flex;
+  flex-direction: column;
+  max-width: 100%;
+  min-width: 180px;
+}
+
+/* -- Bubble -- WIDER and more spacious */
+.message-bubble {
+  border-radius: 20px;
+  padding: 1rem 1.5rem;
+  font-size: 0.95rem;
+  line-height: 1.65;
+  max-width: 100%;
+  width: auto;
+  min-width: 200px;
+  transition: all 0.2s ease;
+}
+
+.message-wrapper.user .message-bubble {
+  background: var(--accent-gold-dim);
+  border: 1px solid var(--border-accent);
+  color: var(--text-primary);
+  border-radius: 20px 6px 20px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.message-wrapper.assistant .message-bubble {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--text-primary);
+  border-radius: 6px 20px 20px 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.message-wrapper.assistant .message-bubble.error {
+  background: var(--color-error-dim);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: var(--color-error);
+}
+
+/* -- Message content text -- Improved readability */
+.message-content {
+  color: var(--text-primary);
+  word-break: break-word;
+  white-space: pre-wrap;
+  line-height: 1.65;
+  font-size: 0.95rem;
+}
+
+.message-content strong {
+  color: var(--accent-gold);
+  font-weight: 600;
+}
+
+.message-content em {
+  font-style: italic;
+  color: var(--text-secondary);
+}
+
+.message-content code {
+  background: var(--bg-elevated);
+  padding: 0.2rem 0.4rem;
+  border-radius: 6px;
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 0.85em;
+  border: 1px solid var(--border);
+}
+
+.message-content pre {
+  background: var(--bg-elevated);
+  padding: 0.75rem;
+  border-radius: 12px;
+  overflow-x: auto;
+  margin: 0.75rem 0;
+  border: 1px solid var(--border);
+}
+
+/* -- Metadata (topic / source count) -- Improved styling */
+.message-metadata {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--border);
+}
+
+.meta-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.7rem;
+  font-weight: 500;
+  padding: 0.25rem 0.625rem;
+  border-radius: 100px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  transition: all 0.2s ease;
+}
+
+.meta-tag:hover {
+  background: var(--bg-card);
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+
+.meta-tag i {
+  font-size: 0.65rem;
+}
+
+/* -- Timestamp -- Clean and subtle */
+.message-timestamp {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.375rem;
+  padding: 0 0.5rem;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.message-wrapper:hover .message-timestamp {
+  opacity: 1;
+}
+
+.message-wrapper.user .message-timestamp {
+  text-align: right;
+}
+
+.message-wrapper.assistant .message-timestamp {
+  text-align: left;
+}
+
+/* -- Animation -- */
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* -- Responsive adjustments -- */
+@media (max-width: 768px) {
+  .message-wrapper {
+    max-width: 92%;
+    gap: 0.75rem;
+  }
+
+  .message-bubble {
+    padding: 0.75rem 1rem;
+    min-width: 160px;
+  }
+
+  .msg-body {
+    min-width: 140px;
+  }
+
+  .message-avatar {
+    width: 30px;
+    height: 30px;
+    font-size: 0.75rem;
+  }
+}
+
+/* -- Image/file attachment support (if needed) -- */
+.message-attachment {
+  margin-top: 0.5rem;
+  border-radius: 12px;
+  overflow: hidden;
+  max-width: 280px;
+}
+
+.message-attachment img {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+/* -- Typing indicator (nice to have) -- */
+.typing-indicator {
+  display: flex;
+  gap: 0.25rem;
+  padding: 0.5rem 0;
+}
+
+.typing-indicator span {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--text-muted);
+  animation: blink 1.4s infinite both;
+}
+
+.typing-indicator span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-indicator span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes blink {
+
+  0%,
+  80%,
+  100% {
+    opacity: 0.3;
+    transform: scale(0.8);
+  }
+
+  40% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}

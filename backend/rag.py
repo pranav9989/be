@@ -553,7 +553,7 @@ def technical_interview_query(user_query):
         print(f"❌ Query rejected: {detected_topic} is not allowed")
         return OUT_OF_DOMAIN_MESSAGE, []
     
-    print(f"\n🔍 Final topic: {detected_topic} (subtopic: {detected_subtopic})")
+    print(f"\n🔍 Final topic: {detected_topic}")
     
     # STEP 3: Get embeddings for retrieval
     query_embedding = embedder.encode([user_query], normalize_embeddings=True)
