@@ -669,6 +669,26 @@ Example: "A common misconception is that {concept1} and {concept2} are interchan
 
     IMPORTANT DIFFICULTY RULES:
 
+     DO NOT ask:
+    - "write code"
+    - "implement"
+    - "draw"
+    - "design a system"
+    - "normalize this table"
+    - "convert this"
+    - "model this"
+    - "give example with code"
+    - "write SQL query"
+    - "show how this table"
+    - "solve this problem step by step"
+
+     DO NOT generate:
+    - coding questions
+    - diagram questions
+    - table-based questions
+    - step-by-step problem solving
+    - implementation tasks
+
     If difficulty = EASY:
     - Ask simple definition or identification questions
     - Do NOT ask design or scenario questions
@@ -695,6 +715,7 @@ Example: "A common misconception is that {concept1} and {concept2} are interchan
     5. Focus on conceptual understanding
     6. Return ONLY the question text, no explanations
     7. End with a question mark '?'
+    8. Follow the correct {intent} and {difficulty} rules
 
     Knowledge context:
     {context}

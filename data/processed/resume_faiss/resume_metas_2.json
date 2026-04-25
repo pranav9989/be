@@ -1,0 +1,58 @@
+[
+  {
+    "id": "resume_chunk_2_0",
+    "chunk_id": 0,
+    "user_id": 2,
+    "text": "Hybrid AI Interview Coach: An Adaptive Framework for Interview \nTraining Using RAG and Real-Time Speech Processing \nPresented By \nPranav Raghuvanshi \nNihar Walawalkar \nKushal Yadav \nVivekanand Education Society Institute Of Technology \n1st International Conference on Recent Advances in Computer Engineering  |  ICRACE 2026  |  23–24 April 2026  |  MES Wadia College of Engineering, Pune \nPaper ID: 907 \nDate: 24rd April 2026 \nICRACE \nTable of Contents \n2 1.  Introduction \n2.  Problem Statement",
+    "source": "resume",
+    "chunk_size": 495
+  },
+  {
+    "id": "resume_chunk_2_1",
+    "chunk_id": 1,
+    "user_id": 2,
+    "text": "2 1.  Introduction \n2.  Problem Statement \n3.  Literature Review & Gap \n4.  Proposed Framework \n5.  Methodology \n6.  Implementation Details \n7.  Results, \n8. Conclusion & Future Work \n9.  References / Q&A \n1st International Conference on Recent Advances in Computer Engineering  |  ICRACE 2026  |  23–24 April 2026  |  MES Wadia College of Engineering, Pune \nICRACE \nIntroduction \n3 •Interviews are a key gateway for engineering students, requiring both technical",
+    "source": "resume",
+    "chunk_size": 463
+  },
+  {
+    "id": "resume_chunk_2_2",
+    "chunk_id": 2,
+    "user_id": 2,
+    "text": "knowledge and communication skills. \n•Academic training focuses on problem-solving but often ignores delivery aspects like \nconfidence, fluency, and pacing. \n•LLM-based tools enable automated interview preparation and improve accessibility. \n•However, real performance depends on both correctness and communication quality. \n•To address this, we propose a Hybrid AI Interview Coach integrating personalization, \nadaptive progression, and real-time speech analysis.",
+    "source": "resume",
+    "chunk_size": 464
+  },
+  {
+    "id": "resume_chunk_2_3",
+    "chunk_id": 3,
+    "user_id": 2,
+    "text": "1st International Conference on Recent Advances in Computer Engineering  |  ICRACE 2026  |  23–24 April 2026  |  MES Wadia College of Engineering, Pune \nICRACE \n Problem Statement \n4 \n 1st International Conference on Recent Advances in Computer Engineering  |  ICRACE 2026  |  23–24 April 2026  |  MES Wadia College of Engineering, Pune •Existing interview preparation tools focus primarily on technical correctness, neglecting \ndelivery aspects such as confidence, tone, and fluency.",
+    "source": "resume",
+    "chunk_size": 484
+  },
+  {
+    "id": "resume_chunk_2_4",
+    "chunk_id": 4,
+    "user_id": 2,
+    "text": "•Students lack access to real-time, objective feedback on how they communicate during \ninterviews. \n•Static question banks provide repetitive, non-adaptive practice and fail to simulate real \ninterview dynamics. \n•Human coaching provides rich feedback but is expensive and not scalable, while \nchatbot-based systems ignore paralinguistic features of speech. \n•There is no unified system that simultaneously evaluates what a candidate says (semantics),",
+    "source": "resume",
+    "chunk_size": 451
+  },
+  {
+    "id": "resume_chunk_2_5",
+    "chunk_id": 5,
+    "user_id": 2,
+    "text": "how they say it (speech delivery), and adapt to the user difficulty . \nICRACE \n5 \nLiterature Review \n•LLM-based systems: Enable dynamic Q&A but suffer from hallucination and lack of structured \nprogression \n•RAG-based methods: Improve personalization using resumes but focus only on text semantics \n•Speech analysis systems: Evaluate confidence and fluency, but are used independently of \ninterview logic \nObserved research gap",
+    "source": "resume",
+    "chunk_size": 427
+  },
+  {
+    "id": "resume_chunk_2_6",
+    "chunk_id": 6,
+    "user_id": 2,
+    "text": "interview logic \nObserved research gap \n•Existing systems fail to integrate semantic understanding (what is said) with speech delivery analysis \n(how it is said) in a unified framework. \n•Current tools lack adaptive, resume-aware progression, resulting in non-personalized and static \nin",
+    "source": "resume",
+    "chunk_size": 287
+  }
+]

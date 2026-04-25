@@ -232,6 +232,15 @@ def call_mistral_job_fit_analysis(resume_text_hash, resume_text, job_description
     This is the PRIMARY job fit analyzer.
     """
     
+    # 🚨 VALIDATE job description
+    if not job_description or len(job_description.strip()) < 50:
+        return {
+            "error": "Job description too short",
+            "match_score": 0,
+            "verdict": "Insufficient job description",
+            "analysis_method": "rejected_input"
+        }
+    
     # Truncate for context limits
     truncated_resume = resume_text[:6000]
     truncated_jd = job_description[:4000]
@@ -239,11 +248,20 @@ def call_mistral_job_fit_analysis(resume_text_hash, resume_text, job_description
     system_prompt = """You are an expert Technical Recruiter and Career Coach at a FAANG company.
     
 Your task: Analyze how well this candidate fits the job description.
-Be HONEST, SPECIFIC, and ACTIONABLE.
+Be HONEST, SPECIFIC, STRICT, and ACTIONABLE.
+
+CRITICAL RULES:
+1. Be HONEST and STRICT - don't inflate scores
+2. If job description is vague → give LOW score (<30)
+3. Penalize missing technical skills heavily
+4. Reference SPECIFIC things from the resume
+5. Give REAL resources (Coursera, freeCodeCamp, YouTube channels)
+6. Consider transferable skills but be realistic
+7. If completely wrong for role, say so clearly
 
 Return ONLY valid JSON with the following structure:
 {
-    "match_score": <0-100, BE REALISTIC>,
+    "match_score": <0-100, BE REALISTIC and STRICT>,
     "fit_breakdown": {
         "technical_skills": <0-100>,
         "experience_level": <0-100>,
@@ -269,14 +287,7 @@ Return ONLY valid JSON with the following structure:
     "resume_improvements": ["<Specific change 1>", "<Specific change 2>"],
     "verdict": "<One sentence: ready or not?>",
     "preparation_time": "<e.g., '2 weeks', 'Ready now'>"
-}
-
-CRITICAL RULES:
-1. Be HONEST - don't inflate scores
-2. Reference SPECIFIC things from the resume
-3. Give REAL resources (Coursera, freeCodeCamp, YouTube channels)
-4. Consider transferable skills
-5. If completely wrong for role, say so clearly"""
+}"""
 
     user_prompt = f"""Analyze this candidate's fit for the job:
 
@@ -299,12 +310,13 @@ Return ONLY valid JSON with the analysis. No markdown, no extra text."""
                 {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_prompt}
             ],
-            temperature=0.3,
+            temperature=0.2,  # Lower temperature for more consistent/strict scoring
             max_tokens=2500,
             response_format={"type": "json_object"}
         )
         
         content = response.choices[0].message.content
+        
         # Clean response
         content = content.strip()
         if content.startswith("```json"):
@@ -315,6 +327,13 @@ Return ONLY valid JSON with the analysis. No markdown, no extra text."""
             content = content[:-3]
         
         analysis = json.loads(content)
+        
+        # 🚨 SAFETY: clamp and validate score
+        score = analysis.get("match_score", 0)
+        if not isinstance(score, (int, float)):
+            score = 0
+        analysis["match_score"] = max(0, min(100, score))
+        
         print(f"✅ LLM Job Fit Analysis complete - Score: {analysis.get('match_score', 'N/A')}")
         
         # Add semantic score as sanity check (optional)
@@ -335,7 +354,14 @@ Return ONLY valid JSON with the analysis. No markdown, no extra text."""
         
     except Exception as e:
         print(f"❌ Mistral job fit analysis failed: {e}")
-        return None
+        
+        # Fallback response
+        return {
+            "match_score": 0,
+            "verdict": "Analysis failed",
+            "analysis_method": "fallback_error",
+            "error": str(e)
+        }
 
 def get_job_fit_analysis(resume_text, job_description):
     """

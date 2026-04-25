@@ -192,28 +192,38 @@ class RunningStatistics:
         """
         Called when user starts speaking
         Detects pause BEFORE starting new speech (thinking time)
+        
+        🔥 UPDATED:
+        - Only LONG pauses (> long_pause_threshold) are counted
+        - Micro pauses are ignored for count but still added to silence time
         """
         with self.lock:
             # 🔥 CRITICAL FIX: Only record speech during user turns
             if not getattr(self, '_in_user_turn', False):
-                # Silent ignore - don't even print to avoid spam
                 return
-                
+                    
             ts = now_ts() if ts is None else ts
             
             # Detect pause before starting new speech
             if self.last_speech_end is not None:
                 pause_duration = ts - self.last_speech_end
+
                 if pause_duration > self.pause_threshold:
-                    # Count ALL pauses during user turn
-                    self.pause_durations.append(pause_duration)
-                    self.total_silence_time += pause_duration
-                    self._log_event("pause", pause_duration, ts)
-                    print(f"⏸️ Silence segment: +{pause_duration:.2f}s (total silence: {self.total_silence_time:.1f}s)")
                     
-                    if pause_duration > self.long_pause_threshold:
+                    # ✅ ALWAYS track total silence (this is correct)
+                    self.total_silence_time += pause_duration
+
+                    # 🔥 ONLY count LONG pauses
+                    if pause_duration >= self.long_pause_threshold:
+                        self.pause_durations.append(pause_duration)
                         self.long_pause_count += 1
-                        print(f"   → Long pause detected ({pause_duration:.1f}s)")
+
+                        self._log_event("long_pause", pause_duration, ts)
+                        print(f"⏸️ Long pause: +{pause_duration:.2f}s (total silence: {self.total_silence_time:.1f}s)")
+
+                    else:
+                        # 🔥 Micro pause (ignored for count)
+                        self._log_event("micro_pause", pause_duration, ts)
             
             # Start new speech segment if not already started
             if self.current_speech_start is None:
@@ -228,7 +238,6 @@ class RunningStatistics:
                     self.first_voice_recorded = True
                     self._log_event("response_latency", latency, ts)
                     print(f"⏱️ Response latency: {latency:.2f}s")
-
 
     def record_speech_end(self, ts=None):
         """Called when user stops speaking"""
@@ -345,7 +354,7 @@ class RunningStatistics:
             # Hesitation rate (pauses per minute of speaking)
             meaningful_pauses = [
                 p for p in self.pause_durations 
-                if 0.7 <= p <= 5.0   # 🔥 ignore micro pauses, keep real hesitation
+                if p>=5  # 🔥 ignore micro pauses, keep real hesitation
             ]
             hesitation_rate = len(meaningful_pauses) / speaking_minutes if speaking_minutes > 0 else 0.0
             
