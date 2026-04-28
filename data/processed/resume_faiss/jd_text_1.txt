@@ -1,1 +1,51 @@
-SFWEF
+📄 SQL Developer – Infosys (Sample JD)
+🧠 About Infosys
+
+Infosys is a global leader in next-generation digital services and consulting, helping enterprises navigate their digital transformation using data-driven solutions.
+
+🎯 Role: SQL Developer
+
+As an SQL Developer, you will be responsible for designing, developing, and maintaining database systems that support business applications. You will work closely with backend developers, data engineers, and business analysts to ensure efficient data handling and reporting.
+
+🚀 Key Responsibilities
+Design, write, and optimize complex SQL queries
+Develop and maintain stored procedures, triggers, and views
+Perform database performance tuning and query optimization
+Work with large datasets and ensure data integrity
+Collaborate with application teams for backend data integration
+Debug and resolve database-related issues
+Create reports and dashboards using SQL-based tools
+Ensure security and compliance of database systems
+🛠️ Required Skills
+💻 Technical Skills
+Strong proficiency in SQL (MySQL / PostgreSQL / Oracle / SQL Server)
+Experience with joins, indexing, query optimization
+Knowledge of stored procedures, triggers, views
+Understanding of database normalization & schema design
+Basic knowledge of ETL processes
+Familiarity with data warehousing concepts
+🧠 Concepts
+ACID properties
+Indexing & partitioning
+Query execution plans
+Transactions & concurrency control
+⭐ Preferred Qualifications
+Experience with PL/SQL or T-SQL
+Exposure to cloud databases (AWS RDS / Azure SQL / GCP BigQuery)
+Knowledge of BI tools (Power BI / Tableau)
+Familiarity with Python for data processing
+Understanding of Big Data tools (Hadoop, Spark)
+🎓 Eligibility
+B.E./B.Tech/M.Tech in CS, IT, or related field
+Strong analytical and problem-solving skills
+Good communication and teamwork
+💼 Job Details
+Role: SQL Developer / Database Developer
+Experience: 0–2 years (Freshers can apply)
+Location: Bangalore / Pune / Hyderabad / Remote
+Employment Type: Full-time
+📈 What You’ll Gain
+Exposure to enterprise-scale database systems
+Hands-on experience with real-world data pipelines
+Opportunity to work with global clients
+Career growth into Data Engineering / Analytics roles

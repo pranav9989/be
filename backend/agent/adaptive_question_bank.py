@@ -168,7 +168,7 @@ class AdaptiveQuestionBank:
                         ]},
                         {"name": "Indexing", "concepts": [
                             "clustered index", "non-clustered index",
-                            "B+ tree", "index scan", "full table scan"
+                            "B plus tree", "index scan", "full table scan"
                         ]},
                         {"name": "ACID", "concepts": [
                             "atomicity", "consistency",
@@ -180,27 +180,11 @@ class AdaptiveQuestionBank:
                             "non-repeatable read",
                             "phantom read"
                         ]},
-                        {"name": "Locks", "concepts": [
-                            "shared lock", "exclusive lock",
-                            "two phase locking",
-                            "lock granularity"
-                        ]},
                         {"name": "Deadlocks", "concepts": [
                             "deadlock conditions",
                             "deadlock prevention",
                             "deadlock avoidance",
                             "wait for graph"
-                        ]},
-                        {"name": "Query Optimization", "concepts": [
-                            "query plan",
-                            "execution plan",
-                            "cost based optimization"
-                        ]},
-                        {"name": "Distributed DB", "concepts": [
-                            "CAP theorem",
-                            "two phase commit",
-                            "replication",
-                            "sharding"
                         ]},
                         {"name": "NoSQL", "concepts": [
                             "sql vs nosql",
@@ -228,22 +212,11 @@ class AdaptiveQuestionBank:
                         {"name": "Interfaces & Abstraction", "concepts": [
                             "abstract class",
                             "interface",
-                            "abstract vs interface"
                         ]},
                         {"name": "Object Relationships", "concepts": [
                             "association",
                             "aggregation",
                             "composition"
-                        ]},
-                        {"name": "Virtual Functions", "concepts": [
-                            "virtual function",
-                            "runtime polymorphism",
-                            "vtable"
-                        ]},
-                        {"name": "Design Patterns", "concepts": [
-                            "singleton pattern",
-                            "factory pattern",
-                            "observer pattern"
                         ]},
                         {"name": "Memory Management", "concepts": [
                             "garbage collection",
@@ -256,10 +229,16 @@ class AdaptiveQuestionBank:
                 {
                     "name": "OS",
                     "subtopics": [
+                        {"name": "OS BASICS", "concepts": [
+                            "operating system",
+                            "kernel",
+                            "user mode",
+                            "system call",
+                            "types of os",
+                        ]},
                         {"name": "Processes & Threads", "concepts": [
                             "process",
                             "thread",
-                            "process vs thread",
                             "context switching",
                             "multithreading"
                         ]},
@@ -289,28 +268,6 @@ class AdaptiveQuestionBank:
                             "paging",
                             "segmentation",
                             "fragmentation"
-                        ]},
-                        {"name": "Virtual Memory", "concepts": [
-                            "page fault",
-                            "thrashing"
-                        ]},
-                        {"name": "Page Replacement", "concepts": [
-                            "LRU",
-                            "FIFO",
-                            "optimal replacement"
-                        ]},
-                        {"name": "System Calls", "concepts": [
-                            "fork",
-                            "exec",
-                            "wait",
-                            "user mode",
-                            "kernel mode"
-                        ]},
-                        {"name": "IPC", "concepts": [
-                            "pipe",
-                            "shared memory",
-                            "message queue",
-                            "socket"
                         ]}
                     ]
                 }

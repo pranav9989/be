@@ -32,10 +32,7 @@ class SubtopicTracker:
             "Indexing",
             "ACID",
             "Transactions",
-            "Locks",
             "Deadlocks",
-            "Query Optimization",
-            "Distributed DB",
             "NoSQL"
         ],
         "OOPS": [
@@ -43,20 +40,15 @@ class SubtopicTracker:
             "Constructors",
             "Interfaces & Abstraction",
             "Object Relationships",
-            "Virtual Functions",
-            "Design Patterns",
             "Memory Management"
         ],
         "OS": [
+            "OS BASICS",
             "Processes & Threads",
             "CPU Scheduling",
             "Synchronization",
             "Deadlocks",
             "Memory Management",
-            "Virtual Memory",
-            "Page Replacement",
-            "System Calls",
-            "IPC"
         ]
     }
     

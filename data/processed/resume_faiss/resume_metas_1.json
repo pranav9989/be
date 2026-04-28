@@ -3,31 +3,31 @@
     "id": "resume_chunk_1_0",
     "chunk_id": 0,
     "user_id": 1,
-    "text": "Sample ICRACE2026 Paper for A4 Page Size\nFirst Author#, Second Author*, Third Author#\n#First-Third Department, First-Third University\nAddress\n1first.author@first-third.edu\n3third.author@first-third.edu\n*Second Company\n Address Including Country Name\n2second.author@second.com\nReceived xx/xx/xxxx; Revised xx/xx/xxxx; Accepted xx/xx/xxxx",
+    "text": "Pranav Raghuvanshi\nB.E. in Artificial Intelligence & Data Science\n+91-9321531659\npranavraghuvanshi2924@gmail.com\nGitHub: pranav9989\nLinkedIn: pr2924\nEducation\nDegree/Certificate Institute/Board CGPA/Percentage Year\nB.E. Vivekanand Education Society’s Institute of\nTechnology, Chembur, Mumbai8.87(SEM - VI) 2022-Present\nHSC CBSE Board 86.8% 2022\nSSC CBSE Board 84.6% 2020\nExperience\n•VESIT - Summer Internship | Research InternMay 2024 – July 2024\nDeep Learning (Fetus Abnormality Classification)",
     "source": "resume",
-    "chunk_size": 336
+    "chunk_size": 495
   },
   {
     "id": "resume_chunk_1_1",
     "chunk_id": 1,
     "user_id": 1,
-    "text": "Abstract— This document gives formatting instructions for authors preparing papers for publication in the Proceedings of a ICRACE journal.  The authors must follow the instructions given in the document for the papers to be published.  You can use this document as both an instruction set and as a template into which you can type your own text.\n©2026  ICRACE. All rights reserved\nKeywords— Put your keywords here, keywords are separated by comma.",
+    "text": "Deep Learning (Fetus Abnormality Classification)\n◦Engineered a multi-class CNN to classify fetal brain abnormalities by fine-tuning a EfficientNet model.\n◦Achieved a test accuracy of 90% and a weighted F1-score of 0.90, demonstrating high performance on a\n16-class medical imaging problem.\n◦Key Technologies: Python, TensorFlow/Keras, Transfer Learning, CNN, OpenCV, Scikit-learn, Pandas.\nProjects\n•URL Shortener February 2025\nTools & Technologies: Node.js, Express, MongoDB, EJS[/github]",
     "source": "resume",
-    "chunk_size": 447
+    "chunk_size": 488
   },
   {
     "id": "resume_chunk_1_2",
     "chunk_id": 2,
     "user_id": 1,
-    "text": "Introduction\nThis document is a template.  An electronic copy can be downloaded from the conference website.  For questions on paper guidelines, please contact the conference publications committee as indicated on the conference website.  Information about final paper submission is available from the conference website.",
+    "text": "◦Developed a web application for URL shortening and management using Node.js, Express and MongoDB.\n◦Implemented URL shortening, retrieval of original links, and user-friendly URL management, including\ndeletion.\n•Online Shoppers Purchasing Intention PredictionApril 2025\nTools & Technologies: Python, scikit-learn, Pandas, NumPy, Streamlit, Matplotlib, Seaborn.[/github]\n◦Developed a machine learning model to predict online shoppers’ purchase intent from behavioral features.",
     "source": "resume",
-    "chunk_size": 321
+    "chunk_size": 475
   },
   {
     "id": "resume_chunk_1_3",
     "chunk_id": 3,
     "user_id": 1,
-    "text": "Page Layout\nAn easy way to comply with the conference paper formatting requirements is to use this document as a template and simply type your text into it.\nPage Layout\nYour paper must use a page size corresponding to A4 which is 210mm (8.27\") wide and 297mm (11.69\") long.  The margins must be set as follows:\nTop = 19mm (0.75\")\nBottom = 43mm (0.75\")\nLeft = Right = 14.32mm (0.56\")\nYour paper must be in Single column format.",
+    "text": "◦Performed feature engineering and trained multiple classifiers to optimize prediction accuracy.\n◦Deployed the best-performing XGBoost model via Streamlit with 90.39% accuracy.\n•RAG-Powered Research Paper AssistantJuly 2025\nTools & Technologies: Python, Streamlit, ChromaDB, LangChain, Gemini API[/github]\n◦Built a RAG system to answer queries from PDFs or arXiv papers using semantic search and LLM-based\nresponse generation.",
     "source": "resume",
     "chunk_size": 426
   },
@@ -35,40 +35,24 @@
     "id": "resume_chunk_1_4",
     "chunk_id": 4,
     "user_id": 1,
-    "text": "Page Style\nAll paragraphs must be indented.  All paragraphs must be justified, i.e. both left-justified and right-justified.\nText Font of Entire Document\nThe entire document should be in Times New Roman or Times font.  Type 3 fonts must not be used.  Other font types may be used if needed for special purposes.\nRecommended font sizes are shown in Table 1.\nTitle and Author Details",
+    "text": "response generation.\n◦Used SentenceTransformer for embeddings and stored them in ChromaDB for fast retrieval.\n◦Integrated a simple Streamlit UI for uploading, querying, and displaying grounded answers.\nKey Courses Taken\n•Relevant Course Work: Data Structures, Computer Organization and Architecture, Theory Of\nComputation, Analysis of Algorithm, DBMS, Computer Network, Operating Systems, Data Warehousing\nand Management, Artificial Intelligence, Machine Learning.",
     "source": "resume",
-    "chunk_size": 381
+    "chunk_size": 464
   },
   {
     "id": "resume_chunk_1_5",
     "chunk_id": 5,
     "user_id": 1,
-    "text": "Title and Author Details\nTitle must be in 24 pt Regular font.  Author name must be in 11 pt Regular font.  Author affiliation must be in 10 pt Italic.  Email address must be in 9 pt Courier Regular font. Received, revised and accepted dates must be in 10 pt regular point.",
+    "text": "•CertificationsFundamentals of Deep Learning, SQL (Intermediate) Certificate\nSkills\n•Programming Languages: Java, Python, JavaScript.\n•Tools & Technologies: Git, Github, NumPy, Pandas, Matplotlib, Sk-learn, Tensorflow, HTML, CSS,\nExpressJs, NodeJs, StreamLit.\n•Databases: MySQL, MongoDB.\nExtra Curricular\n•Solved 500+ DSA problems on Leetcode and GFG, enhancing problem-solving and coding skills.\n•Competed in the V Code competition conducted by the Training and Placement Cell, showcasing coding",
     "source": "resume",
-    "chunk_size": 272
+    "chunk_size": 496
   },
   {
     "id": "resume_chunk_1_6",
     "chunk_id": 6,
     "user_id": 1,
-    "text": "All title and author details must be in single-column format and must be cantered.\n\n\nTABLE 1\nFont Sizes for Papers",
+    "text": "proficiency under time constraints.\n•Chosen among top 40 teams from 13,240+ registrations in VoyageHacks 2.0; advanced past the first round.",
     "source": "resume",
-    "chunk_size": 114
-  },
-  {
-    "id": "resume_chunk_1_7",
-    "chunk_id": 7,
-    "user_id": 1,
-    "text": "Every word in a title must be capitalized except for short minor words such as “a”, “an”, “and”, “as”, “at”, “by”, “for”, “from”, “if”, “in”, “into”, “on”, “or”, “of”, “the”, “to”, “with”.\nAuthor details must not show any professional title (e.g. Managing Director), any academic title (e.g. Dr.) or any membership of any professional organization (e.g. Senior Member IEEE).\nTo avoid confusion, the family name must be written as the last part of each author name (e.g. John A.K. Smith).",
-    "source": "resume",
-    "chunk_size": 487
-  },
-  {
-    "id": "resume_chunk_1_8",
-    "chunk_id": 8,
-    "user_id": 1,
-    "text": "Each affiliation must include, at the very least, the name of the company and the name of the country where the author is based (e.g. Causal Productions Pty Ltd, Australia).\nEmail address is compulsory for the corresponding",
-    "source": "resume",
-    "chunk_size": 223
+    "chunk_size": 140
   }
 ]
