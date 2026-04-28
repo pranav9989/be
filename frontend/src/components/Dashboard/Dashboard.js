@@ -49,19 +49,19 @@ const Dashboard = ({ user, onLogout }) => {
     },
 
     {
-      title: "Mock Interview",
+      title: "Adaptive Technical Interview",
       description: "A fully autonomous, voice-first interview where AI asks, listens, thinks, and adapts in real time.",
       icon: "fas fa-brain",
       link: "/agentic-interview",
       color: "agentic"
     },
-    {
-      title: "Resume vs Reality",
-      description: "Paste a target Job Description to instantly find skill gaps and get a personalized 2-week study plan.",
-      icon: "fas fa-bullseye",
-      link: "/gap-analysis",
-      color: "gold"
-    }
+    // {
+    //   title: "Resume vs Reality",
+    //   description: "Paste a target Job Description to instantly find skill gaps and get a personalized 2-week study plan.",
+    //   icon: "fas fa-bullseye",
+    //   link: "/gap-analysis",
+    //   color: "gold"
+    // }
   ];
 
   return (

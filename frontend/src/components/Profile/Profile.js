@@ -548,11 +548,11 @@ const Profile = ({ user, onLogout }) => {
                 <div className="progress-header">
                   <h3><i className="fas fa-chart-line"></i> Learning Progress</h3>
                   <div className="progress-summary">
-                    <span className="avg-mastery">
+                    {/* <span className="avg-mastery">
                       Avg Mastery: <strong style={{ color: getMasteryColor(progress.overall?.avg_mastery || 0) }}>
                         {formatMastery(progress.overall?.avg_mastery || 0)}
                       </strong>
-                    </span>
+                    </span> */}
                   </div>
                 </div>
 
